@@ -90,6 +90,52 @@ export const {
 }>({ networkId: undefined, address: undefined, accountInfo: undefined });
 
 // swap select token
+
+export const {
+  atom: swapSwapSelectFromTokenAtom,
+  use: useSwapSwapSelectFromTokenAtom,
+} = contextAtom<ISwapToken | undefined>(undefined);
+export const {
+  atom: swapBridgeSelectFromTokenAtom,
+  use: useSwapBridgeSelectFromTokenAtom,
+} = contextAtom<ISwapToken | undefined>(undefined);
+export const {
+  atom: swapSwapSelectToTokenAtom,
+  use: useSwapSwapSelectToTokenAtom,
+} = contextAtom<ISwapToken | undefined>(undefined);
+export const {
+  atom: swapBridgeSelectToTokenAtom,
+  use: useSwapBridgeSelectToTokenAtom,
+} = contextAtom<ISwapToken | undefined>(undefined);
+
+export const {
+  atom: swapSwapFromTokenAmountAtom,
+  use: useSwapSwapFromTokenAmountAtom,
+} = contextAtom<string>('');
+export const {
+  atom: swapBridgeFromTokenAmountAtom,
+  use: useSwapBridgeFromTokenAmountAtom,
+} = contextAtom<string>('');
+
+export const {
+  atom: swapSwapSelectedFromTokenBalanceAtom,
+  use: useSwapSwapSelectedFromTokenBalanceAtom,
+} = contextAtom('');
+
+export const {
+  atom: swapSwapSelectedToTokenBalanceAtom,
+  use: useSwapSwapSelectedToTokenBalanceAtom,
+} = contextAtom('');
+export const {
+  atom: swapBridgeSelectedFromTokenBalanceAtom,
+  use: useSwapBridgeSelectedFromTokenBalanceAtom,
+} = contextAtom('');
+
+export const {
+  atom: swapBridgeSelectedToTokenBalanceAtom,
+  use: useSwapBridgeSelectedToTokenBalanceAtom,
+} = contextAtom('');
+
 export const {
   atom: swapSelectFromTokenAtom,
   use: useSwapSelectFromTokenAtom,
@@ -97,16 +143,6 @@ export const {
 
 export const { atom: swapSelectToTokenAtom, use: useSwapSelectToTokenAtom } =
   contextAtom<ISwapToken | undefined>(undefined);
-
-export const {
-  atom: swapSwapModalSelectFromTokenAtom,
-  use: useSwapModalSelectFromTokenAtom,
-} = contextAtom<ISwapToken | undefined>(undefined);
-
-export const {
-  atom: swapSwapModalSelectToTokenAtom,
-  use: useSwapModalSelectToTokenAtom,
-} = contextAtom<ISwapToken | undefined>(undefined);
 
 export const {
   atom: swapFromTokenAmountAtom,
