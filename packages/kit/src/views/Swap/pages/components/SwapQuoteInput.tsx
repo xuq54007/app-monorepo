@@ -92,7 +92,9 @@ const SwapQuoteInput = ({
           size="small"
           zIndex={2}
           disabled={swapTokenDetailLoading.from || swapTokenDetailLoading.to}
-          onPress={alternationToken}
+          onPress={() => {
+            alternationToken(swapTabType);
+          }}
           mb="$-3"
         />
         <SwapInputContainer

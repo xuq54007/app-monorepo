@@ -1,6 +1,8 @@
 import BigNumber from 'bignumber.js';
 import { isNil } from 'lodash';
 
+import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
+import { dangerAllNetworkRepresent } from '@onekeyhq/shared/src/config/presetNetworks';
 import {
   ESwapProviderSort,
   swapSlippageAutoValue,
@@ -31,6 +33,7 @@ import {
   useSwapBridgeSilenceQuoteLoading,
   useSwapBridgeSlippagePercentageCustomValueAtom,
   useSwapBridgeSlippagePercentageModeAtom,
+  useSwapNetworksAtom,
   useSwapSwapAlertsAtom,
   useSwapSwapFromTokenAmountAtom,
   useSwapSwapManualSelectQuoteProvidersAtom,
@@ -409,4 +412,22 @@ export function useSwapSelectedToTokenBalance(type: ESwapTabSwitchType) {
     balance = bridgeToBalance;
   }
   return balance;
+}
+
+export function useSwapNetworksIncludeAllNetwork(type: ESwapTabSwitchType) {
+  const [networks] = useSwapNetworksAtom();
+  const typeNetworks = networks.filter((net) =>
+    type === ESwapTabSwitchType.BRIDGE
+      ? net.supportCrossChainSwap
+      : net.supportSingleSwap,
+  );
+  const allNetwork = {
+    networkId: getNetworkIdsMap().onekeyall,
+    name: dangerAllNetworkRepresent.name,
+    symbol: dangerAllNetworkRepresent.symbol,
+    logoURI: dangerAllNetworkRepresent.logoURI,
+    shortcode: dangerAllNetworkRepresent.shortcode,
+    isAllNetworks: true,
+  };
+  return [allNetwork, ...typeNetworks];
 }

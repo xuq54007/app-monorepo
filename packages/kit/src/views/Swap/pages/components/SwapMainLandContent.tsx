@@ -3,10 +3,7 @@ import { useCallback } from 'react';
 import type { IPageNavigationProp } from '@onekeyhq/components';
 import { EPageType, YStack } from '@onekeyhq/components';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
-import {
-  useSwapActions,
-  useSwapQuoteCurrentSelectAtom,
-} from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import {
   EJotaiContextStoreNames,
   useInAppNotificationAtom,
@@ -86,10 +83,10 @@ const SwapMainLandContent = ({
       fromToken: ISwapToken;
       toToken: ISwapToken;
     }) => {
-      void selectFromToken(fromToken, true);
-      void selectToToken(toToken);
+      void selectFromToken(swapTabType, fromToken, true);
+      void selectToToken(swapTabType, toToken);
     },
-    [selectFromToken, selectToToken],
+    [selectFromToken, selectToToken, swapTabType],
   );
   const onOpenProviderList = useCallback(() => {
     navigation.pushModal(EModalRoutes.SwapModal, {
