@@ -26,6 +26,7 @@ import {
   swapTokenCatchMapMaxCount,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
+  IFetchQuoteResult,
   IFetchQuotesParams,
   IFetchTokensParams,
   ISwapAlertActionData,
@@ -60,6 +61,13 @@ import {
   swapAllNetworkActionLockAtom,
   swapAllNetworkTokenListMapAtom,
   swapAutoSlippageSuggestedValueAtom,
+  swapBridgeFromTokenAmountAtom,
+  swapBridgeManualSelectQuoteProvidersAtom,
+  swapBridgeSelectFromTokenAtom,
+  swapBridgeSelectToTokenAtom,
+  swapBridgeSlippageDialogOpeningAtom,
+  swapBridgeSlippagePercentageCustomValueAtom,
+  swapBridgeSlippagePercentageModeAtom,
   swapBuildTxFetchingAtom,
   swapFromTokenAmountAtom,
   swapManualSelectQuoteProvidersAtom,
@@ -80,6 +88,13 @@ import {
   swapSilenceQuoteLoading,
   swapSlippagePercentageAtom,
   swapSlippagePercentageModeAtom,
+  swapSwapFromTokenAmountAtom,
+  swapSwapManualSelectQuoteProvidersAtom,
+  swapSwapSelectFromTokenAtom,
+  swapSwapSelectToTokenAtom,
+  swapSwapSlippageDialogOpeningAtom,
+  swapSwapSlippagePercentageCustomValueAtom,
+  swapSwapSlippagePercentageModeAtom,
   swapTokenFetchingAtom,
   swapTokenMapAtom,
   swapTokenMetadataAtom,
@@ -100,14 +115,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     await backgroundApiProxy.simpleDb.swapNetworksSort.setRawData({
       data: sortNetworks,
     });
-  });
-
-  resetSwapSlippage = contextAtomMethod((get, set) => {
-    set(swapSlippagePercentageModeAtom(), ESwapSlippageSegmentKey.AUTO);
-  });
-
-  cleanManualSelectQuoteProviders = contextAtomMethod((get, set) => {
-    set(swapManualSelectQuoteProvidersAtom(), undefined);
   });
 
   catchSwapTokensMap = contextAtomMethod(
@@ -222,52 +229,80 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     return null;
   };
 
-  resetSwapTokenData = contextAtomMethod(async (get, set, type) => {
-    if (type === ESwapDirectionType.FROM) {
-      set(swapSelectFromTokenAtom(), undefined);
-      set(swapSelectedFromTokenBalanceAtom(), '');
-    } else {
-      set(swapSelectToTokenAtom(), undefined);
-      set(swapSelectedToTokenBalanceAtom(), '');
-    }
-    set(swapQuoteListAtom(), []);
-    set(rateDifferenceAtom(), undefined);
-  });
+  resetSwapTokenData = contextAtomMethod(
+    async (
+      get,
+      set,
+      type: ESwapTabSwitchType,
+      direction: ESwapDirectionType,
+    ) => {
+      if (direction === ESwapDirectionType.FROM) {
+        set(swapSelectFromTokenAtom(), undefined);
+        set(swapSelectedFromTokenBalanceAtom(), '');
+      } else {
+        set(swapSelectToTokenAtom(), undefined);
+        set(swapSelectedToTokenBalanceAtom(), '');
+      }
+      set(swapQuoteListAtom(), []);
+      set(rateDifferenceAtom(), undefined);
+    },
+  );
 
   selectFromToken = contextAtomMethod(
-    async (get, set, token: ISwapToken, disableCheckToToken?: boolean) => {
-      const toToken = get(swapSelectToTokenAtom());
-      const swapTypeSwitchValue = get(swapTypeSwitchAtom());
-      this.cleanManualSelectQuoteProviders.call(set);
-      this.resetSwapSlippage.call(set);
-      await this.syncNetworksSort.call(set, token.networkId);
+    async (
+      get,
+      set,
+      type: ESwapTabSwitchType,
+      token: ISwapToken,
+      disableCheckToToken?: boolean,
+    ) => {
+      const fromTokenPre = this.swapDataSelectFromToken.call(set, type);
+      const toToken = this.swapDataSelectToToken.call(set, type);
+      if (!equalTokenNoCaseSensitive({ token1: fromTokenPre, token2: token })) {
+        this.swapActionsSlippagePercentageMode.call(
+          set,
+          type,
+          ESwapSlippageSegmentKey.AUTO,
+        );
+        this.swapActionsManualSelectQuoteProviders.call(set, type);
+        await this.syncNetworksSort.call(set, token.networkId);
+      }
       const needChangeToToken = this.needChangeToken({
         token,
-        swapTypeSwitchValue,
+        swapTypeSwitchValue: type,
         toToken,
       });
       if (needChangeToToken && !disableCheckToToken) {
-        set(swapSelectToTokenAtom(), undefined);
-        set(swapSelectFromTokenAtom(), token);
-        set(swapSelectToTokenAtom(), needChangeToToken);
+        this.swapActionsSelectToToken.call(set, type);
+        this.swapActionsSelectFromToken.call(set, type, token);
+        this.swapActionsSelectToToken.call(set, type, needChangeToToken);
       } else {
         if (
           toToken?.networkId !== token.networkId &&
-          swapTypeSwitchValue === ESwapTabSwitchType.SWAP
+          type === ESwapTabSwitchType.SWAP
         ) {
-          void this.resetSwapTokenData.call(set, ESwapDirectionType.TO);
+          void this.resetSwapTokenData.call(set, type, ESwapDirectionType.TO); // TODO
         }
-        set(swapSelectFromTokenAtom(), token);
+        this.swapActionsSelectFromToken.call(set, type, token);
       }
     },
   );
 
-  selectToToken = contextAtomMethod(async (get, set, token: ISwapToken) => {
-    this.cleanManualSelectQuoteProviders.call(set);
-    this.resetSwapSlippage.call(set);
-    await this.syncNetworksSort.call(set, token.networkId);
-    set(swapSelectToTokenAtom(), token);
-  });
+  selectToToken = contextAtomMethod(
+    async (get, set, type: ESwapTabSwitchType, token: ISwapToken) => {
+      const toTokenPre = this.swapDataSelectToToken.call(set, type);
+      if (!equalTokenNoCaseSensitive({ token1: token, token2: toTokenPre })) {
+        this.swapActionsSlippagePercentageMode.call(
+          set,
+          type,
+          ESwapSlippageSegmentKey.AUTO,
+        );
+        this.swapActionsManualSelectQuoteProviders.call(set, type);
+        await this.syncNetworksSort.call(set, token.networkId);
+      }
+      set(swapSelectToTokenAtom(), token);
+    },
+  );
 
   alternationToken = contextAtomMethod((get, set) => {
     const fromToken = get(swapSelectFromTokenAtom());
@@ -1550,6 +1585,116 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       }
     },
   );
+
+  // data---
+  swapDataSelectFromToken = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType) => {
+      let data: ISwapToken | undefined;
+      if (type === ESwapTabSwitchType.SWAP) {
+        data = get(swapSwapSelectFromTokenAtom());
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        data = get(swapBridgeSelectFromTokenAtom());
+      }
+      return data;
+    },
+  );
+
+  swapDataSelectToToken = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType) => {
+      let data: ISwapToken | undefined;
+      if (type === ESwapTabSwitchType.SWAP) {
+        data = get(swapSwapSelectToTokenAtom());
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        data = get(swapBridgeSelectToTokenAtom());
+      }
+      return data;
+    },
+  );
+
+  // actions---
+  swapActionsSlippageDialogOpening = contextAtomMethod(
+    (
+      get,
+      set,
+      type: ESwapTabSwitchType,
+      data: { status: boolean; flag?: string | undefined },
+    ) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapSlippageDialogOpeningAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeSlippageDialogOpeningAtom(), data);
+      }
+    },
+  );
+
+  swapActionsSlippagePercentageCustomValue = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data: number) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapSlippagePercentageCustomValueAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeSlippagePercentageCustomValueAtom(), data);
+      }
+    },
+  );
+
+  swapActionsSlippagePercentageMode = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data: ESwapSlippageSegmentKey) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapSlippagePercentageModeAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeSlippagePercentageModeAtom(), data);
+      }
+    },
+  );
+
+  swapActionsManualSelectQuoteProviders = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data?: IFetchQuoteResult) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapManualSelectQuoteProvidersAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeManualSelectQuoteProvidersAtom(), data);
+      }
+    },
+  );
+
+  swapActionsFromTokenAmount = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data: string) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapFromTokenAmountAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeFromTokenAmountAtom(), data);
+      }
+    },
+  );
+
+  swapActionsSelectFromToken = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data?: ISwapToken) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapSelectFromTokenAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeSelectFromTokenAtom(), data);
+      }
+    },
+  );
+
+  swapActionsSelectToToken = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data?: ISwapToken) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapSelectToTokenAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeSelectToTokenAtom(), data);
+      }
+    },
+  );
 }
 
 const createActions = memoFn(() => new ContentJotaiActionsSwap());
@@ -1581,6 +1726,21 @@ export const useSwapActions = () => {
   const { cleanQuoteInterval, cleanApprovingInterval, closeQuoteEvent } =
     actions;
 
+  // data
+  const swapDataSelectFromToken = actions.swapDataSelectFromToken.use();
+  const swapDataSelectToToken = actions.swapDataSelectToToken.use();
+
+  // actions
+  const swapActionsSlippageDialogOpening =
+    actions.swapActionsSlippageDialogOpening.use();
+
+  const swapActionsSlippagePercentageCustomValue =
+    actions.swapActionsSlippagePercentageCustomValue.use();
+  const swapActionsSlippagePercentageMode =
+    actions.swapActionsSlippagePercentageMode.use();
+
+  const swapActionsFromTokenAmount = actions.swapActionsFromTokenAmount.use();
+
   return useRef({
     selectFromToken,
     quoteAction,
@@ -1599,5 +1759,11 @@ export const useSwapActions = () => {
     swapLoadAllNetworkTokenList,
     closeQuoteEvent,
     swapTypeSwitchAction,
+    swapActionsSlippageDialogOpening,
+    swapActionsSlippagePercentageCustomValue,
+    swapActionsSlippagePercentageMode,
+    swapActionsFromTokenAmount,
+    swapDataSelectFromToken,
+    swapDataSelectToToken,
   });
 };

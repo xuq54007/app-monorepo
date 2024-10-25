@@ -48,7 +48,7 @@ interface ISwapMainLoadProps {
   pageType?: EPageType.modal;
 }
 
-const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
+const SwapMainLand = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
   const { buildTx, approveTx, wrappedTx } = useSwapBuildTx();
   const { fetchLoading } = useSwapInit(swapInitParams);
   const navigation =
@@ -195,7 +195,7 @@ const SwapMainLandWithPageType = (props: ISwapMainLoadProps) => (
         : EJotaiContextStoreNames.swap
     }
   >
-    <SwapMainLoad {...props} />
+    <SwapMainLand {...props} />
   </SwapProviderMirror>
 );
 

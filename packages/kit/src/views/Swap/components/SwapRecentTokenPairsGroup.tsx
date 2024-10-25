@@ -11,8 +11,6 @@ import {
   type ISwapToken,
 } from '@onekeyhq/shared/types/swap/types';
 
-import { useSwapTypeSwitchAtom } from '../../../states/jotai/contexts/swap';
-
 const needFoldingMinCount = 6;
 
 interface ISwapRecentTokenPairsGroupProps {
@@ -25,30 +23,31 @@ interface ISwapRecentTokenPairsGroupProps {
     toToken: ISwapToken;
   }) => void;
   tokenPairs: { fromToken: ISwapToken; toToken: ISwapToken }[];
+  swapTabType: ESwapTabSwitchType;
 }
 
 const SwapRecentTokenPairsGroup = ({
   onSelectTokenPairs,
   tokenPairs,
   fromTokenAmount,
+  swapTabType,
 }: ISwapRecentTokenPairsGroupProps) => {
   const intl = useIntl();
   const [openMore, setOpenMore] = useState(false);
-  const [swapTypeSwitchAtom] = useSwapTypeSwitchAtom();
   const fromTokenAmountBN = new BigNumber(fromTokenAmount ?? 0);
   const tokenPairsInCurrentType = useMemo(() => {
-    if (swapTypeSwitchAtom === ESwapTabSwitchType.BRIDGE) {
+    if (swapTabType === ESwapTabSwitchType.BRIDGE) {
       return tokenPairs?.filter(
         (tokens) => tokens.fromToken.networkId !== tokens.toToken.networkId,
       );
     }
-    if (swapTypeSwitchAtom === ESwapTabSwitchType.SWAP) {
+    if (swapTabType === ESwapTabSwitchType.SWAP) {
       return tokenPairs?.filter(
         (tokens) => tokens.toToken.networkId === tokens.fromToken.networkId,
       );
     }
     return [];
-  }, [swapTypeSwitchAtom, tokenPairs]);
+  }, [swapTabType, tokenPairs]);
   const rerenderRecentTokenPairs = useCallback(() => {
     const tokenPairsToShow =
       !openMore && tokenPairsInCurrentType.length >= needFoldingMinCount

@@ -138,28 +138,28 @@ export const {
 } = contextAtom('');
 // tab----
 
-export const {
-  atom: swapSelectFromTokenAtom,
-  use: useSwapSelectFromTokenAtom,
-} = contextAtom<ISwapToken | undefined>(undefined);
+// export const {
+//   atom: swapSelectFromTokenAtom,
+//   use: useSwapSelectFromTokenAtom,
+// } = contextAtom<ISwapToken | undefined>(undefined);
 
-export const { atom: swapSelectToTokenAtom, use: useSwapSelectToTokenAtom } =
-  contextAtom<ISwapToken | undefined>(undefined);
+// export const { atom: swapSelectToTokenAtom, use: useSwapSelectToTokenAtom } =
+//   contextAtom<ISwapToken | undefined>(undefined);
 
-export const {
-  atom: swapFromTokenAmountAtom,
-  use: useSwapFromTokenAmountAtom,
-} = contextAtom<string>('');
+// export const {
+//   atom: swapFromTokenAmountAtom,
+//   use: useSwapFromTokenAmountAtom,
+// } = contextAtom<string>('');
 
-export const {
-  atom: swapSelectedFromTokenBalanceAtom,
-  use: useSwapSelectedFromTokenBalanceAtom,
-} = contextAtom('');
+// export const {
+//   atom: swapSelectedFromTokenBalanceAtom,
+//   use: useSwapSelectedFromTokenBalanceAtom,
+// } = contextAtom('');
 
-export const {
-  atom: swapSelectedToTokenBalanceAtom,
-  use: useSwapSelectedToTokenBalanceAtom,
-} = contextAtom('');
+// export const {
+//   atom: swapSelectedToTokenBalanceAtom,
+//   use: useSwapSelectedToTokenBalanceAtom,
+// } = contextAtom('');
 
 export const {
   atom: swapAllNetworkTokenListMapAtom,
@@ -318,18 +318,44 @@ export const {
   use: useSwapBridgeManualSelectQuoteProvidersAtom,
 } = contextAtom<IFetchQuoteResult | undefined>(undefined);
 
-// tab--
+export const {
+  atom: swapSwapSelectTokenDetailFetchingAtom,
+  use: useSwapSwapSelectTokenDetailFetchingAtom,
+} = contextAtom<Record<ESwapDirectionType, boolean>>({
+  'from': false,
+  'to': false,
+});
 
 export const {
-  atom: swapManualSelectQuoteProvidersAtom,
-  use: useSwapManualSelectQuoteProvidersAtom,
-} = contextAtom<IFetchQuoteResult | undefined>(undefined);
+  atom: swapBridgeSelectTokenDetailFetchingAtom,
+  use: useSwapBridgeSelectTokenDetailFetchingAtom,
+} = contextAtom<Record<ESwapDirectionType, boolean>>({
+  'from': false,
+  'to': false,
+});
 
-export const { atom: swapQuoteListAtom, use: useSwapQuoteListAtom } =
-  contextAtom<IFetchQuoteResult[]>([]);
+export const {
+  atom: swapSwapSilenceQuoteLoading,
+  use: useSwapSwapSilenceQuoteLoading,
+} = contextAtom<boolean>(false);
 
-export const { atom: swapProviderSortAtom, use: useSwapProviderSortAtom } =
-  contextAtom<ESwapProviderSort>(ESwapProviderSort.RECOMMENDED);
+export const {
+  atom: swapBridgeSilenceQuoteLoading,
+  use: useSwapBridgeSilenceQuoteLoading,
+} = contextAtom<boolean>(false);
+
+// tab--
+
+// export const {
+//   atom: swapManualSelectQuoteProvidersAtom,
+//   use: useSwapManualSelectQuoteProvidersAtom,
+// } = contextAtom<IFetchQuoteResult | undefined>(undefined);
+
+// export const { atom: swapQuoteListAtom, use: useSwapQuoteListAtom } =
+//   contextAtom<IFetchQuoteResult[]>([]);
+
+// export const { atom: swapProviderSortAtom, use: useSwapProviderSortAtom } =
+//   contextAtom<ESwapProviderSort>(ESwapProviderSort.RECOMMENDED);
 
 export const {
   atom: swapQuoteActionLockAtom,
@@ -348,15 +374,15 @@ export const {
   use: useSwapQuoteIntervalCountAtom,
 } = contextAtom<number>(0);
 
-export const {
-  atom: swapQuoteEventTotalCountAtom,
-  use: useSwapQuoteEventTotalCountAtom,
-} = contextAtom<number>(0);
+// export const {
+//   atom: swapQuoteEventTotalCountAtom,
+//   use: useSwapQuoteEventTotalCountAtom,
+// } = contextAtom<number>(0);
 
-export const {
-  atom: swapShouldRefreshQuoteAtom,
-  use: useSwapShouldRefreshQuoteAtom,
-} = contextAtom<boolean>(false);
+// export const {
+//   atom: swapShouldRefreshQuoteAtom,
+//   use: useSwapShouldRefreshQuoteAtom,
+// } = contextAtom<boolean>(false);
 
 export const {
   atom: swapSortedQuoteListAtom,
@@ -364,15 +390,19 @@ export const {
 } = contextAtomComputed<IFetchQuoteResult[]>((get) => {
   const type = get(swapTypeSwitchAtom());
   let list: IFetchQuoteResult[] = [];
+  let fromTokenAmount = '';
+  let sortType = ESwapProviderSort.RECOMMENDED;
   if (type === ESwapTabSwitchType.BRIDGE) {
     list = get(swapBridgeQuoteListAtom());
+    fromTokenAmount = get(swapBridgeFromTokenAmountAtom());
+    sortType = get(swapBridgeProviderSortAtom());
   }
   if (type === ESwapTabSwitchType.SWAP) {
     list = get(swapSwapQuoteListAtom());
+    fromTokenAmount = get(swapSwapFromTokenAmountAtom());
+    sortType = get(swapSwapProviderSortAtom());
   }
-  const fromTokenAmount = get(swapFromTokenAmountAtom());
   const fromTokenAmountBN = new BigNumber(fromTokenAmount);
-  const sortType = get(swapProviderSortAtom());
   const resetList: IFetchQuoteResult[] = list.map(
     (item: IFetchQuoteResult) => ({
       ...item,
@@ -509,21 +539,21 @@ export const { atom: swapTokenMetadataAtom, use: useSwapTokenMetadataAtom } =
     };
   });
 
-export const { atom: swapQuoteFetchingAtom, use: useSwapQuoteFetchingAtom } =
-  contextAtom<boolean>(false);
+// export const { atom: swapQuoteFetchingAtom, use: useSwapQuoteFetchingAtom } =
+//   contextAtom<boolean>(false);
 
-export const {
-  atom: swapSelectTokenDetailFetchingAtom,
-  use: useSwapSelectTokenDetailFetchingAtom,
-} = contextAtom<Record<ESwapDirectionType, boolean>>({
-  'from': false,
-  'to': false,
-});
+// export const {
+//   atom: swapSelectTokenDetailFetchingAtom,
+//   use: useSwapSelectTokenDetailFetchingAtom,
+// } = contextAtom<Record<ESwapDirectionType, boolean>>({
+//   'from': false,
+//   'to': false,
+// });
 
-export const {
-  atom: swapSilenceQuoteLoading,
-  use: useSwapSilenceQuoteLoading,
-} = contextAtom<boolean>(false);
+// export const {
+//   atom: swapSilenceQuoteLoading,
+//   use: useSwapSilenceQuoteLoading,
+// } = contextAtom<boolean>(false);
 
 export const {
   atom: swapProviderSupportReceiveAddressAtom,
@@ -539,43 +569,43 @@ export const {
 });
 
 // swap state
-export const { atom: swapAlertsAtom, use: useSwapAlertsAtom } = contextAtom<{
-  states: ISwapAlertState[];
-  quoteId: string;
-}>({ states: [], quoteId: '' });
+// export const { atom: swapAlertsAtom, use: useSwapAlertsAtom } = contextAtom<{
+//   states: ISwapAlertState[];
+//   quoteId: string;
+// }>({ states: [], quoteId: '' });
 
-export const { atom: rateDifferenceAtom, use: useRateDifferenceAtom } =
-  contextAtom<{ value: string; unit: ESwapRateDifferenceUnit } | undefined>(
-    undefined,
-  );
+// export const { atom: rateDifferenceAtom, use: useRateDifferenceAtom } =
+//   contextAtom<{ value: string; unit: ESwapRateDifferenceUnit } | undefined>(
+//     undefined,
+//   );
 
 // swap approve
-export const {
-  atom: swapQuoteApproveAllowanceUnLimitAtom,
-  use: useSwapQuoteApproveAllowanceUnLimitAtom,
-} = contextAtom<boolean>(false);
+// export const {
+//   atom: swapQuoteApproveAllowanceUnLimitAtom,
+//   use: useSwapQuoteApproveAllowanceUnLimitAtom,
+// } = contextAtom<boolean>(false);
 
-export const {
-  atom: swapApproveAllowanceSelectOpenAtom,
-  use: useSwapApproveAllowanceSelectOpenAtom,
-} = contextAtom<boolean>(false);
+// export const {
+//   atom: swapApproveAllowanceSelectOpenAtom,
+//   use: useSwapApproveAllowanceSelectOpenAtom,
+// } = contextAtom<boolean>(false);
 
 // swap slippage
 
-export const {
-  atom: swapSlippagePercentageModeAtom,
-  use: useSwapSlippagePercentageModeAtom,
-} = contextAtom<ESwapSlippageSegmentKey>(ESwapSlippageSegmentKey.AUTO);
+// export const {
+//   atom: swapSlippagePercentageModeAtom,
+//   use: useSwapSlippagePercentageModeAtom,
+// } = contextAtom<ESwapSlippageSegmentKey>(ESwapSlippageSegmentKey.AUTO);
 
-export const {
-  atom: swapAutoSlippageSuggestedValueAtom,
-  use: useSwapAutoSlippageSuggestedValueAtom,
-} = contextAtom<ISwapAutoSlippageSuggestedValue | undefined>(undefined);
+// export const {
+//   atom: swapAutoSlippageSuggestedValueAtom,
+//   use: useSwapAutoSlippageSuggestedValueAtom,
+// } = contextAtom<ISwapAutoSlippageSuggestedValue | undefined>(undefined);
 
-export const {
-  atom: swapSlippagePercentageCustomValueAtom,
-  use: useSwapSlippagePercentageCustomValueAtom,
-} = contextAtom<number>(swapSlippageAutoValue);
+// export const {
+//   atom: swapSlippagePercentageCustomValueAtom,
+//   use: useSwapSlippagePercentageCustomValueAtom,
+// } = contextAtom<number>(swapSlippageAutoValue);
 
 export const {
   atom: swapSlippagePercentageAtom,
@@ -601,7 +631,10 @@ export const {
   if (mode === ESwapSlippageSegmentKey.AUTO) {
     value = autoValue;
   } else {
-    value = get(swapSlippagePercentageCustomValueAtom());
+    value =
+      type === ESwapTabSwitchType.BRIDGE
+        ? get(swapBridgeSlippagePercentageCustomValueAtom())
+        : get(swapSwapSlippagePercentageCustomValueAtom());
   }
   return {
     slippageItem: {
@@ -612,13 +645,13 @@ export const {
   };
 });
 
-export const {
-  atom: swapSlippageDialogOpeningAtom,
-  use: useSwapSlippageDialogOpeningAtom,
-} = contextAtom<{ status: boolean; flag?: string }>({ status: false });
+// export const {
+//   atom: swapSlippageDialogOpeningAtom,
+//   use: useSwapSlippageDialogOpeningAtom,
+// } = contextAtom<{ status: boolean; flag?: string }>({ status: false });
 
 // swap build_tx
-export const {
-  atom: swapBuildTxFetchingAtom,
-  use: useSwapBuildTxFetchingAtom,
-} = contextAtom<boolean>(false);
+// export const {
+//   atom: swapBuildTxFetchingAtom,
+//   use: useSwapBuildTxFetchingAtom,
+// } = contextAtom<boolean>(false);

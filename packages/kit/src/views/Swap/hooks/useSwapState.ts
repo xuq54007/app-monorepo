@@ -90,18 +90,6 @@ function useSwapWarningCheck() {
   ]);
 }
 
-export function useSwapQuoteLoading() {
-  const [quoteFetching] = useSwapQuoteFetchingAtom();
-  const [silenceQuoteLoading] = useSwapSilenceQuoteLoading();
-  return quoteFetching || silenceQuoteLoading;
-}
-
-export function useSwapQuoteEventFetching() {
-  const [quoteEventTotalCount] = useSwapQuoteEventTotalCountAtom();
-  const [quoteResult] = useSwapQuoteListAtom();
-  return quoteEventTotalCount > 0 && quoteResult.length < quoteEventTotalCount;
-}
-
 export function useSwapActionState() {
   const intl = useIntl();
   const quoteLoading = useSwapQuoteLoading();

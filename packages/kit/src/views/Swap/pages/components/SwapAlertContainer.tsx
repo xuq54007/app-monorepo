@@ -4,7 +4,6 @@ import { useIntl } from 'react-intl';
 
 import { Alert, Toast, YStack } from '@onekeyhq/components';
 import { useAccountSelectorCreateAddress } from '@onekeyhq/kit/src/components/AccountSelector/hooks/useAccountSelectorCreateAddress';
-import { useSwapSelectTokenDetailFetchingAtom } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useAccountManualCreatingAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type {
@@ -18,9 +17,16 @@ import {
 
 export interface ISwapAlertContainerProps {
   alerts: ISwapAlertState[];
+  selectTokenDetailLoading: {
+    from: boolean;
+    to: boolean;
+  };
 }
 
-const SwapAlertContainer = ({ alerts }: ISwapAlertContainerProps) => {
+const SwapAlertContainer = ({
+  alerts,
+  selectTokenDetailLoading,
+}: ISwapAlertContainerProps) => {
   const alertsSorted = useMemo(
     () =>
       alerts?.sort((a) => {
@@ -34,7 +40,6 @@ const SwapAlertContainer = ({ alerts }: ISwapAlertContainerProps) => {
       }),
     [alerts],
   );
-  const [selectTokenDetailLoading] = useSwapSelectTokenDetailFetchingAtom();
   const intl = useIntl();
   const [accountManualCreatingAtom, setAccountManualCreatingAtom] =
     useAccountManualCreatingAtom();

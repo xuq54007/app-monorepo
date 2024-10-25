@@ -3,25 +3,24 @@ import { memo } from 'react';
 import BigNumber from 'bignumber.js';
 
 import { IconButton, YStack } from '@onekeyhq/components';
-import {
-  useSwapActions,
-  useSwapFromTokenAmountAtom,
-  useSwapQuoteCurrentSelectAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
-  useSwapSelectTokenDetailFetchingAtom,
-  useSwapSelectedFromTokenBalanceAtom,
-  useSwapSelectedToTokenBalanceAtom,
-} from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import type { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 import { ESwapDirectionType } from '@onekeyhq/shared/types/swap/types';
 
 import { useSwapFromAccountNetworkSync } from '../../hooks/useSwapAccount';
 import { useSwapApproving } from '../../hooks/useSwapApproving';
-import { useSwapQuote } from '../../hooks/useSwapQuote';
 import {
+  useSwapFromTokenAmount,
+  useSwapQuoteCurrentSelect,
   useSwapQuoteEventFetching,
   useSwapQuoteLoading,
-} from '../../hooks/useSwapState';
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+  useSwapSelectTokenDetailFetching,
+  useSwapSelectedFromTokenBalance,
+  useSwapSelectedToTokenBalance,
+} from '../../hooks/useSwapData';
+import { useSwapQuote } from '../../hooks/useSwapQuote';
 import { validateAmountInput } from '../../utils/utils';
 
 import SwapInputContainer from './SwapInputContainer';
@@ -29,22 +28,25 @@ import SwapInputContainer from './SwapInputContainer';
 interface ISwapQuoteInputProps {
   selectLoading?: boolean;
   onSelectToken: (type: ESwapDirectionType) => void;
+  swapTabType: ESwapTabSwitchType;
 }
 
 const SwapQuoteInput = ({
   onSelectToken,
   selectLoading,
+  swapTabType,
 }: ISwapQuoteInputProps) => {
-  const [fromInputAmount, setFromInputAmount] = useSwapFromTokenAmountAtom();
-  const swapQuoteLoading = useSwapQuoteLoading();
-  const quoteEventFetching = useSwapQuoteEventFetching();
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
-  const [swapTokenDetailLoading] = useSwapSelectTokenDetailFetchingAtom();
+  const fromInputAmount = useSwapFromTokenAmount(swapTabType);
+  const { swapActionsFromTokenAmount } = useSwapActions().current;
+  const swapQuoteLoading = useSwapQuoteLoading(swapTabType);
+  const quoteEventFetching = useSwapQuoteEventFetching(swapTabType);
+  const fromToken = useSwapSelectFromToken(swapTabType);
+  const toToken = useSwapSelectToToken(swapTabType);
+  const swapTokenDetailLoading = useSwapSelectTokenDetailFetching(swapTabType);
   const { alternationToken } = useSwapActions().current;
-  const [swapQuoteCurrentSelect] = useSwapQuoteCurrentSelectAtom();
-  const [fromTokenBalance] = useSwapSelectedFromTokenBalanceAtom();
-  const [toTokenBalance] = useSwapSelectedToTokenBalanceAtom();
+  const swapQuoteCurrentSelect = useSwapQuoteCurrentSelect(swapTabType);
+  const fromTokenBalance = useSwapSelectedFromTokenBalance(swapTabType);
+  const toTokenBalance = useSwapSelectedToTokenBalance(swapTabType);
   useSwapQuote();
   useSwapFromAccountNetworkSync();
   useSwapApproving();
@@ -57,7 +59,7 @@ const SwapQuoteInput = ({
         selectTokenLoading={selectLoading}
         onAmountChange={(value) => {
           if (validateAmountInput(value, fromToken?.decimals)) {
-            setFromInputAmount(value);
+            swapActionsFromTokenAmount(swapTabType, value);
           }
         }}
         amountValue={fromInputAmount}
@@ -78,7 +80,7 @@ const SwapQuoteInput = ({
                 .toFixed();
             }
           }
-          setFromInputAmount(maxAmount);
+          swapActionsFromTokenAmount(swapTabType, maxAmount);
         }}
         onSelectToken={onSelectToken}
         balance={fromTokenBalance}

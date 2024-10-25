@@ -14,21 +14,12 @@ import {
   XStack,
 } from '@onekeyhq/components';
 import { useDebounce } from '@onekeyhq/kit/src/hooks/useDebounce';
-import {
-  useSwapFromTokenAmountAtom,
-  useSwapProviderSupportReceiveAddressAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
-  useSwapSlippageDialogOpeningAtom,
-  useSwapSlippagePercentageAtom,
-  useSwapSlippagePercentageCustomValueAtom,
-  useSwapSlippagePercentageModeAtom,
-  useSwapTokenMetadataAtom,
-} from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { ESwapSlippageSegmentKey } from '@onekeyhq/shared/types/swap/types';
 import type {
+  ESwapTabSwitchType,
   IFetchQuoteResult,
   ISwapSlippageSegmentItem,
   ISwapToken,
@@ -39,7 +30,15 @@ import SwapCommonInfoItem from '../../components/SwapCommonInfoItem';
 import SwapProviderInfoItem from '../../components/SwapProviderInfoItem';
 import SwapQuoteResultRate from '../../components/SwapQuoteResultRate';
 import { useSwapRecipientAddressInfo } from '../../hooks/useSwapAccount';
-import { useSwapQuoteLoading } from '../../hooks/useSwapState';
+import {
+  useSwapFromTokenAmount,
+  useSwapProviderSupportReceiveAddress,
+  useSwapQuoteLoading,
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+  useSwapSlippagePercentage,
+  useSwapTokenMetadata,
+} from '../../hooks/useSwapData';
 
 import SwapApproveAllowanceSelectContainer from './SwapApproveAllowanceSelectContainer';
 import SwapSlippageContentContainer from './SwapSlippageContentContainer';
@@ -49,38 +48,45 @@ interface ISwapQuoteResultProps {
   quoteResult?: IFetchQuoteResult;
   onOpenProviderList?: () => void;
   onOpenRecipient?: () => void;
+  swapTabType: ESwapTabSwitchType;
 }
 
 const SwapQuoteResult = ({
   onOpenProviderList,
   quoteResult,
+  swapTabType,
   onOpenRecipient,
 }: ISwapQuoteResultProps) => {
   const [openResult, setOpenResult] = useState(false);
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
-  const [fromTokenAmount] = useSwapFromTokenAmountAtom();
+  const fromToken = useSwapSelectFromToken(swapTabType);
+  const toToken = useSwapSelectToToken(swapTabType);
+  const [fromTokenAmount] = useSwapFromTokenAmount(swapTabType);
   const [settingsPersistAtom] = useSettingsPersistAtom();
-  const [swapTokenMetadata] = useSwapTokenMetadataAtom();
-  const [swapProviderSupportReceiveAddress] =
-    useSwapProviderSupportReceiveAddressAtom();
-  const swapQuoteLoading = useSwapQuoteLoading();
+  const swapTokenMetadata = useSwapTokenMetadata(swapTabType);
+  const swapProviderSupportReceiveAddress =
+    useSwapProviderSupportReceiveAddress(swapTabType);
+  const swapQuoteLoading = useSwapQuoteLoading(swapTabType);
   const intl = useIntl();
-  const [, setSwapSlippageDialogOpening] = useSwapSlippageDialogOpeningAtom();
-  const [{ slippageItem, autoValue }] = useSwapSlippagePercentageAtom();
-  const [, setSwapSlippageCustomValue] =
-    useSwapSlippagePercentageCustomValueAtom();
-  const [, setSwapSlippageMode] = useSwapSlippagePercentageModeAtom();
+  const {
+    swapActionsSlippageDialogOpening,
+    swapActionsSlippagePercentageCustomValue,
+    swapActionsSlippagePercentageMode,
+  } = useSwapActions().current;
+  const { slippageItem, autoValue } = useSwapSlippagePercentage(swapTabType);
   const dialogRef = useRef<ReturnType<typeof Dialog.show> | null>(null);
   const slippageOnSave = useCallback(
     (item: ISwapSlippageSegmentItem, close: IDialogInstance['close']) => {
-      setSwapSlippageMode(item.key);
+      swapActionsSlippagePercentageMode(swapTabType, item.key);
       if (item.key === ESwapSlippageSegmentKey.CUSTOM) {
-        setSwapSlippageCustomValue(item.value);
+        swapActionsSlippagePercentageCustomValue(swapTabType, item.value);
       }
       void close({ flag: 'save' });
     },
-    [setSwapSlippageCustomValue, setSwapSlippageMode],
+    [
+      swapActionsSlippagePercentageCustomValue,
+      swapActionsSlippagePercentageMode,
+      swapTabType,
+    ],
   );
 
   const swapRecipientAddress = useSwapRecipientAddressInfo(
@@ -170,10 +176,13 @@ const SwapQuoteResult = ({
         />
       ),
       onOpen: () => {
-        setSwapSlippageDialogOpening({ status: true });
+        swapActionsSlippageDialogOpening(swapTabType, { status: true });
       },
       onClose: (extra) => {
-        setSwapSlippageDialogOpening({ status: false, flag: extra?.flag });
+        swapActionsSlippageDialogOpening(swapTabType, {
+          status: false,
+          flag: extra?.flag,
+        });
       },
     });
   }, [
@@ -181,7 +190,8 @@ const SwapQuoteResult = ({
     slippageItem,
     autoValue,
     slippageOnSave,
-    setSwapSlippageDialogOpening,
+    swapActionsSlippageDialogOpening,
+    swapTabType,
   ]);
   const fromAmountDebounce = useDebounce(fromTokenAmount, 500, {
     leading: true,
