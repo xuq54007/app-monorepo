@@ -183,9 +183,9 @@ const TabViewGallery = () => (
                 borderBottomWidth: 0,
               }}
               data={[
-                { title: 'Swap' },
-                { title: 'Bridge' },
-                { title: 'Limit' },
+                { title: 'Swap', page: <Stack>Swap</Stack> },
+                { title: 'Bridge', page: <Stack>Bridge</Stack> },
+                { title: 'Limit', page: <Stack>Limit</Stack> },
               ]}
               itemContainerStyle={{
                 px: '$2.5',

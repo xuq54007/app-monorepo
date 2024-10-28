@@ -7,6 +7,7 @@ import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRo
 import { useSettingsAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETabRoutes } from '@onekeyhq/shared/src/routes';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
+import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import type {
   ESwapTabSwitchType,
   ISwapToken,
@@ -252,7 +253,8 @@ export function useSwapRecipientAddressInfo(enable: boolean) {
       if (
         swapToAddressInfo.networkId &&
         fromAccountInfo.accountInfo?.account?.id &&
-        fromAccountInfo.accountInfo?.indexedAccount?.id
+        fromAccountInfo.accountInfo?.indexedAccount?.id &&
+        !networkUtils.isAllNetwork({ networkId: swapToAddressInfo.networkId })
       ) {
         const accountInfos =
           await backgroundApiProxy.serviceStaking.getEarnAccount({

@@ -301,6 +301,7 @@ const SwapQuoteResult = ({
                 <SwapSlippageTriggerContainer
                   isLoading={swapQuoteLoading}
                   onPress={slippageHandleClick}
+                  type={swapTabType}
                 />
               ) : null}
               {quoteResult?.fee?.estimatedFeeFiatValue ? (

@@ -4,27 +4,30 @@ import BigNumber from 'bignumber.js';
 import { useIntl } from 'react-intl';
 
 import { SizableText } from '@onekeyhq/components';
-import { useSwapSlippagePercentageAtom } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import {
   swapSlippageDecimal,
   swapSlippageWillAheadMinValue,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
+import type { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 import { ESwapSlippageSegmentKey } from '@onekeyhq/shared/types/swap/types';
 
 import SwapCommonInfoItem from '../../components/SwapCommonInfoItem';
+import { useSwapSlippagePercentage } from '../../hooks/useSwapData';
 
 interface ISwapSlippageTriggerContainerProps {
   isLoading: boolean;
   onPress: () => void;
+  type: ESwapTabSwitchType;
 }
 
 const SwapSlippageTriggerContainer = ({
   isLoading,
   onPress,
+  type,
 }: ISwapSlippageTriggerContainerProps) => {
   const intl = useIntl();
-  const [{ slippageItem }] = useSwapSlippagePercentageAtom();
+  const { slippageItem } = useSwapSlippagePercentage(type);
   const displaySlippage = useMemo(
     () =>
       new BigNumber(slippageItem.value)

@@ -31,7 +31,10 @@ import type { ISendTxOnSuccessData } from '@onekeyhq/shared/types/tx';
 
 import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
 import { useSendConfirm } from '../../../hooks/useSendConfirm';
-import { useSwapActions } from '../../../states/jotai/contexts/swap';
+import {
+  useSwapActions,
+  useSwapTypeSwitchAtom,
+} from '../../../states/jotai/contexts/swap';
 
 import { useSwapAddressInfo } from './useSwapAccount';
 import {
@@ -42,7 +45,8 @@ import {
 } from './useSwapData';
 import { useSwapTxHistoryActions } from './useSwapTxHistory';
 
-export function useSwapBuildTx(swapType: ESwapTabSwitchType) {
+export function useSwapBuildTx() {
+  const [swapType] = useSwapTypeSwitchAtom();
   const fromToken = useSwapSelectFromToken(swapType);
   const toToken = useSwapSelectToToken(swapType);
   const { slippageItem } = useSwapSlippagePercentage(swapType);

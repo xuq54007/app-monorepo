@@ -28,7 +28,7 @@ export function useSwapApproving(swapType: ESwapTabSwitchType) {
   if (swapApprovingTxRef.current !== swapApprovingTransaction) {
     swapApprovingTxRef.current = swapApprovingTransaction;
   }
-  const { approveTx } = useSwapBuildTx(swapType);
+  const { approveTx } = useSwapBuildTx();
   const approveTxRef = useRef(approveTx);
   if (approveTxRef.current !== approveTx) {
     approveTxRef.current = approveTx;

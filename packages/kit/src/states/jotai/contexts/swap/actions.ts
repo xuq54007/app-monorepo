@@ -1644,10 +1644,13 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         set,
         type,
       );
+      let accountNetworkId = swapAccountNetworkId;
       const fromToken = this.swapDataSelectFromToken.call(set, type);
+      if (fromToken?.networkId !== accountNetworkId) {
+        accountNetworkId = fromToken?.networkId;
+      }
       const toToken = this.swapDataSelectToToken.call(set, type);
-      const fromNetworkDefault =
-        swapDefaultSetTokens[swapAccountNetworkId ?? ''];
+      const fromNetworkDefault = swapDefaultSetTokens[accountNetworkId ?? ''];
       if (
         fromToken &&
         !swapSupportNetworks.some(
@@ -1663,16 +1666,14 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         void this.resetSwapTokenData.call(set, type, ESwapDirectionType.TO);
       }
       if (
-        swapSupportNetworks.some(
-          (net) => net.networkId === swapAccountNetworkId,
-        )
+        swapSupportNetworks.some((net) => net.networkId === accountNetworkId)
       ) {
         if (type === ESwapTabSwitchType.BRIDGE) {
           let shouldSetFromToken = null;
           if (fromToken) {
             shouldSetFromToken = fromToken;
           }
-          if (!fromToken && toToken?.networkId !== swapAccountNetworkId) {
+          if (!fromToken && toToken?.networkId !== accountNetworkId) {
             if (fromNetworkDefault?.fromToken?.isNative) {
               shouldSetFromToken = fromNetworkDefault?.fromToken;
               this.swapActionsSelectFromToken.call(

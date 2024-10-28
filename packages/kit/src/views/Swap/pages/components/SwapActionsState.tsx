@@ -24,12 +24,14 @@ import {
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { openUrlExternal } from '@onekeyhq/shared/src/utils/openUrlUtils';
+import { swapApproveResetValue } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import { ESwapDirectionType } from '@onekeyhq/shared/types/swap/types';
 
 import {
   useSwapAddressInfo,
   useSwapRecipientAddressInfo,
 } from '../../hooks/useSwapAccount';
+import { useSwapBuildTx } from '../../hooks/useSwapBuiltTx';
 import {
   useSwapFromTokenAmount,
   useSwapQuoteCurrentSelect,
@@ -39,21 +41,7 @@ import {
 } from '../../hooks/useSwapData';
 import { useSwapActionState } from '../../hooks/useSwapState';
 
-interface ISwapActionsStateProps {
-  onBuildTx: () => void;
-  onWrapped: () => void;
-  onApprove: (
-    amount: string,
-    isMax?: boolean,
-    shoutResetApprove?: boolean,
-  ) => void;
-}
-
-const SwapActionsState = ({
-  onBuildTx,
-  onApprove,
-  onWrapped,
-}: ISwapActionsStateProps) => {
+const SwapActionsState = () => {
   const intl = useIntl();
   const [swapTabType] = useSwapTypeSwitchAtom();
   const fromToken = useSwapSelectFromToken(swapTabType);
@@ -69,6 +57,27 @@ const SwapActionsState = ({
   );
   const quoteLoading = useSwapQuoteLoading(swapTabType);
   const [{ swapBatchApproveAndSwap }] = useSettingsPersistAtom();
+  const { buildTx, approveTx, wrappedTx } = useSwapBuildTx();
+
+  const onBuildTx = useCallback(async () => {
+    await buildTx();
+  }, [buildTx]);
+
+  const onApprove = useCallback(
+    async (amount: string, isMax?: boolean, shoutResetApprove?: boolean) => {
+      if (shoutResetApprove) {
+        await approveTx(swapApproveResetValue, isMax, amount);
+      } else {
+        await approveTx(amount, isMax);
+      }
+    },
+    [approveTx],
+  );
+
+  const onWrapped = useCallback(async () => {
+    await wrappedTx();
+  }, [wrappedTx]);
+
   const handleApprove = useCallback(() => {
     if (swapActionState.shoutResetApprove) {
       Dialog.confirm({
@@ -76,7 +85,7 @@ const SwapActionsState = ({
           id: ETranslations.global_continue,
         }),
         onConfirm: () => {
-          onApprove(fromAmount, swapActionState.approveUnLimit, true);
+          void onApprove(fromAmount, swapActionState.approveUnLimit, true);
         },
         showCancelButton: true,
         title: intl.formatMessage({
@@ -88,7 +97,7 @@ const SwapActionsState = ({
         icon: 'ErrorOutline',
       });
     } else {
-      onApprove(fromAmount, swapActionState.approveUnLimit);
+      void onApprove(fromAmount, swapActionState.approveUnLimit);
     }
   }, [
     fromAmount,
@@ -115,10 +124,10 @@ const SwapActionsState = ({
       }
 
       if (swapActionState.isWrapped) {
-        onWrapped();
+        void onWrapped();
         return;
       }
-      onBuildTx();
+      void onBuildTx();
     }
   }, [
     cleanQuoteInterval,
