@@ -1,5 +1,11 @@
-import { forwardRef, useCallback, useMemo, useRef } from 'react';
-import type { ComponentType, ReactElement } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from 'react';
+import type { ComponentType, ForwardedRef, ReactElement } from 'react';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
@@ -32,6 +38,10 @@ export interface IPageContainerProps
   shouldSelectedPageIndex?: (pageIndex: number) => boolean;
 }
 
+export interface ITabPageInstance {
+  scrollPageIndex: (pageIndex: number) => void;
+}
+
 const PageComponent = (
   {
     data,
@@ -47,7 +57,7 @@ const PageComponent = (
   }: IPageContainerProps,
   // fix missing forwardRef warnings.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _: any,
+  forwardedRef: ForwardedRef<ITabPageInstance>,
 ) => {
   const pageManagerProps = useMemo(
     () => ({
@@ -61,6 +71,19 @@ const PageComponent = (
     () => new PageManager(pageManagerProps),
     [pageManagerProps],
   );
+
+  const handleSelectedPageIndex = useCallback(
+    (pageIndex: number) => {
+      pageManager?.contentView?.current?.scrollPageIndex(pageIndex);
+      onSelectedPageIndex?.(pageIndex);
+    },
+    [onSelectedPageIndex, pageManager?.contentView],
+  );
+
+  useImperativeHandle(forwardedRef, () => ({
+    scrollPageIndex: handleSelectedPageIndex,
+  }));
+
   const Content = pageManager.renderContentView;
   const point = useRef({ x: 0, y: 0 });
   const renderContentItem = useCallback(
@@ -103,9 +126,7 @@ const PageComponent = (
         {...pageManagerProps}
         {...headerProps}
         shouldSelectedPageIndex={shouldSelectedPageIndex}
-        onSelectedPageIndex={(pageIndex: number) => {
-          pageManager?.contentView?.current?.scrollPageIndex(pageIndex);
-        }}
+        onSelectedPageIndex={handleSelectedPageIndex}
       />
       <Stack w={contentWidth} flex={1}>
         <Content
