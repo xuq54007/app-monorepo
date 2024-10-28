@@ -1,16 +1,16 @@
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
-import type { ForwardedRef } from 'react';
+import type { ForwardedRef, ReactElement } from 'react';
 
 import { PageHeaderView } from '@onekeyfe/react-native-tab-page-view';
 import { useProps, useStyle } from '@tamagui/core';
 import { Pressable, StyleSheet } from 'react-native';
+import { type GetProps, XStack } from 'tamagui';
 
 import { useThemeValue } from '../../hooks';
 import { Icon } from '../../primitives';
 
 import type { StackStyle, TextStyle } from '@tamagui/web/types/types';
 import type { NativeScrollEvent, View } from 'react-native';
-import type { GetProps } from 'tamagui';
 
 export type IHeaderProps = Omit<
   GetProps<typeof PageHeaderView>,
@@ -32,11 +32,13 @@ export type IHeaderProps = Omit<
     itemTitleSelectedStyle?: TextStyle & { color: string };
     cursorStyle?: StackStyle;
     showHorizontalScrollButton?: boolean;
+    headerRight?: ReactElement;
   };
 
 const HeaderComponent = (
   {
     style,
+    headerRight,
     titleFromItem = (item: { title: string }) => item.title,
     contentContainerStyle = { pr: '$5' },
     scrollContainerStyle = {},
@@ -161,7 +163,7 @@ const HeaderComponent = (
   rawCursorStyle.left = reloadWebPxNumber(rawCursorStyle?.left);
   rawCursorStyle.right = reloadWebPxNumber(rawCursorStyle?.right);
   rawCursorStyle.width = reloadWebPxNumber(rawCursorStyle?.width);
-  return (
+  const content = (
     <>
       <PageHeaderView
         ref={ref}
@@ -263,6 +265,14 @@ const HeaderComponent = (
         </>
       ) : null}
     </>
+  );
+  return headerRight ? (
+    <XStack jc="space-between" {...itemContainerStyle}>
+      {content}
+      {headerRight}
+    </XStack>
+  ) : (
+    content
   );
 };
 

@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 
 import { useIntl } from 'react-intl';
 
@@ -23,7 +23,7 @@ const SwapHeaderContainer = ({
   bridgePage,
 }: ISwapHeaderContainerProps) => {
   const intl = useIntl();
-  const headerRight = useCallback(() => <SwapHeaderRightActionContainer />, []);
+  const headerRight = useMemo(() => <SwapHeaderRightActionContainer />, []);
   console.log('swap__defaultSwapType--', defaultSwapType);
   const ref = useRef<ITabPageInstance | null>(null);
 
@@ -52,7 +52,6 @@ const SwapHeaderContainer = ({
           },
         ]}
         initialScrollIndex={0}
-        ListHeaderComponent={headerRight()}
         headerProps={{
           style: {
             height: '$8',
@@ -74,6 +73,7 @@ const SwapHeaderContainer = ({
             borderRadius: '$3',
             borderCurve: 'continuous',
           },
+          headerRight,
         }}
         // onSelectedPageIndex={(index: number) => {
         //   // void swapTypeSwitchAction(
@@ -82,7 +82,6 @@ const SwapHeaderContainer = ({
         //   // );
         // }}
       />
-      {/* {headerRight()} */}
     </YStack>
   );
 };
