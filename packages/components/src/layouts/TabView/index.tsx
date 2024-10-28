@@ -19,6 +19,7 @@ export const Tab = withStaticProperties(forwardRef(TabComponent), {
   SelectedLabel,
 });
 
+export type { ITabPageInstance } from './Page';
 export { renderNestedScrollView, NestedScrollView } from './NestedScrollView';
 export { useTabIsRefreshingFocused } from './RefreshingFocused';
 export { useTabScrollViewRef } from './StickyTabComponent';
