@@ -29,13 +29,7 @@ import { TokenListItem } from '@onekeyhq/kit/src/components/TokenListItem';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import { useDebounce } from '@onekeyhq/kit/src/hooks/useDebounce';
 import { useAccountSelectorActions } from '@onekeyhq/kit/src/states/jotai/contexts/accountSelector';
-import {
-  useSwapActions,
-  useSwapNetworksIncludeAllNetworkAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
-  useSwapTypeSwitchAtom,
-} from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type { IFuseResult } from '@onekeyhq/shared/src/modules3rdParty/fuse';
@@ -63,6 +57,11 @@ import useConfigurableChainSelector from '../../../ChainSelector/hooks/useChainS
 import NetworkToggleGroup from '../../components/SwapNetworkToggleGroup';
 import SwapPopularTokenGroup from '../../components/SwapPopularTokenGroup';
 import { useSwapAddressInfo } from '../../hooks/useSwapAccount';
+import {
+  useSwapNetworksIncludeAllNetwork,
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+} from '../../hooks/useSwapData';
 import { useSwapTokenList } from '../../hooks/useSwapTokens';
 import { SwapProviderMirror } from '../SwapProviderMirror';
 
@@ -76,27 +75,30 @@ const SwapTokenSelectPage = () => {
     useRoute<
       RouteProp<IModalSwapParamList, EModalSwapRoutes.SwapTokenSelect>
     >();
-  const type = useMemo(
-    () => route.params?.type ?? ESwapDirectionType.FROM,
+  const directionType = useMemo(
+    () => route.params?.directionType ?? ESwapDirectionType.FROM,
+    [route.params?.directionType],
+  );
+  const swapType = useMemo(
+    () => route.params?.type ?? ESwapTabSwitchType.SWAP,
     [route.params?.type],
   );
   const intl = useIntl();
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const searchKeywordDebounce = useDebounce(searchKeyword, 500);
-  const [swapAllSupportNetworks] = useSwapNetworksIncludeAllNetworkAtom();
-  const [swapNetworksIncludeAllNetwork] =
-    useSwapNetworksIncludeAllNetworkAtom();
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [swapTypeSwitch] = useSwapTypeSwitchAtom();
+  const swapAllSupportNetworks = useSwapNetworksIncludeAllNetwork(swapType);
+  const swapNetworksIncludeAllNetwork =
+    useSwapNetworksIncludeAllNetwork(swapType);
+  const fromToken = useSwapSelectFromToken(swapType);
   const swapFromAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const swapToAddressInfo = useSwapAddressInfo(ESwapDirectionType.TO);
-  const [toToken] = useSwapSelectToTokenAtom();
+  const toToken = useSwapSelectToToken(swapType);
   const [settingsPersistAtom] = useSettingsPersistAtom();
   const { selectFromToken, selectToToken, syncNetworksSort } =
     useSwapActions().current;
   const { updateSelectedAccountNetwork } = useAccountSelectorActions().current;
   const syncDefaultNetworkSelect = useCallback(() => {
-    if (type === ESwapDirectionType.FROM) {
+    if (directionType === ESwapDirectionType.FROM) {
       if (fromToken?.networkId) {
         return (
           swapNetworksIncludeAllNetwork.find(
@@ -104,7 +106,7 @@ const SwapTokenSelectPage = () => {
           ) ?? swapNetworksIncludeAllNetwork?.[0]
         );
       }
-      if (toToken?.networkId && swapTypeSwitch === ESwapTabSwitchType.SWAP) {
+      if (toToken?.networkId && swapType === ESwapTabSwitchType.SWAP) {
         return (
           swapNetworksIncludeAllNetwork.find(
             (item: ISwapNetwork) => item.networkId === toToken.networkId,
@@ -119,7 +121,7 @@ const SwapTokenSelectPage = () => {
           ) ?? swapNetworksIncludeAllNetwork?.[0]
         );
       }
-      if (fromToken?.networkId && swapTypeSwitch === ESwapTabSwitchType.SWAP) {
+      if (fromToken?.networkId && swapType === ESwapTabSwitchType.SWAP) {
         return (
           swapNetworksIncludeAllNetwork.find(
             (item: ISwapNetwork) => item.networkId === fromToken.networkId,
@@ -131,9 +133,9 @@ const SwapTokenSelectPage = () => {
   }, [
     fromToken?.networkId,
     swapNetworksIncludeAllNetwork,
-    swapTypeSwitch,
+    swapType,
     toToken?.networkId,
-    type,
+    directionType,
   ]);
   const [currentSelectNetwork, setCurrentSelectNetwork] = useState<
     ISwapNetwork | undefined
@@ -142,7 +144,7 @@ const SwapTokenSelectPage = () => {
 
   useEffect(() => {
     const accountNet =
-      type === ESwapDirectionType.FROM
+      directionType === ESwapDirectionType.FROM
         ? swapFromAddressInfo.networkId
         : swapToAddressInfo.networkId;
     if (
@@ -150,7 +152,7 @@ const SwapTokenSelectPage = () => {
       currentSelectNetwork?.networkId !== accountNet
     ) {
       void updateSelectedAccountNetwork({
-        num: type === ESwapDirectionType.FROM ? 0 : 1,
+        num: directionType === ESwapDirectionType.FROM ? 0 : 1,
         networkId: currentSelectNetwork?.networkId,
       });
     }
@@ -158,7 +160,8 @@ const SwapTokenSelectPage = () => {
   }, []);
 
   const { fetchLoading, currentTokens } = useSwapTokenList(
-    type,
+    swapType,
+    directionType,
     currentSelectNetwork?.networkId,
     searchKeywordDebounce,
   );
@@ -197,13 +200,13 @@ const SwapTokenSelectPage = () => {
   const selectTokenHandler = useCallback(
     (token: ISwapToken) => {
       navigation.popStack();
-      if (type === ESwapDirectionType.FROM) {
-        void selectFromToken(token);
+      if (directionType === ESwapDirectionType.FROM) {
+        void selectFromToken(swapType, token);
       } else {
-        void selectToToken(token);
+        void selectToToken(swapType, token);
       }
     },
-    [navigation, selectFromToken, selectToToken, type],
+    [navigation, directionType, selectFromToken, swapType, selectToToken],
   );
 
   const onSelectToken = useCallback(
@@ -236,11 +239,11 @@ const SwapTokenSelectPage = () => {
       equalTokenNoCaseSensitive({
         token1: {
           networkId:
-            type === ESwapDirectionType.FROM
+            directionType === ESwapDirectionType.FROM
               ? toToken?.networkId
               : fromToken?.networkId,
           contractAddress:
-            type === ESwapDirectionType.FROM
+            directionType === ESwapDirectionType.FROM
               ? toToken?.contractAddress
               : fromToken?.contractAddress,
         },
@@ -254,7 +257,7 @@ const SwapTokenSelectPage = () => {
       fromToken?.networkId,
       toToken?.contractAddress,
       toToken?.networkId,
-      type,
+      directionType,
     ],
   );
 
@@ -267,29 +270,35 @@ const SwapTokenSelectPage = () => {
       (net) => net.networkId,
     );
     if (
-      swapTypeSwitch === ESwapTabSwitchType.SWAP &&
-      type === ESwapDirectionType.TO &&
+      swapType === ESwapTabSwitchType.SWAP &&
+      directionType === ESwapDirectionType.TO &&
       fromToken
     ) {
       res = networkIds.filter((net) => net !== fromToken?.networkId);
     }
     if (
-      type === ESwapDirectionType.TO &&
+      directionType === ESwapDirectionType.TO &&
       fromToken &&
-      swapTypeSwitch === ESwapTabSwitchType.BRIDGE
+      swapType === ESwapTabSwitchType.BRIDGE
     ) {
       res = networkIds.filter((net) => net === fromToken?.networkId);
     }
 
     if (
-      type === ESwapDirectionType.FROM &&
-      swapTypeSwitch === ESwapTabSwitchType.BRIDGE &&
+      directionType === ESwapDirectionType.FROM &&
+      swapType === ESwapTabSwitchType.BRIDGE &&
       toToken
     ) {
       res = networkIds.filter((net) => net === toToken?.networkId);
     }
     return res;
-  }, [fromToken, swapNetworksIncludeAllNetwork, swapTypeSwitch, toToken, type]);
+  }, [
+    fromToken,
+    swapNetworksIncludeAllNetwork,
+    swapType,
+    toToken,
+    directionType,
+  ]);
   const renderItem = useCallback(
     ({
       item,
@@ -544,7 +553,9 @@ const SwapTokenSelectPage = () => {
                   <SwapPopularTokenGroup
                     onSelectToken={onSelectToken}
                     selectedToken={
-                      type === ESwapDirectionType.FROM ? toToken : fromToken
+                      directionType === ESwapDirectionType.FROM
+                        ? toToken
+                        : fromToken
                     }
                     tokens={currentNetworkPopularTokens}
                   />

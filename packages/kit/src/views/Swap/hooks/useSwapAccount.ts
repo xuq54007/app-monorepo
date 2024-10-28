@@ -7,7 +7,10 @@ import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRo
 import { useSettingsAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETabRoutes } from '@onekeyhq/shared/src/routes';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
-import type { ISwapToken } from '@onekeyhq/shared/types/swap/types';
+import type {
+  ESwapTabSwitchType,
+  ISwapToken,
+} from '@onekeyhq/shared/types/swap/types';
 import { ESwapDirectionType } from '@onekeyhq/shared/types/swap/types';
 
 import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
@@ -18,28 +21,32 @@ import {
   useActiveAccount,
 } from '../../../states/jotai/contexts/accountSelector';
 import {
-  useSwapProviderSupportReceiveAddressAtom,
-  useSwapQuoteCurrentSelectAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
   useSwapToAnotherAccountAddressAtom,
+  useSwapTypeSwitchAtom,
 } from '../../../states/jotai/contexts/swap';
+
+import {
+  useSwapProviderSupportReceiveAddress,
+  useSwapQuoteCurrentSelect,
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+} from './useSwapData';
 
 import type { IAccountSelectorActiveAccountInfo } from '../../../states/jotai/contexts/accountSelector';
 
-export function useSwapFromAccountNetworkSync() {
+export function useSwapFromAccountNetworkSync(swapType: ESwapTabSwitchType) {
   const { updateSelectedAccountNetwork } = useAccountSelectorActions().current;
-  const [fromToken] = useSwapSelectFromTokenAtom();
+  const fromToken = useSwapSelectFromToken(swapType);
   const { activeAccount: toActiveAccount } = useActiveAccount({
     num: 1,
   });
   const { activeAccount: fromActiveAccount } = useActiveAccount({ num: 0 });
   const [swapToAnotherAccount, setSwapToAnotherAccount] =
     useSwapToAnotherAccountAddressAtom();
-  const [swapProviderSupportReceiveAddress] =
-    useSwapProviderSupportReceiveAddressAtom();
+  const swapProviderSupportReceiveAddress =
+    useSwapProviderSupportReceiveAddress(swapType);
   const [, setSettings] = useSettingsAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
+  const toToken = useSwapSelectToToken(swapType);
   const fromTokenRef = useRef<ISwapToken | undefined>();
   const toTokenRef = useRef<ISwapToken | undefined>();
   const swapProviderSupportReceiveAddressRef = useRef<boolean | undefined>();
@@ -233,7 +240,8 @@ export function useSwapAddressInfo(type: ESwapDirectionType) {
 export function useSwapRecipientAddressInfo(enable: boolean) {
   const fromAccountInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const swapToAddressInfo = useSwapAddressInfo(ESwapDirectionType.TO);
-  const [currentQuoteRes] = useSwapQuoteCurrentSelectAtom();
+  const [swapTabType] = useSwapTypeSwitchAtom();
+  const currentQuoteRes = useSwapQuoteCurrentSelect(swapTabType);
   const [{ swapToAnotherAccountSwitchOn }] = useSettingsAtom();
   const [swapToAnotherAddressInfo] = useSwapToAnotherAccountAddressAtom();
   const getToNetWorkAddressFromAccountId = usePromiseResult(

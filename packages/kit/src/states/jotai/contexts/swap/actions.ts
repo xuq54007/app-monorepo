@@ -66,12 +66,14 @@ import {
   swapAllNetworkActionLockAtom,
   swapAllNetworkTokenListMapAtom,
   swapBridgeAlertsAtom,
+  swapBridgeApproveAllowanceSelectOpenAtom,
   swapBridgeAutoSlippageSuggestedValueAtom,
   swapBridgeBuildTxFetchingAtom,
   swapBridgeFromTokenAmountAtom,
   swapBridgeManualSelectQuoteProvidersAtom,
   swapBridgeProviderSortAtom,
   swapBridgeQuoteActionLockAtom,
+  swapBridgeQuoteApproveAllowanceUnLimitAtom,
   swapBridgeQuoteEventTotalCountAtom,
   swapBridgeQuoteFetchingAtom,
   swapBridgeQuoteIntervalCountAtom,
@@ -88,12 +90,14 @@ import {
   swapBridgeSlippagePercentageModeAtom,
   swapNetworks,
   swapSwapAlertsAtom,
+  swapSwapApproveAllowanceSelectOpenAtom,
   swapSwapAutoSlippageSuggestedValueAtom,
   swapSwapBuildTxFetchingAtom,
   swapSwapFromTokenAmountAtom,
   swapSwapManualSelectQuoteProvidersAtom,
   swapSwapProviderSortAtom,
   swapSwapQuoteActionLockAtom,
+  swapSwapQuoteApproveAllowanceUnLimitAtom,
   swapSwapQuoteEventTotalCountAtom,
   swapSwapQuoteFetchingAtom,
   swapSwapQuoteIntervalCountAtom,
@@ -460,19 +464,20 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     (
       get,
       set,
-      type: ESwapTabSwitchType,
       event: {
         event: ISwapQuoteEvent;
+        swapType: ESwapTabSwitchType;
         type: 'done' | 'close' | 'error' | 'message' | 'open';
         params: IFetchQuotesParams;
         tokenPairs: { fromToken: ISwapToken; toToken: ISwapToken };
         accountId?: string;
       },
     ) => {
+      const { swapType } = event;
       switch (event.type) {
         case 'open': {
-          this.swapActionsQuoteList.call(set, type, []);
-          this.swapActionsQuoteEventTotalCount.call(set, type, 0);
+          this.swapActionsQuoteList.call(set, swapType, []);
+          this.swapActionsQuoteEventTotalCount.call(set, swapType, 0);
           break;
         }
         case 'message': {
@@ -488,7 +493,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
                 toNetworkId,
                 toTokenAddress,
               } = autoSlippageData;
-              const quoteResult = this.swapDataQuoteList.call(set, type);
+              const quoteResult = this.swapDataQuoteList.call(set, swapType);
               const quoteUpdateSlippage = quoteResult.map((quotRes) => {
                 if (
                   equalTokenNoCaseSensitive({
@@ -514,10 +519,10 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
                 }
                 return quotRes;
               });
-              this.swapActionsQuoteList.call(set, type, [
+              this.swapActionsQuoteList.call(set, swapType, [
                 ...quoteUpdateSlippage,
               ]);
-              this.swapActionsAutoSlippageSuggestedValue.call(set, type, {
+              this.swapActionsAutoSlippageSuggestedValue.call(set, swapType, {
                 value: autoSuggestedSlippage,
                 from: `${fromNetworkId}-${fromTokenAddress}`,
                 to: `${toNetworkId}-${toTokenAddress}`,
@@ -529,11 +534,11 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
               const { totalQuoteCount } = dataJson as ISwapQuoteEventInfo;
               this.swapActionsQuoteEventTotalCount.call(
                 set,
-                type,
+                swapType,
                 totalQuoteCount,
               );
               if (totalQuoteCount === 0) {
-                this.swapActionsQuoteList.call(set, type, [
+                this.swapActionsQuoteList.call(set, swapType, [
                   {
                     info: { provider: '', providerName: '' },
                     fromTokenInfo: event.tokenPairs.fromToken,
@@ -544,7 +549,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
             } else {
               const quoteResultData = dataJson as ISwapQuoteEventQuoteResult;
               const swapAutoSlippageSuggestedValue =
-                this.swapDataAutoSlippageSuggestedValue.call(set, type);
+                this.swapDataAutoSlippageSuggestedValue.call(set, swapType);
               if (quoteResultData.data?.length) {
                 const quoteResultsUpdateSlippage = quoteResultData.data.map(
                   (quote) => {
@@ -565,7 +570,10 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
                     return quote;
                   },
                 );
-                const currentQuoteList = this.swapDataQuoteList.call(set, type);
+                const currentQuoteList = this.swapDataQuoteList.call(
+                  set,
+                  swapType,
+                );
                 let newQuoteList = currentQuoteList.map((oldQuoteRes) => {
                   const newUpdateQuoteRes = quoteResultsUpdateSlippage.find(
                     (quote) =>
@@ -589,9 +597,11 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
                 newQuoteList = [...newQuoteList, ...newAddQuoteRes].filter(
                   (quote) => !!quote.info.provider,
                 );
-                this.swapActionsQuoteList.call(set, type, [...newQuoteList]);
+                this.swapActionsQuoteList.call(set, swapType, [
+                  ...newQuoteList,
+                ]);
               }
-              this.swapActionsQuoteFetching.call(set, type, false);
+              this.swapActionsQuoteFetching.call(set, swapType, false);
             }
           }
           break;
@@ -599,20 +609,20 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         case 'done': {
           const quoteActionLockPre = this.swapDataQuoteActionLock.call(
             set,
-            type,
+            swapType,
           );
-          this.swapActionsQuoteActionLock.call(set, type, {
+          this.swapActionsQuoteActionLock.call(set, swapType, {
             ...quoteActionLockPre,
             actionLock: false,
           });
           const quoteIntervalCount = this.swapDataQuoteIntervalCount.call(
             set,
-            type,
+            swapType,
           );
           if (quoteIntervalCount <= swapQuoteIntervalMaxCount) {
             void this.recoverQuoteInterval.call(
               set,
-              type,
+              swapType,
               event.params.userAddress,
               event.accountId,
               true,
@@ -620,7 +630,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
           }
           this.swapActionsQuoteIntervalCount.call(
             set,
-            type,
+            swapType,
             quoteIntervalCount + 1,
           );
           this.closeQuoteEvent();
@@ -631,12 +641,12 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
           break;
         }
         case 'close': {
-          this.swapActionsQuoteFetching.call(set, type, false);
+          this.swapActionsQuoteFetching.call(set, swapType, false);
           const quoteActionLockPre = this.swapDataQuoteActionLock.call(
             set,
-            type,
+            swapType,
           );
-          this.swapActionsQuoteActionLock.call(set, type, {
+          this.swapActionsQuoteActionLock.call(set, swapType, {
             ...quoteActionLockPre,
             actionLock: false,
           });
@@ -677,6 +687,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       await backgroundApiProxy.serviceSwap.setApprovingTransaction(undefined);
       this.swapActionsQuoteFetching.call(set, type, true);
       await backgroundApiProxy.serviceSwap.fetchQuotesEvents({
+        swapType: type,
         fromToken,
         toToken,
         fromTokenAmount,
@@ -969,9 +980,9 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     async (
       get,
       set,
+      type: ESwapTabSwitchType,
       swapFromAddressInfo: ReturnType<typeof useSwapAddressInfo>,
       swapToAddressInfo: ReturnType<typeof useSwapAddressInfo>,
-      type: ESwapTabSwitchType,
     ) => {
       const fromToken = this.swapDataSelectFromToken.call(set, type);
       const toToken = this.swapDataSelectToToken.call(set, type);
@@ -1619,7 +1630,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     async (
       get,
       set,
-      swapType: ESwapTabSwitchType,
       type: ESwapTabSwitchType,
       swapAccountNetworkId?: string,
     ) => {
@@ -1629,13 +1639,13 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         type,
         ESwapSlippageSegmentKey.AUTO,
       );
-      this.swapActionsManualSelectQuoteProviders.call(set, swapType);
+      this.swapActionsManualSelectQuoteProviders.call(set, type);
       const swapSupportNetworks = this.swapDataNetworksIncludeAllNetwork.call(
         set,
-        swapType,
+        type,
       );
-      const fromToken = this.swapDataSelectFromToken.call(set, swapType);
-      const toToken = this.swapDataSelectToToken.call(set, swapType);
+      const fromToken = this.swapDataSelectFromToken.call(set, type);
+      const toToken = this.swapDataSelectToToken.call(set, type);
       const fromNetworkDefault =
         swapDefaultSetTokens[swapAccountNetworkId ?? ''];
       if (
@@ -1644,17 +1654,13 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
           (net) => net.networkId === fromToken?.networkId,
         )
       ) {
-        void this.resetSwapTokenData.call(
-          set,
-          swapType,
-          ESwapDirectionType.FROM,
-        );
+        void this.resetSwapTokenData.call(set, type, ESwapDirectionType.FROM);
       }
       if (
         toToken &&
         !swapSupportNetworks.some((net) => net.networkId === toToken?.networkId)
       ) {
-        void this.resetSwapTokenData.call(set, swapType, ESwapDirectionType.TO);
+        void this.resetSwapTokenData.call(set, type, ESwapDirectionType.TO);
       }
       if (
         swapSupportNetworks.some(
@@ -1671,7 +1677,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
               shouldSetFromToken = fromNetworkDefault?.fromToken;
               this.swapActionsSelectFromToken.call(
                 set,
-                swapType,
+                type,
                 fromNetworkDefault?.fromToken,
               );
             }
@@ -1683,11 +1689,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
               swapTypeSwitchValue: type,
             });
             if (needChangeToToken) {
-              this.swapActionsSelectToToken.call(
-                set,
-                swapType,
-                needChangeToToken,
-              );
+              this.swapActionsSelectToToken.call(set, type, needChangeToToken);
               void this.syncNetworksSort.call(set, needChangeToToken.networkId);
             }
           }
@@ -1699,7 +1701,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
           ) {
             this.swapActionsSelectFromToken.call(
               set,
-              swapType,
+              type,
               fromNetworkDefault?.fromToken,
             );
           }
@@ -1711,7 +1713,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
             ) {
               this.swapActionsSelectToToken.call(
                 set,
-                swapType,
+                type,
                 fromNetworkDefault?.fromToken,
               );
               void this.syncNetworksSort.call(
@@ -1725,7 +1727,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
             ) {
               this.swapActionsSelectToToken.call(
                 set,
-                swapType,
+                type,
                 fromNetworkDefault?.toToken,
               );
               void this.syncNetworksSort.call(
@@ -1735,7 +1737,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
             } else {
               void this.resetSwapTokenData.call(
                 set,
-                swapType,
+                type,
                 ESwapDirectionType.TO,
               );
             }
@@ -2378,6 +2380,39 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       }
     },
   );
+
+  swapActionsQuoteApproveAllowanceUnLimit = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data: boolean) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapQuoteApproveAllowanceUnLimitAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeQuoteApproveAllowanceUnLimitAtom(), data);
+      }
+    },
+  );
+
+  swapActionsApproveAllowanceSelectOpen = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data: boolean) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapApproveAllowanceSelectOpenAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeApproveAllowanceSelectOpenAtom(), data);
+      }
+    },
+  );
+
+  swapActionsProviderSort = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType, data: ESwapProviderSort) => {
+      if (type === ESwapTabSwitchType.SWAP) {
+        set(swapSwapProviderSortAtom(), data);
+      }
+      if (type === ESwapTabSwitchType.BRIDGE) {
+        set(swapBridgeProviderSortAtom(), data);
+      }
+    },
+  );
 }
 
 const createActions = memoFn(() => new ContentJotaiActionsSwap());
@@ -2424,6 +2459,29 @@ export const useSwapActions = () => {
 
   const swapActionsFromTokenAmount = actions.swapActionsFromTokenAmount.use();
 
+  const swapActionsQuoteApproveAllowanceUnLimit =
+    actions.swapActionsQuoteApproveAllowanceUnLimit.use();
+  const swapActionsApproveAllowanceSelectOpen =
+    actions.swapActionsApproveAllowanceSelectOpen.use();
+
+  const swapActionsManualSelectQuoteProviders =
+    actions.swapActionsManualSelectQuoteProviders.use();
+
+  const swapActionsProviderSort = actions.swapActionsProviderSort.use();
+
+  const swapActionsQuoteList = actions.swapActionsQuoteList.use();
+
+  const swapActionsQuoteEventTotalCount =
+    actions.swapActionsQuoteEventTotalCount.use();
+
+  const swapActionsBuildTxFetching = actions.swapActionsBuildTxFetching.use();
+
+  const swapActionsShouldRefreshQuote =
+    actions.swapActionsShouldRefreshQuote.use();
+
+  const swapActionsSelectFromToken = actions.swapActionsSelectFromToken.use();
+  const swapActionsSelectToToken = actions.swapActionsSelectToToken.use();
+
   return useRef({
     selectFromToken,
     quoteAction,
@@ -2448,5 +2506,15 @@ export const useSwapActions = () => {
     swapActionsFromTokenAmount,
     swapDataSelectFromToken,
     swapDataSelectToToken,
+    swapActionsQuoteApproveAllowanceUnLimit,
+    swapActionsApproveAllowanceSelectOpen,
+    swapActionsManualSelectQuoteProviders,
+    swapActionsProviderSort,
+    swapActionsQuoteList,
+    swapActionsQuoteEventTotalCount,
+    swapActionsBuildTxFetching,
+    swapActionsShouldRefreshQuote,
+    swapActionsSelectFromToken,
+    swapActionsSelectToToken,
   });
 };

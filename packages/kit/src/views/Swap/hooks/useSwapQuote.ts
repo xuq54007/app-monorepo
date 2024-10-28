@@ -14,51 +14,56 @@ import { equalTokenNoCaseSensitive } from '@onekeyhq/shared/src/utils/tokenUtils
 import {
   ESwapApproveTransactionStatus,
   ESwapDirectionType,
-  type ISwapApproveTransaction,
+} from '@onekeyhq/shared/types/swap/types';
+import type {
+  ESwapTabSwitchType,
+  ISwapApproveTransaction,
 } from '@onekeyhq/shared/types/swap/types';
 
 import { useDebounce } from '../../../hooks/useDebounce';
 import useListenTabFocusState from '../../../hooks/useListenTabFocusState';
-import {
-  useSwapActions,
-  useSwapApproveAllowanceSelectOpenAtom,
-  useSwapFromTokenAmountAtom,
-  useSwapQuoteActionLockAtom,
-  useSwapQuoteEventTotalCountAtom,
-  useSwapQuoteFetchingAtom,
-  useSwapQuoteListAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
-  useSwapShouldRefreshQuoteAtom,
-  useSwapSlippageDialogOpeningAtom,
-} from '../../../states/jotai/contexts/swap';
+import { useSwapActions } from '../../../states/jotai/contexts/swap';
 import { truncateDecimalPlaces } from '../utils/utils';
 
 import { useSwapAddressInfo } from './useSwapAccount';
+import {
+  useSwapApproveAllowanceSelectOpen,
+  useSwapFromTokenAmount,
+  useSwapQuoteActionLock,
+  useSwapQuoteEventTotalCount,
+  useSwapQuoteFetching,
+  useSwapQuoteList,
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+  useSwapShouldRefreshQuote,
+  useSwapSlippageDialogOpening,
+} from './useSwapData';
 
-export function useSwapQuote() {
+export function useSwapQuote(swapType: ESwapTabSwitchType) {
   const intl = useIntl();
   const {
     quoteAction,
     cleanQuoteInterval,
     recoverQuoteInterval,
     quoteEventHandler,
+    swapActionsFromTokenAmount,
+    swapActionsQuoteList,
+    swapActionsQuoteEventTotalCount,
   } = useSwapActions().current;
-  const [swapQuoteActionLock] = useSwapQuoteActionLockAtom();
+  const swapQuoteActionLock = useSwapQuoteActionLock(swapType);
   const swapAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
-  const [swapSlippageDialogOpening] = useSwapSlippageDialogOpeningAtom();
-  const [swapApproveAllowanceSelectOpen] =
-    useSwapApproveAllowanceSelectOpenAtom();
-  const [fromTokenAmount, setFromTokenAmount] = useSwapFromTokenAmountAtom();
-  const [swapQuoteResultList, setSwapQuoteResultList] = useSwapQuoteListAtom();
-  const [swapQuoteEventTotalCount, setSwapQuoteEventTotalCount] =
-    useSwapQuoteEventTotalCountAtom();
-  const [swapQuoteFetching] = useSwapQuoteFetchingAtom();
+  const fromToken = useSwapSelectFromToken(swapType);
+  const toToken = useSwapSelectToToken(swapType);
+  const swapSlippageDialogOpening = useSwapSlippageDialogOpening(swapType);
+  const swapApproveAllowanceSelectOpen =
+    useSwapApproveAllowanceSelectOpen(swapType);
+  const fromTokenAmount = useSwapFromTokenAmount(swapType);
+  const swapQuoteResultList = useSwapQuoteList(swapType);
+  const swapQuoteEventTotalCount = useSwapQuoteEventTotalCount(swapType);
+  const swapQuoteFetching = useSwapQuoteFetching(swapType);
   const { closeQuoteEvent } = useSwapActions().current;
   const [{ swapApprovingTransaction }] = useInAppNotificationAtom();
-  const [swapShouldRefresh] = useSwapShouldRefreshQuoteAtom();
+  const swapShouldRefresh = useSwapShouldRefreshQuote(swapType);
   const swapShouldRefreshRef = useRef(swapShouldRefresh);
   const swapQuoteActionLockRef = useRef(swapQuoteActionLock);
   const swapQuoteFetchingRef = useRef(swapQuoteFetching);
@@ -103,19 +108,25 @@ export function useSwapQuote() {
       fromToken?.decimals,
     );
     if (checkedDecimal && checkedDecimal !== fromAmountDebounce) {
-      setFromTokenAmount(checkedDecimal);
+      swapActionsFromTokenAmount(swapType, checkedDecimal);
     }
-  }, [fromToken?.decimals, fromAmountDebounce, setFromTokenAmount]);
+  }, [
+    fromAmountDebounce,
+    fromToken?.decimals,
+    swapActionsFromTokenAmount,
+    swapType,
+  ]);
 
   useEffect(() => {
     if (!isFocusRef.current) return;
     if (!fromTokenAmount) {
       void quoteAction(
+        swapType,
         activeAccountRef.current?.address,
         activeAccountRef.current?.accountInfo?.account?.id,
       );
     }
-  }, [fromTokenAmount, quoteAction]);
+  }, [fromTokenAmount, quoteAction, swapType]);
 
   useEffect(() => {
     if (swapSlippageDialogOpening.status || swapApproveAllowanceSelectOpen) {
@@ -125,16 +136,19 @@ export function useSwapQuote() {
       swapSlippageDialogOpening.flag === 'save'
     ) {
       void quoteAction(
+        swapType,
         activeAccountRef.current?.address,
         activeAccountRef.current?.accountInfo?.account?.id,
       );
     } else {
       void recoverQuoteInterval(
+        swapType,
         activeAccountRef.current?.address,
         activeAccountRef.current?.accountInfo?.account?.id,
       );
     }
   }, [
+    swapType,
     quoteAction,
     cleanQuoteInterval,
     recoverQuoteInterval,
@@ -152,12 +166,19 @@ export function useSwapQuote() {
       !swapApprovingTransaction.resetApproveValue
     ) {
       void quoteAction(
+        swapType,
         activeAccountRef.current?.address,
         activeAccountRef.current?.accountInfo?.account?.id,
         swapApprovingTransaction.blockNumber,
       );
     }
-  }, [intl, cleanQuoteInterval, quoteAction, swapApprovingTransaction]);
+  }, [
+    intl,
+    cleanQuoteInterval,
+    quoteAction,
+    swapApprovingTransaction,
+    swapType,
+  ]);
 
   useEffect(() => {
     if (!isFocusRef.current) return;
@@ -202,6 +223,7 @@ export function useSwapQuote() {
     }
     alignmentDecimal();
     void quoteAction(
+      swapType,
       activeAccountRef.current?.address,
       activeAccountRef.current?.accountInfo?.account?.id,
     );
@@ -209,6 +231,7 @@ export function useSwapQuote() {
       cleanQuoteInterval();
     };
   }, [
+    swapType,
     cleanQuoteInterval,
     quoteAction,
     swapAddressInfo.address,
@@ -241,6 +264,7 @@ export function useSwapQuote() {
     }
     alignmentDecimal();
     void quoteAction(
+      swapType,
       activeAccountRef.current?.address,
       activeAccountRef.current?.accountInfo?.account?.id,
     );
@@ -248,7 +272,7 @@ export function useSwapQuote() {
       cleanQuoteInterval();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [swapAddressInfo.accountInfo?.deriveType]);
+  }, [swapAddressInfo.accountInfo?.deriveType, swapType]);
 
   const pageType = usePageType();
   useListenTabFocusState(
@@ -267,9 +291,9 @@ export function useSwapQuote() {
           ) {
             // reset tab quote data when swap modal is open and tab quote data is fetching
             closeQuoteEvent();
-            setSwapQuoteEventTotalCount(0);
-            setSwapQuoteResultList([]);
-            setFromTokenAmount('');
+            swapActionsQuoteEventTotalCount(swapType, 0);
+            swapActionsQuoteList(swapType, []);
+            swapActionsFromTokenAmount(swapType, '');
           }
           appEventBus.off(EAppEventBusNames.SwapQuoteEvent, quoteEventHandler);
         } else {
@@ -287,6 +311,7 @@ export function useSwapQuote() {
             !swapShouldRefreshRef.current
           ) {
             void recoverQuoteInterval(
+              swapType,
               activeAccountRef.current?.address,
               activeAccountRef.current?.accountInfo?.account?.id,
             );
@@ -315,6 +340,7 @@ export function useSwapQuote() {
           !swapShouldRefreshRef.current
         ) {
           void recoverQuoteInterval(
+            swapType,
             activeAccountRef.current?.address,
             activeAccountRef.current?.accountInfo?.account?.id,
           );
@@ -323,5 +349,5 @@ export function useSwapQuote() {
         }
       }
     }, 100);
-  }, [cleanQuoteInterval, isFocused, pageType, recoverQuoteInterval]);
+  }, [cleanQuoteInterval, isFocused, pageType, recoverQuoteInterval, swapType]);
 }

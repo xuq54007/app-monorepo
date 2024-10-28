@@ -32,6 +32,7 @@ import {
   swapQuoteEventTimeout,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
+  ESwapTabSwitchType,
   IFetchBuildTxParams,
   IFetchBuildTxResponse,
   IFetchQuoteResult,
@@ -492,6 +493,7 @@ export default class ServiceSwap extends ServiceBase {
   @backgroundMethod()
   @toastIfError()
   async fetchQuotesEvents({
+    swapType,
     fromToken,
     toToken,
     fromTokenAmount,
@@ -501,6 +503,7 @@ export default class ServiceSwap extends ServiceBase {
     blockNumber,
     accountId,
   }: {
+    swapType: ESwapTabSwitchType;
     fromToken: ISwapToken;
     toToken: ISwapToken;
     fromTokenAmount: string;
@@ -544,6 +547,7 @@ export default class ServiceSwap extends ServiceBase {
       });
       this._quoteEventSourcePolyfill.onmessage = (event) => {
         appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+          swapType,
           type: 'message',
           event: {
             type: 'message',
@@ -564,6 +568,7 @@ export default class ServiceSwap extends ServiceBase {
         };
         if (!errorEvent?.error) {
           appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+            swapType,
             type: 'done',
             event: { type: 'done' },
             params,
@@ -572,6 +577,7 @@ export default class ServiceSwap extends ServiceBase {
           });
         } else {
           appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+            swapType,
             type: 'error',
             event: {
               type: 'error',
@@ -588,6 +594,7 @@ export default class ServiceSwap extends ServiceBase {
       };
       this._quoteEventSourcePolyfill.onopen = () => {
         appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+          swapType,
           type: 'open',
           event: { type: 'open' },
           params,
@@ -604,6 +611,7 @@ export default class ServiceSwap extends ServiceBase {
       });
       this._quoteEventSource.addEventListener('open', (event) => {
         appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+          swapType,
           type: 'open',
           event,
           params,
@@ -613,6 +621,7 @@ export default class ServiceSwap extends ServiceBase {
       });
       this._quoteEventSource.addEventListener('message', (event) => {
         appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+          swapType,
           type: 'message',
           event,
           params,
@@ -622,6 +631,7 @@ export default class ServiceSwap extends ServiceBase {
       });
       this._quoteEventSource.addEventListener('done', (event) => {
         appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+          swapType,
           type: 'done',
           event,
           params,
@@ -631,6 +641,7 @@ export default class ServiceSwap extends ServiceBase {
       });
       this._quoteEventSource.addEventListener('close', (event) => {
         appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+          swapType,
           type: 'close',
           event,
           params,
@@ -640,6 +651,7 @@ export default class ServiceSwap extends ServiceBase {
       });
       this._quoteEventSource.addEventListener('error', (event) => {
         appEventBus.emit(EAppEventBusNames.SwapQuoteEvent, {
+          swapType,
           type: 'error',
           event,
           params,

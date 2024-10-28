@@ -23,15 +23,7 @@ import {
   XStack,
 } from '@onekeyhq/components';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
-import {
-  useSwapFromTokenAmountAtom,
-  useSwapManualSelectQuoteProvidersAtom,
-  useSwapProviderSortAtom,
-  useSwapQuoteCurrentSelectAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
-  useSwapSortedQuoteListAtom,
-} from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type {
@@ -39,9 +31,20 @@ import type {
   IModalSwapParamList,
 } from '@onekeyhq/shared/src/routes/swap';
 import { ESwapProviderSort } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
-import type { IFetchQuoteResult } from '@onekeyhq/shared/types/swap/types';
+import type {
+  ESwapTabSwitchType,
+  IFetchQuoteResult,
+} from '@onekeyhq/shared/types/swap/types';
 
 import SwapProviderListItem from '../../components/SwapProviderListItem';
+import {
+  useSwapFromTokenAmount,
+  useSwapQuoteCurrentSelect,
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+  useSwapSortType,
+  useSwapSortedQuoteList,
+} from '../../hooks/useSwapData';
 import { SwapProviderMirror } from '../SwapProviderMirror';
 
 import type { RouteProp } from '@react-navigation/core';
@@ -74,24 +77,25 @@ const InformationItem = ({
   </XStack>
 );
 
-const SwapProviderSelectModal = () => {
+const SwapProviderSelectModal = ({ type }: { type: ESwapTabSwitchType }) => {
   const navigation =
     useAppNavigation<IPageNavigationProp<IModalSwapParamList>>();
   const intl = useIntl();
-  const [swapSortedList] = useSwapSortedQuoteListAtom();
-  const [fromTokenAmount] = useSwapFromTokenAmountAtom();
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
-  const [, setSwapManualSelect] = useSwapManualSelectQuoteProvidersAtom();
-  const [providerSort, setProviderSort] = useSwapProviderSortAtom();
+  const { swapActionsManualSelectQuoteProviders, swapActionsProviderSort } =
+    useSwapActions().current;
+  const swapSortedList = useSwapSortedQuoteList(type);
+  const fromTokenAmount = useSwapFromTokenAmount(type);
+  const fromToken = useSwapSelectFromToken(type);
+  const toToken = useSwapSelectToToken(type);
+  const providerSort = useSwapSortType(type);
   const [settingsPersist] = useSettingsPersistAtom();
-  const [currentSelectQuote] = useSwapQuoteCurrentSelectAtom();
+  const currentSelectQuote = useSwapQuoteCurrentSelect(type);
 
   const onSelectSortChange = useCallback(
     (value: ESwapProviderSort) => {
-      setProviderSort(value);
+      swapActionsProviderSort(type, value);
     },
-    [setProviderSort],
+    [swapActionsProviderSort, type],
   );
 
   const swapProviderSortSelectItems = useMemo(
@@ -151,10 +155,10 @@ const SwapProviderSelectModal = () => {
   }, [intl, swapSortedList]);
   const onSelectQuote = useCallback(
     (item: IFetchQuoteResult) => {
-      setSwapManualSelect(item);
+      swapActionsManualSelectQuoteProviders(type, item);
       navigation.pop();
     },
-    [navigation, setSwapManualSelect],
+    [navigation, swapActionsManualSelectQuoteProviders, type],
   );
   const renderItem = useCallback(
     ({ item }: { item: IFetchQuoteResult; index: number }) => {
@@ -367,8 +371,8 @@ const SwapProviderSelectModal = () => {
         estimatedItemSize="$10"
         renderItem={renderItem}
         sections={sectionData}
-        renderSectionHeader={({ section: { type, title } }) => {
-          if (type === ESwapProviderStatus.AVAILABLE) {
+        renderSectionHeader={({ section: { status, title } }) => {
+          if (status === ESwapProviderStatus.AVAILABLE) {
             return (
               <Select
                 title={intl.formatMessage({
@@ -405,10 +409,10 @@ const SwapProviderSelectModalWithProvider = () => {
     useRoute<
       RouteProp<IModalSwapParamList, EModalSwapRoutes.SwapProviderSelect>
     >();
-  const { storeName } = route.params;
+  const { storeName, type } = route.params;
   return (
     <SwapProviderMirror storeName={storeName}>
-      <SwapProviderSelectModal />
+      <SwapProviderSelectModal type={type} />
     </SwapProviderMirror>
   );
 };

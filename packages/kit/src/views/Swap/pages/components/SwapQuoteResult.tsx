@@ -273,6 +273,7 @@ const SwapQuoteResult = ({
               ) : null}
               {quoteResult?.allowanceResult ? (
                 <SwapApproveAllowanceSelectContainer
+                  type={swapTabType}
                   allowanceResult={quoteResult?.allowanceResult}
                   fromTokenSymbol={fromToken?.symbol ?? ''}
                   isLoading={swapQuoteLoading}

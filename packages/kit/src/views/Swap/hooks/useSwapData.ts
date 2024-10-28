@@ -18,35 +18,51 @@ import {
 } from '@onekeyhq/shared/types/swap/types';
 
 import {
+  useBridgeRateDifferenceAtom,
   useSwapBridgeAlertsAtom,
+  useSwapBridgeApproveAllowanceSelectOpenAtom,
+  useSwapBridgeBuildTxFetchingAtom,
   useSwapBridgeFromTokenAmountAtom,
   useSwapBridgeManualSelectQuoteProvidersAtom,
   useSwapBridgeProviderSortAtom,
+  useSwapBridgeQuoteActionLockAtom,
+  useSwapBridgeQuoteApproveAllowanceUnLimitAtom,
   useSwapBridgeQuoteEventTotalCountAtom,
   useSwapBridgeQuoteFetchingAtom,
+  useSwapBridgeQuoteIntervalCountAtom,
   useSwapBridgeQuoteListAtom,
   useSwapBridgeSelectFromTokenAtom,
   useSwapBridgeSelectToTokenAtom,
   useSwapBridgeSelectTokenDetailFetchingAtom,
   useSwapBridgeSelectedFromTokenBalanceAtom,
   useSwapBridgeSelectedToTokenBalanceAtom,
+  useSwapBridgeShouldRefreshQuoteAtom,
   useSwapBridgeSilenceQuoteLoading,
+  useSwapBridgeSlippageDialogOpeningAtom,
   useSwapBridgeSlippagePercentageCustomValueAtom,
   useSwapBridgeSlippagePercentageModeAtom,
   useSwapNetworksAtom,
+  useSwapRateDifferenceAtom,
   useSwapSwapAlertsAtom,
+  useSwapSwapApproveAllowanceSelectOpenAtom,
+  useSwapSwapBuildTxFetchingAtom,
   useSwapSwapFromTokenAmountAtom,
   useSwapSwapManualSelectQuoteProvidersAtom,
   useSwapSwapProviderSortAtom,
+  useSwapSwapQuoteActionLockAtom,
+  useSwapSwapQuoteApproveAllowanceUnLimitAtom,
   useSwapSwapQuoteEventTotalCountAtom,
   useSwapSwapQuoteFetchingAtom,
+  useSwapSwapQuoteIntervalCountAtom,
   useSwapSwapQuoteListAtom,
   useSwapSwapSelectFromTokenAtom,
   useSwapSwapSelectToTokenAtom,
   useSwapSwapSelectTokenDetailFetchingAtom,
   useSwapSwapSelectedFromTokenBalanceAtom,
   useSwapSwapSelectedToTokenBalanceAtom,
+  useSwapSwapShouldRefreshQuoteAtom,
   useSwapSwapSilenceQuoteLoading,
+  useSwapSwapSlippageDialogOpeningAtom,
   useSwapSwapSlippagePercentageCustomValueAtom,
   useSwapSwapSlippagePercentageModeAtom,
 } from '../../../states/jotai/contexts/swap';
@@ -389,6 +405,20 @@ export function useSwapSlippagePercentage(type: ESwapTabSwitchType) {
   };
 }
 
+export function useSwapSlippageDialogOpening(type: ESwapTabSwitchType) {
+  let res: { status: boolean; flag?: string } = { status: false };
+  const [swapSlippageDialogOpening] = useSwapSwapSlippageDialogOpeningAtom();
+  const [bridgeSlippageDialogOpening] =
+    useSwapBridgeSlippageDialogOpeningAtom();
+  if (type === ESwapTabSwitchType.SWAP) {
+    res = swapSlippageDialogOpening;
+  }
+  if (type === ESwapTabSwitchType.BRIDGE) {
+    res = bridgeSlippageDialogOpening;
+  }
+  return res;
+}
+
 export function useSwapSelectedFromTokenBalance(type: ESwapTabSwitchType) {
   let balance = '';
   const [swapFromBalance] = useSwapSwapSelectedFromTokenBalanceAtom();
@@ -430,4 +460,103 @@ export function useSwapNetworksIncludeAllNetwork(type: ESwapTabSwitchType) {
     isAllNetworks: true,
   };
   return [allNetwork, ...typeNetworks];
+}
+
+export function useRateDifference(type: ESwapTabSwitchType) {
+  let rateDifference;
+  const [swapRateDifference] = useSwapRateDifferenceAtom();
+  const [bridgeRateDifference] = useBridgeRateDifferenceAtom();
+  if (type === ESwapTabSwitchType.SWAP) {
+    rateDifference = swapRateDifference;
+  }
+  if (type === ESwapTabSwitchType.BRIDGE) {
+    rateDifference = bridgeRateDifference;
+  }
+  return rateDifference;
+}
+
+export function useSwapQuoteApproveAllowanceUnLimit(type: ESwapTabSwitchType) {
+  let unLimit = false;
+  const [swapQuoteApproveAllowanceUnLimit] =
+    useSwapSwapQuoteApproveAllowanceUnLimitAtom();
+  const [bridgeQuoteApproveAllowanceUnLimit] =
+    useSwapBridgeQuoteApproveAllowanceUnLimitAtom();
+  if (type === ESwapTabSwitchType.SWAP) {
+    unLimit = swapQuoteApproveAllowanceUnLimit;
+  }
+  if (type === ESwapTabSwitchType.BRIDGE) {
+    unLimit = bridgeQuoteApproveAllowanceUnLimit;
+  }
+  return unLimit;
+}
+
+export function useSwapApproveAllowanceSelectOpen(type: ESwapTabSwitchType) {
+  let open = false;
+  const [swapApproveAllowanceSelectOpen] =
+    useSwapSwapApproveAllowanceSelectOpenAtom();
+  const [bridgeApproveAllowanceSelectOpen] =
+    useSwapBridgeApproveAllowanceSelectOpenAtom();
+  if (type === ESwapTabSwitchType.SWAP) {
+    open = swapApproveAllowanceSelectOpen;
+  }
+  if (type === ESwapTabSwitchType.BRIDGE) {
+    open = bridgeApproveAllowanceSelectOpen;
+  }
+  return open;
+}
+
+export function useSwapQuoteActionLock(swapType: ESwapTabSwitchType) {
+  let res: {
+    actionLock: boolean;
+    fromToken?: ISwapToken;
+    toToken?: ISwapToken;
+    fromTokenAmount?: string;
+    accountId?: string;
+    address?: string;
+  } = { actionLock: false };
+  const [swapQuoteActionLock] = useSwapSwapQuoteActionLockAtom();
+  const [bridgeQuoteActionLock] = useSwapBridgeQuoteActionLockAtom();
+  if (swapType === ESwapTabSwitchType.SWAP) {
+    res = swapQuoteActionLock;
+  }
+  if (swapType === ESwapTabSwitchType.BRIDGE) {
+    res = bridgeQuoteActionLock;
+  }
+  return res;
+}
+
+export function useSwapShouldRefreshQuote(type: ESwapTabSwitchType) {
+  const [swapShouldRefresh] = useSwapSwapShouldRefreshQuoteAtom();
+  const [bridgeShouldRefresh] = useSwapBridgeShouldRefreshQuoteAtom();
+  if (type === ESwapTabSwitchType.SWAP) {
+    return swapShouldRefresh;
+  }
+  if (type === ESwapTabSwitchType.BRIDGE) {
+    return bridgeShouldRefresh;
+  }
+  return false;
+}
+
+export function useSwapBuildTxFetching(type: ESwapTabSwitchType) {
+  const [swapBuildTxFetching] = useSwapSwapBuildTxFetchingAtom();
+  const [bridgeBuildTxFetching] = useSwapBridgeBuildTxFetchingAtom();
+  if (type === ESwapTabSwitchType.SWAP) {
+    return swapBuildTxFetching;
+  }
+  if (type === ESwapTabSwitchType.BRIDGE) {
+    return bridgeBuildTxFetching;
+  }
+  return false;
+}
+
+export function useSwapQuoteIntervalCount(type: ESwapTabSwitchType) {
+  const [swapQuoteIntervalCount] = useSwapSwapQuoteIntervalCountAtom();
+  const [bridgeQuoteIntervalCount] = useSwapBridgeQuoteIntervalCountAtom();
+  if (type === ESwapTabSwitchType.SWAP) {
+    return swapQuoteIntervalCount;
+  }
+  if (type === ESwapTabSwitchType.BRIDGE) {
+    return bridgeQuoteIntervalCount;
+  }
+  return 0;
 }

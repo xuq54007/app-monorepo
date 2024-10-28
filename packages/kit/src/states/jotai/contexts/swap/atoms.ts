@@ -24,7 +24,6 @@ import type { IAccountSelectorActiveAccountInfo } from '../accountSelector';
 const {
   Provider: ProviderJotaiContextSwap,
   contextAtom,
-  contextAtomComputed,
   contextAtomMethod,
 } = createJotaiContext();
 export { ProviderJotaiContextSwap, contextAtomMethod };

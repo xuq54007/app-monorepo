@@ -26,14 +26,18 @@ export type IModalSwapParamList = {
     swapTabSwitchType?: ESwapTabSwitchType;
   };
   [EModalSwapRoutes.SwapTokenSelect]: {
-    type: ESwapDirectionType;
+    directionType: ESwapDirectionType;
+    type: ESwapTabSwitchType;
     storeName: EJotaiContextStoreNames;
   };
   [EModalSwapRoutes.SwapNetworkSelect]: {
     setCurrentSelectNetwork: (network: ISwapNetwork) => void;
     storeName: EJotaiContextStoreNames;
   };
-  [EModalSwapRoutes.SwapProviderSelect]: { storeName: EJotaiContextStoreNames };
+  [EModalSwapRoutes.SwapProviderSelect]: {
+    storeName: EJotaiContextStoreNames;
+    type: ESwapTabSwitchType;
+  };
   [EModalSwapRoutes.SwapHistoryList]: undefined;
   [EModalSwapRoutes.SwapHistoryDetail]: {
     txHistory: ISwapTxHistory;

@@ -8,6 +8,7 @@ import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms'
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { swapQuoteIntervalMaxCount } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
+  ESwapTabSwitchType,
   ISwapCheckWarningDef,
   ISwapState,
 } from '@onekeyhq/shared/types/swap/types';
@@ -17,34 +18,32 @@ import {
 } from '@onekeyhq/shared/types/swap/types';
 
 import { useDebounce } from '../../../hooks/useDebounce';
-import {
-  useSwapActions,
-  useSwapAlertsAtom,
-  useSwapBuildTxFetchingAtom,
-  useSwapFromTokenAmountAtom,
-  useSwapQuoteApproveAllowanceUnLimitAtom,
-  useSwapQuoteCurrentSelectAtom,
-  useSwapQuoteEventTotalCountAtom,
-  useSwapQuoteFetchingAtom,
-  useSwapQuoteIntervalCountAtom,
-  useSwapQuoteListAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
-  useSwapSelectedFromTokenBalanceAtom,
-  useSwapShouldRefreshQuoteAtom,
-  useSwapSilenceQuoteLoading,
-} from '../../../states/jotai/contexts/swap';
+import { useSwapActions } from '../../../states/jotai/contexts/swap';
 
 import { useSwapAddressInfo } from './useSwapAccount';
+import {
+  useSwapAlerts,
+  useSwapBuildTxFetching,
+  useSwapFromTokenAmount,
+  useSwapQuoteApproveAllowanceUnLimit,
+  useSwapQuoteCurrentSelect,
+  useSwapQuoteEventFetching,
+  useSwapQuoteIntervalCount,
+  useSwapQuoteLoading,
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+  useSwapSelectedFromTokenBalance,
+  useSwapShouldRefreshQuote,
+} from './useSwapData';
 
-function useSwapWarningCheck() {
+function useSwapWarningCheck(type: ESwapTabSwitchType) {
   const swapFromAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const swapToAddressInfo = useSwapAddressInfo(ESwapDirectionType.TO);
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
-  const [quoteCurrentSelect] = useSwapQuoteCurrentSelectAtom();
-  const [fromTokenAmount] = useSwapFromTokenAmountAtom();
-  const [fromTokenBalance] = useSwapSelectedFromTokenBalanceAtom();
+  const fromToken = useSwapSelectFromToken(type);
+  const toToken = useSwapSelectToToken(type);
+  const quoteCurrentSelect = useSwapQuoteCurrentSelect(type);
+  const fromTokenAmount = useSwapFromTokenAmount(type);
+  const fromTokenBalance = useSwapSelectedFromTokenBalance(type);
   const { checkSwapWarning } = useSwapActions().current;
   const refContainer = useRef<ISwapCheckWarningDef>({
     swapFromAddressInfo: {
@@ -74,6 +73,7 @@ function useSwapWarningCheck() {
     if (isFocused) {
       asyncRefContainer();
       void checkSwapWarning(
+        type,
         refContainer.current.swapFromAddressInfo,
         refContainer.current.swapToAddressInfo,
       );
@@ -87,29 +87,30 @@ function useSwapWarningCheck() {
     fromTokenBalance,
     quoteCurrentSelect,
     isFocused,
+    type,
   ]);
 }
 
-export function useSwapActionState() {
+export function useSwapActionState(swapType: ESwapTabSwitchType) {
   const intl = useIntl();
-  const quoteLoading = useSwapQuoteLoading();
-  const quoteEventFetching = useSwapQuoteEventFetching();
-  const [quoteCurrentSelect] = useSwapQuoteCurrentSelectAtom();
-  const [buildTxFetching] = useSwapBuildTxFetchingAtom();
-  const [fromTokenAmount] = useSwapFromTokenAmountAtom();
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
+  const quoteLoading = useSwapQuoteLoading(swapType);
+  const quoteEventFetching = useSwapQuoteEventFetching(swapType);
+  const quoteCurrentSelect = useSwapQuoteCurrentSelect(swapType);
+  const buildTxFetching = useSwapBuildTxFetching(swapType);
+  const fromTokenAmount = useSwapFromTokenAmount(swapType);
+  const fromToken = useSwapSelectFromToken(swapType);
+  const toToken = useSwapSelectToToken(swapType);
   const [settingsPersistAtom] = useSettingsPersistAtom();
-  const [shouldRefreshQuote] = useSwapShouldRefreshQuoteAtom();
-  const [swapQuoteApproveAllowanceUnLimit] =
-    useSwapQuoteApproveAllowanceUnLimitAtom();
-  useSwapWarningCheck();
-  const [alerts] = useSwapAlertsAtom();
-  const [selectedFromTokenBalance] = useSwapSelectedFromTokenBalanceAtom();
+  const shouldRefreshQuote = useSwapShouldRefreshQuote(swapType);
+  const swapQuoteApproveAllowanceUnLimit =
+    useSwapQuoteApproveAllowanceUnLimit(swapType);
+  useSwapWarningCheck(swapType);
+  const alerts = useSwapAlerts(swapType);
+  const selectedFromTokenBalance = useSwapSelectedFromTokenBalance(swapType);
   const isCrossChain = fromToken?.networkId !== toToken?.networkId;
   const swapFromAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const swapToAddressInfo = useSwapAddressInfo(ESwapDirectionType.TO);
-  const [quoteIntervalCount] = useSwapQuoteIntervalCountAtom();
+  const quoteIntervalCount = useSwapQuoteIntervalCount(swapType);
   const isRefreshQuote =
     quoteIntervalCount > swapQuoteIntervalMaxCount || shouldRefreshQuote;
   const hasError = alerts.states.some(

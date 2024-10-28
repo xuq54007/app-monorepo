@@ -47,7 +47,7 @@ const SwapMainLandContent = ({
   pageType,
   swapTabType,
 }: ISwapMainLandContentProps) => {
-  const { fetchLoading } = useSwapInit(swapInitParams);
+  const { fetchLoading } = useSwapInit(swapTabType, swapInitParams);
   const navigation =
     useAppNavigation<IPageNavigationProp<IModalSwapParamList>>();
   const quoteResult = useSwapQuoteCurrentSelect(swapTabType);
@@ -65,7 +65,8 @@ const SwapMainLandContent = ({
       navigation.pushModal(EModalRoutes.SwapModal, {
         screen: EModalSwapRoutes.SwapTokenSelect,
         params: {
-          type,
+          directionType: type,
+          type: swapTabType,
           storeName:
             pageType === EPageType.modal
               ? EJotaiContextStoreNames.swapModal
@@ -73,7 +74,7 @@ const SwapMainLandContent = ({
         },
       });
     },
-    [navigation, pageType],
+    [navigation, pageType, swapTabType],
   );
   const onSelectRecentTokenPairs = useCallback(
     ({
@@ -92,13 +93,14 @@ const SwapMainLandContent = ({
     navigation.pushModal(EModalRoutes.SwapModal, {
       screen: EModalSwapRoutes.SwapProviderSelect,
       params: {
+        type: swapTabType,
         storeName:
           pageType === EPageType.modal
             ? EJotaiContextStoreNames.swapModal
             : EJotaiContextStoreNames.swap,
       },
     });
-  }, [navigation, pageType]);
+  }, [navigation, pageType, swapTabType]);
 
   const onToAnotherAddressModal = useCallback(() => {
     navigation.pushModal(EModalRoutes.SwapModal, {

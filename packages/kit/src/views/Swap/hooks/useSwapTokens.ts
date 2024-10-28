@@ -35,20 +35,27 @@ import {
   useSwapActions,
   useSwapAllNetworkTokenListMapAtom,
   useSwapNetworksAtom,
-  useSwapNetworksIncludeAllNetworkAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
   useSwapTokenFetchingAtom,
   useSwapTokenMapAtom,
   useSwapTypeSwitchAtom,
 } from '../../../states/jotai/contexts/swap';
 
 import { useSwapAddressInfo } from './useSwapAccount';
+import {
+  useSwapNetworksIncludeAllNetwork,
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+} from './useSwapData';
 
-export function useSwapInit(params?: ISwapInitParams) {
+export function useSwapInit(
+  type: ESwapTabSwitchType,
+  params?: ISwapInitParams,
+) {
   const [swapNetworks, setSwapNetworks] = useSwapNetworksAtom();
-  const [fromToken, setFromToken] = useSwapSelectFromTokenAtom();
-  const [toToken, setToToken] = useSwapSelectToTokenAtom();
+  const { swapActionsSelectFromToken, swapActionsSelectToToken } =
+    useSwapActions().current;
+  const fromToken = useSwapSelectFromToken(type);
+  const toToken = useSwapSelectToToken(type);
   const [, setInAppNotificationAtom] = useInAppNotificationAtom();
   const { syncNetworksSort } = useSwapActions().current;
   const swapAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
@@ -191,7 +198,7 @@ export function useSwapInit(params?: ISwapInitParams) {
           params?.swapTabSwitchType &&
           fromTokenSupportTypes.includes(params?.swapTabSwitchType)
         ) {
-          setFromToken(params?.importFromToken);
+          swapActionsSelectFromToken(type, params?.importFromToken);
         }
       }
       if (params?.importToToken) {
@@ -202,7 +209,7 @@ export function useSwapInit(params?: ISwapInitParams) {
           params?.swapTabSwitchType &&
           toTokenSupportTypes.includes(params?.swapTabSwitchType)
         ) {
-          setToToken(params?.importToToken);
+          swapActionsSelectToToken(type, params?.importToToken);
         }
       }
       if (
@@ -219,7 +226,7 @@ export function useSwapInit(params?: ISwapInitParams) {
             params?.swapTabSwitchType &&
             defaultTokenSupportTypes.includes(params?.swapTabSwitchType)
           ) {
-            setToToken(defaultToToken);
+            swapActionsSelectToToken(type, defaultToToken);
           }
         }
       }
@@ -265,7 +272,7 @@ export function useSwapInit(params?: ISwapInitParams) {
         const defaultFromToken = swapDefaultSetTokens[netId]?.fromToken;
         const defaultToToken = swapDefaultSetTokens[netId]?.toToken;
         if (defaultFromToken) {
-          setFromToken({
+          swapActionsSelectFromToken(type, {
             ...defaultFromToken,
             networkLogoURI: isAllNet
               ? defaultFromToken.networkLogoURI
@@ -274,7 +281,7 @@ export function useSwapInit(params?: ISwapInitParams) {
           void syncNetworksSort(defaultFromToken.networkId);
         }
         if (defaultToToken) {
-          setToToken({
+          swapActionsSelectToToken(type, {
             ...defaultToToken,
             networkLogoURI: isAllNet
               ? defaultToToken.networkLogoURI
@@ -295,8 +302,9 @@ export function useSwapInit(params?: ISwapInitParams) {
     skipSyncDefaultSelectedToken,
     syncNetworksSort,
     checkSupportTokenSwapType,
-    setFromToken,
-    setToToken,
+    swapActionsSelectFromToken,
+    type,
+    swapActionsSelectToToken,
   ]);
 
   useEffect(() => {
@@ -363,6 +371,7 @@ export function useSwapInit(params?: ISwapInitParams) {
 }
 
 export function useSwapTokenList(
+  swapType: ESwapTabSwitchType,
   selectTokenModalType: ESwapDirectionType,
   currentNetworkId?: string,
   keywords?: string,
@@ -376,7 +385,7 @@ export function useSwapTokenList(
     IAllNetworkAccountInfo[]
   >([]);
   const [swapNetworks] = useSwapNetworksAtom();
-  const [swapSupportAllNetworks] = useSwapNetworksIncludeAllNetworkAtom();
+  const swapSupportAllNetworks = useSwapNetworksIncludeAllNetwork(swapType);
   const { tokenListFetchAction, swapLoadAllNetworkTokenList } =
     useSwapActions().current;
   const swapAddressInfo = useSwapAddressInfo(selectTokenModalType);
@@ -645,12 +654,14 @@ export function useSwapTokenList(
 
 export function useSwapSelectedTokenInfo({
   token,
-  type,
+  swapType,
+  directionType,
 }: {
-  type: ESwapDirectionType;
+  swapType: ESwapTabSwitchType;
+  directionType: ESwapDirectionType;
   token?: ISwapToken;
 }) {
-  const swapAddressInfo = useSwapAddressInfo(type);
+  const swapAddressInfo = useSwapAddressInfo(directionType);
   const [orderFinishCheckBalance, setOrderFinishCheckBalance] = useState(0);
   const [{ swapHistoryPendingList }] = useInAppNotificationAtom();
   const { loadSwapSelectTokenDetail } = useSwapActions().current;
@@ -679,20 +690,32 @@ export function useSwapSelectedTokenInfo({
         (item) => item.status === ESwapTxHistoryStatus.SUCCESS,
       ).length;
       if (successOrder > orderFinishCheckBalanceRef.current) {
-        void loadSwapSelectTokenDetail(type, swapAddressInfoRef.current, true);
+        void loadSwapSelectTokenDetail(
+          swapType,
+          directionType,
+          swapAddressInfoRef.current,
+          true,
+        );
         setOrderFinishCheckBalance(successOrder);
       }
     }
-  }, [loadSwapSelectTokenDetail, swapHistoryPendingList, type]);
+  }, [
+    loadSwapSelectTokenDetail,
+    swapHistoryPendingList,
+    directionType,
+    swapType,
+  ]);
 
   useEffect(() => {
     void loadSwapSelectTokenDetail(
-      type,
+      swapType,
+      directionType,
       swapAddressInfoRef.current,
       !token?.reservationValue && token?.isNative,
     );
   }, [
-    type,
+    swapType,
+    directionType,
     swapAddressInfo,
     token?.networkId,
     token?.contractAddress,
@@ -716,7 +739,8 @@ export function useSwapSelectedTokenInfo({
           ).length;
           if (successOrder > orderFinishCheckBalanceRef.current) {
             void loadSwapSelectTokenDetail(
-              type,
+              swapType,
+              directionType,
               swapAddressInfoRef.current,
               true,
             );

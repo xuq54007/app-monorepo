@@ -8,18 +8,10 @@ import type {
 } from '@onekeyhq/shared/types/swap/types';
 
 import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
-import {
-  useSwapFromTokenAmountAtom,
-  useSwapNetworksAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
-} from '../../../states/jotai/contexts/swap';
+import { useSwapNetworksAtom } from '../../../states/jotai/contexts/swap';
 
 export function useSwapTxHistoryActions() {
   const [swapNetworks] = useSwapNetworksAtom();
-  const [, setFromToken] = useSwapSelectFromTokenAtom();
-  const [, setToken] = useSwapSelectToTokenAtom();
-  const [, setFromTokenAmount] = useSwapFromTokenAmountAtom();
   const [settingsAtom] = useSettingsPersistAtom();
   const generateSwapHistoryItem = useCallback(
     async ({
@@ -83,13 +75,5 @@ export function useSwapTxHistoryActions() {
     [settingsAtom.currencyInfo.symbol, swapNetworks],
   );
 
-  const swapAgainUseHistoryItem = useCallback(
-    (item: ISwapTxHistory) => {
-      setFromToken(item?.baseInfo.fromToken);
-      setToken(item?.baseInfo.toToken);
-      setFromTokenAmount(item?.baseInfo.fromAmount);
-    },
-    [setFromToken, setFromTokenAmount, setToken],
-  );
-  return { generateSwapHistoryItem, swapAgainUseHistoryItem };
+  return { generateSwapHistoryItem };
 }

@@ -13,6 +13,7 @@ import platformEnv from '../platformEnv';
 import type { EAccountSelectorSceneName, EHomeTab } from '../../types';
 import type { IFeeSelectorItem } from '../../types/fee';
 import type {
+  ESwapTabSwitchType,
   IFetchQuotesParams,
   ISwapQuoteEvent,
   ISwapToken,
@@ -220,6 +221,7 @@ export interface IAppEventBusPayload {
     };
   };
   [EAppEventBusNames.SwapQuoteEvent]: {
+    swapType: ESwapTabSwitchType;
     type: 'message' | 'done' | 'error' | 'close' | 'open';
     event: ISwapQuoteEvent;
     params: IFetchQuotesParams;

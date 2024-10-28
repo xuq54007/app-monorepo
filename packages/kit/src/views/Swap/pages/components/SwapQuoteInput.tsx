@@ -47,14 +47,15 @@ const SwapQuoteInput = ({
   const swapQuoteCurrentSelect = useSwapQuoteCurrentSelect(swapTabType);
   const fromTokenBalance = useSwapSelectedFromTokenBalance(swapTabType);
   const toTokenBalance = useSwapSelectedToTokenBalance(swapTabType);
-  useSwapQuote();
-  useSwapFromAccountNetworkSync();
-  useSwapApproving();
+  useSwapQuote(swapTabType);
+  useSwapFromAccountNetworkSync(swapTabType);
+  useSwapApproving(swapTabType);
 
   return (
     <YStack>
       <SwapInputContainer
         token={fromToken}
+        type={swapTabType}
         direction={ESwapDirectionType.FROM}
         selectTokenLoading={selectLoading}
         onAmountChange={(value) => {
@@ -99,6 +100,7 @@ const SwapQuoteInput = ({
         />
         <SwapInputContainer
           token={toToken}
+          type={swapTabType}
           inputLoading={swapQuoteLoading || quoteEventFetching}
           selectTokenLoading={selectLoading}
           direction={ESwapDirectionType.TO}

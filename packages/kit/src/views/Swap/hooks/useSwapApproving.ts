@@ -7,7 +7,10 @@ import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRo
 import { useInAppNotificationAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { ETabRoutes } from '@onekeyhq/shared/src/routes';
-import type { ISwapApproveTransaction } from '@onekeyhq/shared/types/swap/types';
+import type {
+  ESwapTabSwitchType,
+  ISwapApproveTransaction,
+} from '@onekeyhq/shared/types/swap/types';
 import { ESwapApproveTransactionStatus } from '@onekeyhq/shared/types/swap/types';
 
 import useListenTabFocusState from '../../../hooks/useListenTabFocusState';
@@ -15,7 +18,7 @@ import { useSwapActions } from '../../../states/jotai/contexts/swap';
 
 import { useSwapBuildTx } from './useSwapBuiltTx';
 
-export function useSwapApproving() {
+export function useSwapApproving(swapType: ESwapTabSwitchType) {
   const intl = useIntl();
   const { approvingStateAction, cleanApprovingInterval } =
     useSwapActions().current;
@@ -25,7 +28,7 @@ export function useSwapApproving() {
   if (swapApprovingTxRef.current !== swapApprovingTransaction) {
     swapApprovingTxRef.current = swapApprovingTransaction;
   }
-  const { approveTx } = useSwapBuildTx();
+  const { approveTx } = useSwapBuildTx(swapType);
   const approveTxRef = useRef(approveTx);
   if (approveTxRef.current !== approveTx) {
     approveTxRef.current = approveTx;
@@ -41,7 +44,7 @@ export function useSwapApproving() {
       swapApprovingTransaction?.txId &&
       swapApprovingTransaction?.status === ESwapApproveTransactionStatus.PENDING
     ) {
-      void approvingStateAction();
+      void approvingStateAction(swapType);
     } else {
       cleanApprovingInterval();
     }
@@ -102,6 +105,7 @@ export function useSwapApproving() {
     swapApprovingTransaction?.resetApproveValue,
     swapApprovingTransaction?.status,
     swapApprovingTransaction?.txId,
+    swapType,
   ]);
 
   const pageType = usePageType();
@@ -116,7 +120,7 @@ export function useSwapApproving() {
           swapApprovingTxRef.current?.status ===
             ESwapApproveTransactionStatus.PENDING
         ) {
-          void approvingStateAction();
+          void approvingStateAction(swapType);
         } else {
           cleanApprovingInterval();
         }
@@ -131,10 +135,16 @@ export function useSwapApproving() {
         swapApprovingTxRef.current?.status ===
           ESwapApproveTransactionStatus.PENDING
       ) {
-        void approvingStateAction();
+        void approvingStateAction(swapType);
       } else {
         cleanApprovingInterval();
       }
     }
-  }, [approvingStateAction, cleanApprovingInterval, isFocused, pageType]);
+  }, [
+    approvingStateAction,
+    cleanApprovingInterval,
+    isFocused,
+    pageType,
+    swapType,
+  ]);
 }

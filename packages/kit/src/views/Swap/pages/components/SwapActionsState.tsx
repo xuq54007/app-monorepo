@@ -19,10 +19,7 @@ import {
 } from '@onekeyhq/components';
 import {
   useSwapActions,
-  useSwapFromTokenAmountAtom,
-  useSwapQuoteCurrentSelectAtom,
-  useSwapSelectFromTokenAtom,
-  useSwapSelectToTokenAtom,
+  useSwapTypeSwitchAtom,
 } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
@@ -34,9 +31,13 @@ import {
   useSwapRecipientAddressInfo,
 } from '../../hooks/useSwapAccount';
 import {
-  useSwapActionState,
+  useSwapFromTokenAmount,
+  useSwapQuoteCurrentSelect,
   useSwapQuoteLoading,
-} from '../../hooks/useSwapState';
+  useSwapSelectFromToken,
+  useSwapSelectToToken,
+} from '../../hooks/useSwapData';
+import { useSwapActionState } from '../../hooks/useSwapState';
 
 interface ISwapActionsStateProps {
   onBuildTx: () => void;
@@ -54,18 +55,19 @@ const SwapActionsState = ({
   onWrapped,
 }: ISwapActionsStateProps) => {
   const intl = useIntl();
-  const [fromToken] = useSwapSelectFromTokenAtom();
-  const [toToken] = useSwapSelectToTokenAtom();
-  const [fromAmount] = useSwapFromTokenAmountAtom();
-  const [currentQuoteRes] = useSwapQuoteCurrentSelectAtom();
+  const [swapTabType] = useSwapTypeSwitchAtom();
+  const fromToken = useSwapSelectFromToken(swapTabType);
+  const toToken = useSwapSelectToToken(swapTabType);
+  const fromAmount = useSwapFromTokenAmount(swapTabType);
+  const currentQuoteRes = useSwapQuoteCurrentSelect(swapTabType);
   const swapFromAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const { cleanQuoteInterval, quoteAction } = useSwapActions().current;
-  const swapActionState = useSwapActionState();
+  const swapActionState = useSwapActionState(swapTabType);
   const [{ swapEnableRecipientAddress }] = useSettingsPersistAtom();
   const swapRecipientAddressInfo = useSwapRecipientAddressInfo(
     swapEnableRecipientAddress,
   );
-  const quoteLoading = useSwapQuoteLoading();
+  const quoteLoading = useSwapQuoteLoading(swapTabType);
   const [{ swapBatchApproveAndSwap }] = useSettingsPersistAtom();
   const handleApprove = useCallback(() => {
     if (swapActionState.shoutResetApprove) {
@@ -101,6 +103,7 @@ const SwapActionsState = ({
   const onActionHandler = useCallback(() => {
     if (swapActionState.isRefreshQuote) {
       void quoteAction(
+        swapTabType,
         swapFromAddressInfo?.address,
         swapFromAddressInfo?.accountInfo?.account?.id,
       );
@@ -128,6 +131,7 @@ const SwapActionsState = ({
     swapActionState.isWrapped,
     swapFromAddressInfo?.accountInfo?.account?.id,
     swapFromAddressInfo?.address,
+    swapTabType,
   ]);
 
   const onActionHandlerBefore = useCallback(() => {

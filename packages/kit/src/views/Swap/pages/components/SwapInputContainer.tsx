@@ -4,26 +4,27 @@ import BigNumber from 'bignumber.js';
 
 import { SizableText, YStack } from '@onekeyhq/components';
 import { AmountInput } from '@onekeyhq/kit/src/components/AmountInput';
-import {
-  useRateDifferenceAtom,
-  useSwapAlertsAtom,
-} from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
-import type { ISwapToken } from '@onekeyhq/shared/types/swap/types';
+import type {
+  ESwapTabSwitchType,
+  ISwapToken,
+} from '@onekeyhq/shared/types/swap/types';
 import {
   ESwapDirectionType,
   ESwapRateDifferenceUnit,
 } from '@onekeyhq/shared/types/swap/types';
 
 import { useSwapAddressInfo } from '../../hooks/useSwapAccount';
+import { useRateDifference, useSwapAlerts } from '../../hooks/useSwapData';
 import { useSwapSelectedTokenInfo } from '../../hooks/useSwapTokens';
 
 import SwapAccountAddressContainer from './SwapAccountAddressContainer';
 
 interface ISwapInputContainerProps {
   direction: ESwapDirectionType;
+  type: ESwapTabSwitchType;
   token?: ISwapToken;
   onAmountChange?: (value: string) => void;
   amountValue: string;
@@ -45,15 +46,17 @@ const SwapInputContainer = ({
   onSelectToken,
   onBalanceMaxPress,
   balance,
+  type,
 }: ISwapInputContainerProps) => {
   useSwapSelectedTokenInfo({
     token,
-    type: direction,
+    swapType: type,
+    directionType: direction,
   });
   const [settingsPersistAtom] = useSettingsPersistAtom();
-  const [alerts] = useSwapAlertsAtom();
+  const alerts = useSwapAlerts(type);
   const { address, accountInfo } = useSwapAddressInfo(direction);
-  const [rateDifference] = useRateDifferenceAtom();
+  const rateDifference = useRateDifference(type);
   const amountPrice = useMemo(() => {
     if (!token?.price) return '0.0';
     const tokenPriceBN = new BigNumber(token.price ?? 0);
@@ -100,7 +103,8 @@ const SwapInputContainer = ({
   return (
     <YStack>
       <SwapAccountAddressContainer
-        type={direction}
+        direction={direction}
+        type={type}
         onClickNetwork={onSelectToken}
       />
       <AmountInput
