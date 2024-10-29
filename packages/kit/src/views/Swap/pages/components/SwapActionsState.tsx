@@ -35,7 +35,6 @@ import { useSwapBuildTx } from '../../hooks/useSwapBuiltTx';
 import {
   useSwapFromTokenAmount,
   useSwapQuoteCurrentSelect,
-  useSwapQuoteLoading,
   useSwapSelectFromToken,
   useSwapSelectToToken,
 } from '../../hooks/useSwapData';
@@ -55,7 +54,6 @@ const SwapActionsState = () => {
   const swapRecipientAddressInfo = useSwapRecipientAddressInfo(
     swapEnableRecipientAddress,
   );
-  const quoteLoading = useSwapQuoteLoading(swapTabType);
   const [{ swapBatchApproveAndSwap }] = useSettingsPersistAtom();
   const { buildTx, approveTx, wrappedTx } = useSwapBuildTx();
 
@@ -201,7 +199,7 @@ const SwapActionsState = () => {
 
   const approveStepComponent = useMemo(
     () =>
-      swapActionState.isApprove && !swapBatchApproveAndSwap && !quoteLoading ? (
+      swapActionState.isApprove && !swapBatchApproveAndSwap ? (
         <XStack
           gap="$1"
           {...(pageType === EPageType.modal && !md ? {} : { pb: '$5' })}
@@ -254,13 +252,12 @@ const SwapActionsState = () => {
         </XStack>
       ) : null,
     [
-      fromToken?.symbol,
-      swapBatchApproveAndSwap,
-      intl,
-      md,
-      pageType,
-      quoteLoading,
       swapActionState.isApprove,
+      swapBatchApproveAndSwap,
+      pageType,
+      md,
+      intl,
+      fromToken?.symbol,
     ],
   );
   const recipientComponent = useMemo(() => {
@@ -323,6 +320,14 @@ const SwapActionsState = () => {
     swapRecipientAddressInfo?.accountInfo?.accountName,
     swapRecipientAddressInfo?.isExtAccount,
   ]);
+
+  const haveTips = useMemo(
+    () =>
+      shouldShowRecipient ||
+      (swapActionState.isApprove && !swapBatchApproveAndSwap),
+    [shouldShowRecipient, swapActionState.isApprove, swapBatchApproveAndSwap],
+  );
+
   const actionComponent = useMemo(
     () => (
       <Stack
@@ -330,9 +335,7 @@ const SwapActionsState = () => {
         {...(pageType === EPageType.modal && !md
           ? {
               flexDirection: 'row',
-              justifyContent: shouldShowRecipient
-                ? 'space-between'
-                : 'flex-end',
+              justifyContent: haveTips ? 'space-between' : 'flex-end',
               alignItems: 'center',
             }
           : {})}
@@ -352,11 +355,11 @@ const SwapActionsState = () => {
     ),
     [
       approveStepComponent,
+      haveTips,
       md,
       onActionHandlerBefore,
       pageType,
       recipientComponent,
-      shouldShowRecipient,
       swapActionState.disabled,
       swapActionState.isLoading,
       swapActionState.label,
