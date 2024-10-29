@@ -75,9 +75,8 @@ const PageComponent = (
   const handleSelectedPageIndex = useCallback(
     (pageIndex: number) => {
       pageManager?.contentView?.current?.scrollPageIndex(pageIndex);
-      onSelectedPageIndex?.(pageIndex);
     },
-    [onSelectedPageIndex, pageManager?.contentView],
+    [pageManager?.contentView],
   );
 
   useImperativeHandle(forwardedRef, () => ({
