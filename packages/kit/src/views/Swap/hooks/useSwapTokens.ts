@@ -8,6 +8,10 @@ import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRo
 import type { IAllNetworkAccountInfo } from '@onekeyhq/kit-bg/src/services/ServiceAllNetwork/ServiceAllNetwork';
 import { useInAppNotificationAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import type { IFuseResult } from '@onekeyhq/shared/src/modules3rdParty/fuse';
 import { useFuse } from '@onekeyhq/shared/src/modules3rdParty/fuse';
 import { ETabRoutes } from '@onekeyhq/shared/src/routes';
@@ -52,12 +56,12 @@ export function useSwapInit(
     swapActionsSelectFromToken,
     syncNetworksSort,
     swapActionsSelectToToken,
-    swapTypeSwitchAction,
     needChangeToken,
   } = useSwapActions().current;
   const fromToken = useSwapSelectFromToken(type);
   const toToken = useSwapSelectToToken(type);
   const [, setInAppNotificationAtom] = useInAppNotificationAtom();
+  const { swapToTokenDefaultSetAction } = useSwapActions().current;
   const swapAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const { updateSelectedAccountNetwork } = useAccountSelectorActions().current;
   const [networkListFetching, setNetworkListFetching] = useState<boolean>(true);
@@ -157,18 +161,15 @@ export function useSwapInit(
         if (supportTypes.length > 0 && !supportTypes.includes(type)) {
           const needSwitchType = supportTypes.find((t) => t !== type);
           if (needSwitchType) {
-            void swapTypeSwitchAction(
-              needSwitchType,
-              true,
-              swapAddressInfoRef.current?.networkId ??
-                fromTokenRef.current?.networkId,
-            );
+            appEventBus.emit(EAppEventBusNames.SwapTypeSwitch, {
+              type: needSwitchType,
+            });
           }
         }
       }
       return supportTypes;
     },
-    [params?.swapTabSwitchType, swapNetworks, type, swapTypeSwitchAction],
+    [params?.swapTabSwitchType, swapNetworks, type],
   );
 
   const syncDefaultSelectedToken = useCallback(async () => {
@@ -284,6 +285,7 @@ export function useSwapInit(
         }
         if (defaultFromToken) {
           checkSupportTokenSwapType(defaultFromToken, true);
+          void swapToTokenDefaultSetAction(type, netId);
         }
       }
     }
@@ -299,6 +301,7 @@ export function useSwapInit(
     type,
     needChangeToken,
     swapActionsSelectToToken,
+    swapToTokenDefaultSetAction,
   ]);
 
   useEffect(() => {

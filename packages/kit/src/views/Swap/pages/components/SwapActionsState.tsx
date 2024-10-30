@@ -31,6 +31,7 @@ import {
   useSwapAddressInfo,
   useSwapRecipientAddressInfo,
 } from '../../hooks/useSwapAccount';
+import { useSwapApproving } from '../../hooks/useSwapApproving';
 import { useSwapBuildTx } from '../../hooks/useSwapBuiltTx';
 import {
   useSwapFromTokenAmount,
@@ -38,6 +39,7 @@ import {
   useSwapSelectFromToken,
   useSwapSelectToToken,
 } from '../../hooks/useSwapData';
+import { useSwapQuote } from '../../hooks/useSwapQuote';
 import { useSwapActionState } from '../../hooks/useSwapState';
 
 const SwapActionsState = () => {
@@ -56,6 +58,9 @@ const SwapActionsState = () => {
   );
   const [{ swapBatchApproveAndSwap }] = useSettingsPersistAtom();
   const { buildTx, approveTx, wrappedTx } = useSwapBuildTx();
+  console.log('swap__SwapActionsState', swapTabType);
+  useSwapApproving(swapTabType);
+  useSwapQuote(swapTabType);
 
   const onBuildTx = useCallback(async () => {
     await buildTx();

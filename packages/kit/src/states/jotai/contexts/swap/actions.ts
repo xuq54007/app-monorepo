@@ -8,10 +8,6 @@ import type { useSwapAddressInfo } from '@onekeyhq/kit/src/views/Swap/hooks/useS
 import { moveNetworkToFirst } from '@onekeyhq/kit/src/views/Swap/utils/utils';
 import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
 import { dangerAllNetworkRepresent } from '@onekeyhq/shared/src/config/presetNetworks';
-import {
-  EAppEventBusNames,
-  appEventBus,
-} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import type { IEventSourceMessageEvent } from '@onekeyhq/shared/src/eventSource';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
@@ -119,6 +115,7 @@ import {
   swapTokenFetchingAtom,
   swapTokenMapAtom,
   swapTypeSwitchAtom,
+  // swapTypeSwitchAtom,
 } from './atoms';
 
 class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
@@ -260,6 +257,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         this.swapActionsSelectFromToken.call(set, type);
         this.swapActionsSelectedFromTokenBalance.call(set, type, '');
       } else {
+        console.log('swap__=============resetSwapTokenData__toToken');
         this.swapActionsSelectToToken.call(set, type);
         this.swapActionsSelectedToTokenBalance.call(set, type, '');
       }
@@ -293,6 +291,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         toToken,
       });
       if (needChangeToToken && !disableCheckToToken) {
+        console.log('swap__=============selectFromToken__toToken');
         this.swapActionsSelectToToken.call(set, type);
         this.swapActionsSelectFromToken.call(set, type, token);
         this.swapActionsSelectToToken.call(set, type, needChangeToToken);
@@ -320,6 +319,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         this.swapActionsManualSelectQuoteProviders.call(set, type);
         void this.syncNetworksSort.call(set, token.networkId);
       }
+      console.log('swap__=============selectToToken-token');
       this.swapActionsSelectToToken.call(set, type);
     },
   );
@@ -330,6 +330,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     if (!fromToken && !toToken) {
       return;
     }
+    console.log('swap__=============alternationToken-token');
     this.swapActionsSelectToToken.call(set, type, fromToken);
     this.swapActionsSelectFromToken.call(set, type, toToken);
     this.swapActionsSlippagePercentageMode.call(
@@ -675,6 +676,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       accountId?: string,
       blockNumber?: number,
     ) => {
+      console.log('swap__runQuoteEvent', type);
       const shouldRefreshQuote = this.swapDataShouldRefreshQuote.call(
         set,
         type,
@@ -713,6 +715,7 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       accountId?: string,
       blockNumber?: number,
     ) => {
+      console.log('swap__quoteAction', type);
       const fromToken = this.swapDataSelectFromToken.call(set, type);
       const toToken = this.swapDataSelectToToken.call(set, type);
       const fromTokenAmount = this.swapDataFromTokenAmount.call(set, type);
@@ -1630,28 +1633,13 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     },
   );
 
-  swapTypeSwitchAction = contextAtomMethod(
+  swapToTokenDefaultSetAction = contextAtomMethod(
     async (
       get,
       set,
       type: ESwapTabSwitchType,
-      shouldEmitEvent?: boolean,
       swapAccountNetworkId?: string,
     ) => {
-      console.log('swap__swapTypeSwitchAction', type);
-      console.log('swap__shouldEmitEvent', shouldEmitEvent);
-      set(swapTypeSwitchAtom(), type);
-      if (shouldEmitEvent) {
-        appEventBus.emit(EAppEventBusNames.SwapTypeSwitch, {
-          type,
-        });
-      }
-      this.swapActionsSlippagePercentageMode.call(
-        set,
-        type,
-        ESwapSlippageSegmentKey.AUTO,
-      );
-      this.swapActionsManualSelectQuoteProviders.call(set, type);
       const swapSupportNetworks = this.swapDataNetworksIncludeAllNetwork.call(
         set,
         type,
@@ -1695,16 +1683,12 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
               );
             }
           }
-          console.log('swap__shouldSetFromToken', shouldSetFromToken);
-          console.log('swap__toToken', toToken);
-          console.log('swap__type', type);
           if (shouldSetFromToken) {
             const needChangeToToken = this.needChangeToken({
               token: shouldSetFromToken,
               toToken,
               swapTypeSwitchValue: type,
             });
-            console.log('swap__needChangeToToken', needChangeToToken);
             if (needChangeToToken) {
               this.swapActionsSelectToToken.call(set, type, needChangeToToken);
               void this.syncNetworksSort.call(set, needChangeToToken.networkId);
@@ -2430,6 +2414,18 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       }
     },
   );
+
+  swapActionsSwitchSwapType = contextAtomMethod(
+    (get, set, type: ESwapTabSwitchType) => {
+      const prevType = get(swapTypeSwitchAtom());
+      if (prevType !== type) {
+        set(swapTypeSwitchAtom(), type);
+        this.cleanQuoteInterval();
+        this.cleanApprovingInterval();
+        this.closeQuoteEvent();
+      }
+    },
+  );
 }
 
 const createActions = memoFn(() => new ContentJotaiActionsSwap());
@@ -2457,7 +2453,7 @@ export const useSwapActions = () => {
     },
   );
   const swapLoadAllNetworkTokenList = actions.swapLoadAllNetworkTokenList.use();
-  const swapTypeSwitchAction = actions.swapTypeSwitchAction.use();
+  const swapToTokenDefaultSetAction = actions.swapToTokenDefaultSetAction.use();
   const {
     cleanQuoteInterval,
     cleanApprovingInterval,
@@ -2503,6 +2499,8 @@ export const useSwapActions = () => {
   const swapActionsSelectFromToken = actions.swapActionsSelectFromToken.use();
   const swapActionsSelectToToken = actions.swapActionsSelectToToken.use();
 
+  const swapActionsSwitchSwapType = actions.swapActionsSwitchSwapType.use();
+
   return useRef({
     selectFromToken,
     quoteAction,
@@ -2515,12 +2513,13 @@ export const useSwapActions = () => {
     approvingStateAction,
     tokenListFetchAction,
     recoverQuoteInterval,
+    swapActionsSwitchSwapType,
     checkSwapWarning,
     loadSwapSelectTokenDetail,
     quoteEventHandler,
     swapLoadAllNetworkTokenList,
     closeQuoteEvent,
-    swapTypeSwitchAction,
+    swapToTokenDefaultSetAction,
     swapActionsSlippageDialogOpening,
     swapActionsSlippagePercentageCustomValue,
     swapActionsSlippagePercentageMode,

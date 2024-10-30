@@ -29,10 +29,9 @@ const SwapHeaderContainer = ({
   const intl = useIntl();
   const headerRight = useMemo(() => <SwapHeaderRightActionContainer />, []);
   const ref = useRef<ITabPageInstance | null>(null);
-  const { swapTypeSwitchAction } = useSwapActions().current;
+  const { swapActionsSwitchSwapType } = useSwapActions().current;
   const handleSwapTypeSwitch = useCallback(
     (event: { type: ESwapTabSwitchType }) => {
-      console.log('swap___event', event);
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       ref.current?.scrollPageIndex(
         event.type === ESwapTabSwitchType.BRIDGE ? 1 : 0,
@@ -50,9 +49,9 @@ const SwapHeaderContainer = ({
 
   useEffect(() => {
     if (defaultSwapType && defaultSwapType === ESwapTabSwitchType.BRIDGE) {
-      void swapTypeSwitchAction(defaultSwapType, true);
+      void handleSwapTypeSwitch({ type: defaultSwapType });
     }
-  }, [defaultSwapType, swapTypeSwitchAction]);
+  }, [defaultSwapType, handleSwapTypeSwitch]);
   return (
     <YStack>
       <Tab.Page
@@ -90,11 +89,14 @@ const SwapHeaderContainer = ({
             borderCurve: 'continuous',
           },
           headerRight,
-        }}
-        onSelectedPageIndex={(index: number) => {
-          void swapTypeSwitchAction(
-            index === 0 ? ESwapTabSwitchType.SWAP : ESwapTabSwitchType.BRIDGE,
-          );
+          onSelectedPageIndex: (index) => {
+            console.log('swap__onSelectedPageIndex', index);
+            if (index === 0) {
+              swapActionsSwitchSwapType(ESwapTabSwitchType.SWAP);
+            } else {
+              swapActionsSwitchSwapType(ESwapTabSwitchType.BRIDGE);
+            }
+          },
         }}
       />
     </YStack>

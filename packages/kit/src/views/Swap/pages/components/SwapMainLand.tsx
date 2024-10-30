@@ -19,7 +19,6 @@ interface ISwapMainLoadProps {
 }
 
 const SwapMainLand = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
-  console.log('swap_______swapInitParams', swapInitParams);
   const swapPage = useMemo(
     // eslint-disable-next-line react/no-unstable-nested-components, react/display-name
     () => () =>

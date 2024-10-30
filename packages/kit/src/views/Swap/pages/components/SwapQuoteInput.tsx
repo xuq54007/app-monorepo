@@ -8,7 +8,6 @@ import type { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 import { ESwapDirectionType } from '@onekeyhq/shared/types/swap/types';
 
 import { useSwapFromAccountNetworkSync } from '../../hooks/useSwapAccount';
-import { useSwapApproving } from '../../hooks/useSwapApproving';
 import {
   useSwapFromTokenAmount,
   useSwapQuoteCurrentSelect,
@@ -20,7 +19,6 @@ import {
   useSwapSelectedFromTokenBalance,
   useSwapSelectedToTokenBalance,
 } from '../../hooks/useSwapData';
-import { useSwapQuote } from '../../hooks/useSwapQuote';
 import { validateAmountInput } from '../../utils/utils';
 
 import SwapInputContainer from './SwapInputContainer';
@@ -47,9 +45,7 @@ const SwapQuoteInput = ({
   const swapQuoteCurrentSelect = useSwapQuoteCurrentSelect(swapTabType);
   const fromTokenBalance = useSwapSelectedFromTokenBalance(swapTabType);
   const toTokenBalance = useSwapSelectedToTokenBalance(swapTabType);
-  useSwapQuote(swapTabType);
   useSwapFromAccountNetworkSync(swapTabType);
-  useSwapApproving(swapTabType);
 
   return (
     <YStack>

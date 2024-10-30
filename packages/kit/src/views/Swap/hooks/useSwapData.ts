@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import BigNumber from 'bignumber.js';
 import { isNil } from 'lodash';
 
@@ -446,20 +448,31 @@ export function useSwapSelectedToTokenBalance(type: ESwapTabSwitchType) {
 
 export function useSwapNetworksIncludeAllNetwork(type: ESwapTabSwitchType) {
   const [networks] = useSwapNetworksAtom();
-  const typeNetworks = networks.filter((net) =>
-    type === ESwapTabSwitchType.BRIDGE
-      ? net.supportCrossChainSwap
-      : net.supportSingleSwap,
+  const typeNetworks = useMemo(
+    () =>
+      networks.filter((net) =>
+        type === ESwapTabSwitchType.BRIDGE
+          ? net.supportCrossChainSwap
+          : net.supportSingleSwap,
+      ),
+    [networks, type],
   );
-  const allNetwork = {
-    networkId: getNetworkIdsMap().onekeyall,
-    name: dangerAllNetworkRepresent.name,
-    symbol: dangerAllNetworkRepresent.symbol,
-    logoURI: dangerAllNetworkRepresent.logoURI,
-    shortcode: dangerAllNetworkRepresent.shortcode,
-    isAllNetworks: true,
-  };
-  return [allNetwork, ...typeNetworks];
+  const allNetwork = useMemo(
+    () => ({
+      networkId: getNetworkIdsMap().onekeyall,
+      name: dangerAllNetworkRepresent.name,
+      symbol: dangerAllNetworkRepresent.symbol,
+      logoURI: dangerAllNetworkRepresent.logoURI,
+      shortcode: dangerAllNetworkRepresent.shortcode,
+      isAllNetworks: true,
+    }),
+    [],
+  );
+
+  return useMemo(
+    () => [allNetwork, ...typeNetworks],
+    [allNetwork, typeNetworks],
+  );
 }
 
 export function useRateDifference(type: ESwapTabSwitchType) {
