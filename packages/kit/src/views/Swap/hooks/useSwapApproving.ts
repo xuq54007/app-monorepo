@@ -108,11 +108,11 @@ export function useSwapApproving(swapType: ESwapTabSwitchType) {
     swapType,
   ]);
 
-  const pageType = usePageType();
+  const currentPageType = usePageType();
   useListenTabFocusState(
     ETabRoutes.Swap,
     (isFocus: boolean, isHiddenModel: boolean) => {
-      if (pageType !== EPageType.modal) {
+      if (currentPageType !== EPageType.modal) {
         if (
           isFocus &&
           !isHiddenModel &&
@@ -128,7 +128,7 @@ export function useSwapApproving(swapType: ESwapTabSwitchType) {
     },
   );
   useEffect(() => {
-    if (pageType === EPageType.modal) {
+    if (currentPageType === EPageType.modal) {
       if (
         isFocused &&
         swapApprovingTxRef.current?.txId &&
@@ -144,7 +144,7 @@ export function useSwapApproving(swapType: ESwapTabSwitchType) {
     approvingStateAction,
     cleanApprovingInterval,
     isFocused,
-    pageType,
+    currentPageType,
     swapType,
   ]);
 }

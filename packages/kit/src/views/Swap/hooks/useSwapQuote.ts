@@ -49,6 +49,7 @@ export function useSwapQuote(swapType: ESwapTabSwitchType) {
     swapActionsFromTokenAmount,
     swapActionsQuoteList,
     swapActionsQuoteEventTotalCount,
+    closeQuoteEvent,
   } = useSwapActions().current;
   const swapQuoteActionLock = useSwapQuoteActionLock(swapType);
   const swapAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
@@ -61,7 +62,6 @@ export function useSwapQuote(swapType: ESwapTabSwitchType) {
   const swapQuoteResultList = useSwapQuoteList(swapType);
   const swapQuoteEventTotalCount = useSwapQuoteEventTotalCount(swapType);
   const swapQuoteFetching = useSwapQuoteFetching(swapType);
-  const { closeQuoteEvent } = useSwapActions().current;
   const [{ swapApprovingTransaction }] = useInAppNotificationAtom();
   const swapShouldRefresh = useSwapShouldRefreshQuote(swapType);
   const swapShouldRefreshRef = useRef(swapShouldRefresh);
@@ -274,11 +274,11 @@ export function useSwapQuote(swapType: ESwapTabSwitchType) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [swapAddressInfo.accountInfo?.deriveType, swapType]);
 
-  const pageType = usePageType();
+  const currentPageType = usePageType();
   useListenTabFocusState(
     ETabRoutes.Swap,
     (isFocus: boolean, isHiddenModel: boolean) => {
-      if (pageType !== EPageType.modal) {
+      if (currentPageType !== EPageType.modal) {
         if (isFocus) {
           appEventBus.off(EAppEventBusNames.SwapQuoteEvent, quoteEventHandler);
           appEventBus.on(EAppEventBusNames.SwapQuoteEvent, quoteEventHandler);
@@ -303,7 +303,7 @@ export function useSwapQuote(swapType: ESwapTabSwitchType) {
       }
       setTimeout(() => {
         // ext env txId data is undefined when useListenTabFocusState is called
-        if (pageType !== EPageType.modal) {
+        if (currentPageType !== EPageType.modal) {
           if (
             isFocus &&
             !isHiddenModel &&
@@ -323,17 +323,17 @@ export function useSwapQuote(swapType: ESwapTabSwitchType) {
     },
   );
   useEffect(() => {
-    if (pageType === EPageType.modal) {
+    if (currentPageType === EPageType.modal) {
       if (isFocused) {
         appEventBus.off(EAppEventBusNames.SwapQuoteEvent, quoteEventHandler);
         appEventBus.on(EAppEventBusNames.SwapQuoteEvent, quoteEventHandler);
       }
     }
-  }, [isFocused, pageType, quoteEventHandler]);
+  }, [isFocused, currentPageType, quoteEventHandler]);
 
   useEffect(() => {
     setTimeout(() => {
-      if (pageType === EPageType.modal) {
+      if (currentPageType === EPageType.modal) {
         if (
           isFocused &&
           !swapApprovingTxRef.current?.txId &&
@@ -349,5 +349,11 @@ export function useSwapQuote(swapType: ESwapTabSwitchType) {
         }
       }
     }, 100);
-  }, [cleanQuoteInterval, isFocused, pageType, recoverQuoteInterval, swapType]);
+  }, [
+    cleanQuoteInterval,
+    isFocused,
+    currentPageType,
+    recoverQuoteInterval,
+    swapType,
+  ]);
 }

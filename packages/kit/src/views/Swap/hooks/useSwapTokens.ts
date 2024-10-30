@@ -13,10 +13,7 @@ import { useFuse } from '@onekeyhq/shared/src/modules3rdParty/fuse';
 import { ETabRoutes } from '@onekeyhq/shared/src/routes';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import { equalTokenNoCaseSensitive } from '@onekeyhq/shared/src/utils/tokenUtils';
-import {
-  swapDefaultSetTokens,
-  tokenDetailSwapDefaultToTokens,
-} from '@onekeyhq/shared/types/swap/SwapProvider.constants';
+import { swapDefaultSetTokens } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
   ISwapInitParams,
   ISwapNetwork,
@@ -37,7 +34,6 @@ import {
   useSwapNetworksAtom,
   useSwapTokenFetchingAtom,
   useSwapTokenMapAtom,
-  useSwapTypeSwitchAtom,
 } from '../../../states/jotai/contexts/swap';
 
 import { useSwapAddressInfo } from './useSwapAccount';
@@ -52,20 +48,22 @@ export function useSwapInit(
   params?: ISwapInitParams,
 ) {
   const [swapNetworks, setSwapNetworks] = useSwapNetworksAtom();
-  const { swapActionsSelectFromToken, swapActionsSelectToToken } =
-    useSwapActions().current;
+  const {
+    swapActionsSelectFromToken,
+    syncNetworksSort,
+    swapActionsSelectToToken,
+    swapTypeSwitchAction,
+    needChangeToken,
+  } = useSwapActions().current;
   const fromToken = useSwapSelectFromToken(type);
   const toToken = useSwapSelectToToken(type);
   const [, setInAppNotificationAtom] = useInAppNotificationAtom();
-  const { syncNetworksSort } = useSwapActions().current;
   const swapAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const { updateSelectedAccountNetwork } = useAccountSelectorActions().current;
   const [networkListFetching, setNetworkListFetching] = useState<boolean>(true);
   const [skipSyncDefaultSelectedToken, setSkipSyncDefaultSelectedToken] =
     useState<boolean>(false);
   const swapAddressInfoRef = useRef<ReturnType<typeof useSwapAddressInfo>>();
-  const [swapTypeSwitch] = useSwapTypeSwitchAtom();
-  const { swapTypeSwitchAction } = useSwapActions().current;
   if (swapAddressInfoRef.current !== swapAddressInfo) {
     swapAddressInfoRef.current = swapAddressInfo;
   }
@@ -154,12 +152,14 @@ export function useSwapInit(
           supportTypes = [...supportTypes, ESwapTabSwitchType.BRIDGE];
         }
       }
+
       if (!params?.swapTabSwitchType && enableSwitchAction) {
-        if (supportTypes.length > 0 && !supportTypes.includes(swapTypeSwitch)) {
-          const needSwitchType = supportTypes.find((t) => t !== swapTypeSwitch);
+        if (supportTypes.length > 0 && !supportTypes.includes(type)) {
+          const needSwitchType = supportTypes.find((t) => t !== type);
           if (needSwitchType) {
             void swapTypeSwitchAction(
               needSwitchType,
+              true,
               swapAddressInfoRef.current?.networkId ??
                 fromTokenRef.current?.networkId,
             );
@@ -168,12 +168,7 @@ export function useSwapInit(
       }
       return supportTypes;
     },
-    [
-      params?.swapTabSwitchType,
-      swapNetworks,
-      swapTypeSwitch,
-      swapTypeSwitchAction,
-    ],
+    [params?.swapTabSwitchType, swapNetworks, type, swapTypeSwitchAction],
   );
 
   const syncDefaultSelectedToken = useCallback(async () => {
@@ -199,6 +194,22 @@ export function useSwapInit(
           fromTokenSupportTypes.includes(params?.swapTabSwitchType)
         ) {
           swapActionsSelectFromToken(type, params?.importFromToken);
+          if (params?.importFromToken && !params?.importToToken) {
+            const defaultToToken = needChangeToken({
+              token: params?.importFromToken,
+              swapTypeSwitchValue: type,
+            });
+            if (defaultToToken) {
+              const defaultTokenSupportTypes =
+                checkSupportTokenSwapType(defaultToToken);
+              if (
+                params?.swapTabSwitchType &&
+                defaultTokenSupportTypes.includes(params?.swapTabSwitchType)
+              ) {
+                swapActionsSelectToToken(type, defaultToToken);
+              }
+            }
+          }
         }
       }
       if (params?.importToToken) {
@@ -210,24 +221,6 @@ export function useSwapInit(
           toTokenSupportTypes.includes(params?.swapTabSwitchType)
         ) {
           swapActionsSelectToToken(type, params?.importToToken);
-        }
-      }
-      if (
-        params?.importFromToken &&
-        !params?.importToToken &&
-        !params?.importFromToken?.isNative
-      ) {
-        const defaultToToken =
-          tokenDetailSwapDefaultToTokens[params?.importFromToken.networkId];
-        if (defaultToToken) {
-          const defaultTokenSupportTypes =
-            checkSupportTokenSwapType(defaultToToken);
-          if (
-            params?.swapTabSwitchType &&
-            defaultTokenSupportTypes.includes(params?.swapTabSwitchType)
-          ) {
-            swapActionsSelectToToken(type, defaultToToken);
-          }
         }
       }
       void syncNetworksSort(
@@ -304,6 +297,7 @@ export function useSwapInit(
     checkSupportTokenSwapType,
     swapActionsSelectFromToken,
     type,
+    needChangeToken,
     swapActionsSelectToToken,
   ]);
 
@@ -349,11 +343,11 @@ export function useSwapInit(
     params?.importNetworkId,
   ]);
 
-  const pageType = usePageType();
+  const currentPageType = usePageType();
   useListenTabFocusState(
     ETabRoutes.Swap,
     (isFocus: boolean, isHiddenModel: boolean) => {
-      if (pageType !== EPageType.modal) {
+      if (currentPageType !== EPageType.modal) {
         if (isFocus) {
           if (isHiddenModel) {
             setSkipSyncDefaultSelectedToken(true);
@@ -660,6 +654,7 @@ export function useSwapSelectedTokenInfo({
   swapType: ESwapTabSwitchType;
   directionType: ESwapDirectionType;
   token?: ISwapToken;
+  pageType?: EPageType;
 }) {
   const swapAddressInfo = useSwapAddressInfo(directionType);
   const [orderFinishCheckBalance, setOrderFinishCheckBalance] = useState(0);
@@ -724,11 +719,11 @@ export function useSwapSelectedTokenInfo({
     token?.isNative,
   ]);
 
-  const pageType = usePageType();
+  const currentPageType = usePageType();
   useListenTabFocusState(
     ETabRoutes.Swap,
     (isFocus: boolean, isHiddenModel: boolean) => {
-      if (pageType !== EPageType.modal) {
+      if (currentPageType !== EPageType.modal) {
         if (
           isFocus &&
           !isHiddenModel &&

@@ -1,11 +1,8 @@
-import { useEffect } from 'react';
-
 import { useRoute } from '@react-navigation/core';
 import { useIntl } from 'react-intl';
 
 import { EPageType, Page } from '@onekeyhq/components';
 import { AccountSelectorProviderMirror } from '@onekeyhq/kit/src/components/AccountSelector';
-import { useSettingsAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type {
@@ -24,14 +21,6 @@ const SwapMainLandModalPage = () => {
     useRoute<RouteProp<IModalSwapParamList, EModalSwapRoutes.SwapMainLand>>();
   const { importFromToken, importNetworkId, importToToken, swapTabSwitchType } =
     route.params ?? {};
-  const [, setSettings] = useSettingsAtom();
-  useEffect(() => {
-    // when modal swap open, reset swapToAnotherAccountSwitchOn
-    setSettings((v) => ({
-      ...v,
-      swapToAnotherAccountSwitchOn: false,
-    }));
-  }, [setSettings]);
   return (
     <Page skipLoading={platformEnv.isNativeIOS}>
       <Page.Header

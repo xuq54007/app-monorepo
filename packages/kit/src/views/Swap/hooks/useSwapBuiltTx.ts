@@ -18,10 +18,7 @@ import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 import { toBigIntHex } from '@onekeyhq/shared/src/utils/numberUtils';
 import { swapApproveResetValue } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
-import type {
-  ESwapTabSwitchType,
-  ISwapToken,
-} from '@onekeyhq/shared/types/swap/types';
+import type { ISwapToken } from '@onekeyhq/shared/types/swap/types';
 import {
   EProtocolOfExchange,
   ESwapApproveTransactionStatus,
@@ -70,7 +67,7 @@ export function useSwapBuildTx() {
     accountId: swapFromAddressInfo.accountInfo?.account?.id ?? '',
     networkId: swapFromAddressInfo.networkId ?? '',
   });
-  const pageType = usePageType();
+  const currentPageType = usePageType();
   const syncRecentTokenPairs = useCallback(
     async ({
       swapFromToken,
@@ -516,7 +513,8 @@ export function useSwapBuildTx() {
                 feeType: selectQuote?.fee?.percentageFee?.toString() ?? '0',
                 router: JSON.stringify(selectQuote?.routesData ?? ''),
                 isFirstTime: isFirstTimeSwap,
-                createFrom: pageType === EPageType.modal ? 'modal' : 'swapPage',
+                createFrom:
+                  currentPageType === EPageType.modal ? 'modal' : 'swapPage',
               });
               setSettings((prev) => ({
                 ...prev,
@@ -589,7 +587,7 @@ export function useSwapBuildTx() {
       syncRecentTokenPairs,
       slippageItem.value,
       isFirstTimeSwap,
-      pageType,
+      currentPageType,
       setSettings,
       navigationToSendConfirm,
       cancelBuildTx,
@@ -641,7 +639,8 @@ export function useSwapBuildTx() {
             feeType: selectQuote?.fee?.percentageFee?.toString() ?? '0',
             router: JSON.stringify(selectQuote?.routesData ?? ''),
             isFirstTime: isFirstTimeSwap,
-            createFrom: pageType === EPageType.modal ? 'modal' : 'swapPage',
+            createFrom:
+              currentPageType === EPageType.modal ? 'modal' : 'swapPage',
           });
           setSettings((prev) => ({
             ...prev,
@@ -677,7 +676,7 @@ export function useSwapBuildTx() {
     cancelBuildTx,
     syncRecentTokenPairs,
     isFirstTimeSwap,
-    pageType,
+    currentPageType,
     setSettings,
     swapActionsShouldRefreshQuote,
   ]);

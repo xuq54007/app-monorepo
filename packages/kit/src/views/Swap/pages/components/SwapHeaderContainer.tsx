@@ -1,12 +1,17 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useIntl } from 'react-intl';
 
 import type { ITabPageInstance } from '@onekeyhq/components';
-import { Button, Tab, YStack } from '@onekeyhq/components';
+import { Tab, YStack } from '@onekeyhq/components';
 import type { ITabPageType } from '@onekeyhq/components/src/layouts/TabView/StickyTabComponent/types';
+import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
-import type { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
+import { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 
 import SwapHeaderRightActionContainer from './SwapHeaderRightActionContainer';
 
@@ -16,7 +21,6 @@ interface ISwapHeaderContainerProps {
   bridgePage: ITabPageType;
 }
 
-let tabIndex = 0;
 const SwapHeaderContainer = ({
   defaultSwapType,
   swapPage,
@@ -24,21 +28,33 @@ const SwapHeaderContainer = ({
 }: ISwapHeaderContainerProps) => {
   const intl = useIntl();
   const headerRight = useMemo(() => <SwapHeaderRightActionContainer />, []);
-  console.log('swap__defaultSwapType--', defaultSwapType);
   const ref = useRef<ITabPageInstance | null>(null);
+  const { swapTypeSwitchAction } = useSwapActions().current;
+  const handleSwapTypeSwitch = useCallback(
+    (event: { type: ESwapTabSwitchType }) => {
+      console.log('swap___event', event);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      ref.current?.scrollPageIndex(
+        event.type === ESwapTabSwitchType.BRIDGE ? 1 : 0,
+      );
+    },
+    [],
+  );
+  useEffect(() => {
+    appEventBus.off(EAppEventBusNames.SwapTypeSwitch, handleSwapTypeSwitch);
+    appEventBus.on(EAppEventBusNames.SwapTypeSwitch, handleSwapTypeSwitch);
+    return () => {
+      appEventBus.off(EAppEventBusNames.SwapTypeSwitch, handleSwapTypeSwitch);
+    };
+  }, [handleSwapTypeSwitch]);
 
+  useEffect(() => {
+    if (defaultSwapType && defaultSwapType === ESwapTabSwitchType.BRIDGE) {
+      void swapTypeSwitchAction(defaultSwapType, true);
+    }
+  }, [defaultSwapType, swapTypeSwitchAction]);
   return (
     <YStack>
-      <Button
-        onPress={() => {
-          // eslint-disable-next-line no-plusplus
-          ++tabIndex;
-          // eslint-disable-next-line no-bitwise
-          ref.current?.scrollPageIndex(tabIndex & 1);
-        }}
-      >
-        change tab index
-      </Button>
       <Tab.Page
         ref={ref}
         data={[
@@ -75,12 +91,11 @@ const SwapHeaderContainer = ({
           },
           headerRight,
         }}
-        // onSelectedPageIndex={(index: number) => {
-        //   // void swapTypeSwitchAction(
-        //   //   index === 0 ? ESwapTabSwitchType.SWAP : ESwapTabSwitchType.BRIDGE,
-        //   //   networkId,
-        //   // );
-        // }}
+        onSelectedPageIndex={(index: number) => {
+          void swapTypeSwitchAction(
+            index === 0 ? ESwapTabSwitchType.SWAP : ESwapTabSwitchType.BRIDGE,
+          );
+        }}
       />
     </YStack>
   );

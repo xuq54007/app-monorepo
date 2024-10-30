@@ -2,6 +2,7 @@ import { memo, useCallback, useMemo } from 'react';
 
 import { useIntl } from 'react-intl';
 
+import type { EPageType } from '@onekeyhq/components';
 import { NumberSizeableText } from '@onekeyhq/components';
 import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
@@ -19,6 +20,7 @@ interface ISwapApproveAllowanceSelectProps {
   fromTokenSymbol: string;
   isLoading?: boolean;
   type: ESwapTabSwitchType;
+  pageType?: EPageType;
 }
 
 const SwapApproveAllowanceSelectContainer = ({

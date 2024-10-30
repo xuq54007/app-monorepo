@@ -78,6 +78,7 @@ export enum EAppEventBusNames {
   SidePanel_BgToUI = 'SidePanel_BgToUI',
   SidePanel_UIToBg = 'SidePanel_UIToBg',
   SwapQuoteEvent = 'SwapQuoteEvent',
+  SwapTypeSwitch = 'SwapTypeSwitch',
   AddedCustomNetwork = 'AddedCustomNetwork',
   // AccountNameChanged = 'AccountNameChanged',
   // CurrencyChanged = 'CurrencyChanged',
@@ -227,6 +228,9 @@ export interface IAppEventBusPayload {
     params: IFetchQuotesParams;
     accountId?: string;
     tokenPairs: { fromToken: ISwapToken; toToken: ISwapToken };
+  };
+  [EAppEventBusNames.SwapTypeSwitch]: {
+    type: ESwapTabSwitchType;
   };
   [EAppEventBusNames.AddedCustomNetwork]: undefined;
 }

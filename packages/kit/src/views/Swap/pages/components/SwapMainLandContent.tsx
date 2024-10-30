@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import type { IPageNavigationProp } from '@onekeyhq/components';
 import { EPageType, YStack } from '@onekeyhq/components';
@@ -7,6 +7,7 @@ import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import {
   EJotaiContextStoreNames,
   useInAppNotificationAtom,
+  useSettingsAtom,
 } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { EModalRoutes } from '@onekeyhq/shared/src/routes';
 import {
@@ -38,7 +39,7 @@ import SwapQuoteResult from './SwapQuoteResult';
 
 interface ISwapMainLandContentProps {
   swapInitParams?: ISwapInitParams;
-  pageType?: EPageType.modal;
+  pageType?: EPageType;
   swapTabType: ESwapTabSwitchType;
 }
 
@@ -60,6 +61,17 @@ const SwapMainLandContent = ({
   const selectTokenDetailLoading =
     useSwapSelectTokenDetailFetching(swapTabType);
   const { selectFromToken, selectToToken } = useSwapActions().current;
+  const [, setSettings] = useSettingsAtom();
+  useEffect(() => {
+    // when modal swap open, reset swapToAnotherAccountSwitchOn
+    if (pageType === EPageType.modal) {
+      setSettings((v) => ({
+        ...v,
+        swapToAnotherAccountSwitchOn: false,
+      }));
+    }
+  }, [pageType, setSettings]);
+
   const onSelectToken = useCallback(
     (type: ESwapDirectionType) => {
       navigation.pushModal(EModalRoutes.SwapModal, {

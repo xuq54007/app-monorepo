@@ -104,7 +104,7 @@ const SwapActionsState = () => {
     swapActionState.approveUnLimit,
     swapActionState.shoutResetApprove,
   ]);
-  const pageType = usePageType();
+  const currentPageType = usePageType();
   const { md } = useMedia();
 
   const onActionHandler = useCallback(() => {
@@ -202,7 +202,7 @@ const SwapActionsState = () => {
       swapActionState.isApprove && !swapBatchApproveAndSwap ? (
         <XStack
           gap="$1"
-          {...(pageType === EPageType.modal && !md ? {} : { pb: '$5' })}
+          {...(currentPageType === EPageType.modal && !md ? {} : { pb: '$5' })}
         >
           <Popover
             title={intl.formatMessage({ id: ETranslations.global_approve })}
@@ -254,7 +254,7 @@ const SwapActionsState = () => {
     [
       swapActionState.isApprove,
       swapBatchApproveAndSwap,
-      pageType,
+      currentPageType,
       md,
       intl,
       fromToken?.symbol,
@@ -268,7 +268,7 @@ const SwapActionsState = () => {
       return (
         <XStack
           gap="$1"
-          {...(pageType === EPageType.modal && !md
+          {...(currentPageType === EPageType.modal && !md
             ? { flex: 1 }
             : { pb: '$4' })}
         >
@@ -312,7 +312,7 @@ const SwapActionsState = () => {
     swapActionState.isApprove,
     swapBatchApproveAndSwap,
     shouldShowRecipient,
-    pageType,
+    currentPageType,
     md,
     intl,
     swapRecipientAddressInfo?.showAddress,
@@ -332,7 +332,7 @@ const SwapActionsState = () => {
     () => (
       <Stack
         flex={1}
-        {...(pageType === EPageType.modal && !md
+        {...(currentPageType === EPageType.modal && !md
           ? {
               flexDirection: 'row',
               justifyContent: haveTips ? 'space-between' : 'flex-end',
@@ -344,7 +344,7 @@ const SwapActionsState = () => {
         {recipientComponent}
         <Button
           onPress={onActionHandlerBefore}
-          size={pageType === EPageType.modal && !md ? 'medium' : 'large'}
+          size={currentPageType === EPageType.modal && !md ? 'medium' : 'large'}
           variant="primary"
           disabled={swapActionState.disabled || swapActionState.isLoading}
           loading={swapActionState.isLoading}
@@ -358,7 +358,7 @@ const SwapActionsState = () => {
       haveTips,
       md,
       onActionHandlerBefore,
-      pageType,
+      currentPageType,
       recipientComponent,
       swapActionState.disabled,
       swapActionState.isLoading,
@@ -368,11 +368,11 @@ const SwapActionsState = () => {
 
   return (
     <YStack p="$5">
-      {pageType !== EPageType.modal && !md ? (
+      {currentPageType !== EPageType.modal && !md ? (
         actionComponent
       ) : (
         <Page.Footer
-          {...(pageType === EPageType.modal && !md
+          {...(currentPageType === EPageType.modal && !md
             ? { buttonContainerProps: { flex: 1 } }
             : {})}
           confirmButton={actionComponent}

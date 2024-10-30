@@ -8,6 +8,10 @@ import type { useSwapAddressInfo } from '@onekeyhq/kit/src/views/Swap/hooks/useS
 import { moveNetworkToFirst } from '@onekeyhq/kit/src/views/Swap/utils/utils';
 import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
 import { dangerAllNetworkRepresent } from '@onekeyhq/shared/src/config/presetNetworks';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import type { IEventSourceMessageEvent } from '@onekeyhq/shared/src/eventSource';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
@@ -1631,9 +1635,17 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       get,
       set,
       type: ESwapTabSwitchType,
+      shouldEmitEvent?: boolean,
       swapAccountNetworkId?: string,
     ) => {
+      console.log('swap__swapTypeSwitchAction', type);
+      console.log('swap__shouldEmitEvent', shouldEmitEvent);
       set(swapTypeSwitchAtom(), type);
+      if (shouldEmitEvent) {
+        appEventBus.emit(EAppEventBusNames.SwapTypeSwitch, {
+          type,
+        });
+      }
       this.swapActionsSlippagePercentageMode.call(
         set,
         type,
@@ -1683,12 +1695,16 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
               );
             }
           }
+          console.log('swap__shouldSetFromToken', shouldSetFromToken);
+          console.log('swap__toToken', toToken);
+          console.log('swap__type', type);
           if (shouldSetFromToken) {
             const needChangeToToken = this.needChangeToken({
               token: shouldSetFromToken,
               toToken,
               swapTypeSwitchValue: type,
             });
+            console.log('swap__needChangeToToken', needChangeToToken);
             if (needChangeToToken) {
               this.swapActionsSelectToToken.call(set, type, needChangeToToken);
               void this.syncNetworksSort.call(set, needChangeToToken.networkId);
@@ -2442,8 +2458,12 @@ export const useSwapActions = () => {
   );
   const swapLoadAllNetworkTokenList = actions.swapLoadAllNetworkTokenList.use();
   const swapTypeSwitchAction = actions.swapTypeSwitchAction.use();
-  const { cleanQuoteInterval, cleanApprovingInterval, closeQuoteEvent } =
-    actions;
+  const {
+    cleanQuoteInterval,
+    cleanApprovingInterval,
+    closeQuoteEvent,
+    needChangeToken,
+  } = actions;
 
   // data
   const swapDataSelectFromToken = actions.swapDataSelectFromToken.use();
@@ -2517,5 +2537,6 @@ export const useSwapActions = () => {
     swapActionsShouldRefreshQuote,
     swapActionsSelectFromToken,
     swapActionsSelectToToken,
+    needChangeToken,
   });
 };

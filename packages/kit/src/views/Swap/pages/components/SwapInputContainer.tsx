@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 
 import BigNumber from 'bignumber.js';
 
+import type { EPageType } from '@onekeyhq/components';
 import { SizableText, YStack } from '@onekeyhq/components';
 import { AmountInput } from '@onekeyhq/kit/src/components/AmountInput';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
@@ -34,6 +35,7 @@ interface ISwapInputContainerProps {
   inputLoading?: boolean;
   selectTokenLoading?: boolean;
   onBalanceMaxPress?: () => void;
+  pageType?: EPageType;
 }
 
 const SwapInputContainer = ({
@@ -46,12 +48,14 @@ const SwapInputContainer = ({
   onSelectToken,
   onBalanceMaxPress,
   balance,
+  pageType,
   type,
 }: ISwapInputContainerProps) => {
   useSwapSelectedTokenInfo({
     token,
     swapType: type,
     directionType: direction,
+    pageType,
   });
   const [settingsPersistAtom] = useSettingsPersistAtom();
   const alerts = useSwapAlerts(type);
