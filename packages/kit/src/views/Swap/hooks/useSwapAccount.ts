@@ -293,37 +293,61 @@ export function useSwapRecipientAddressInfo(enable: boolean) {
     [swapToAnotherAddressInfo.address, swapToAnotherAddressInfo.networkId],
     {},
   );
-  if (
-    swapToAddressInfo.address === swapToAnotherAddressInfo.address &&
-    swapToAnotherAccountSwitchOn
-  ) {
+  console.log('swap__swapTabType', swapTabType);
+  console.log('swap__toAddress-----', swapToAddressInfo.address);
+  console.log('swap__anoter--------', swapToAnotherAddressInfo.address);
+  console.log(
+    'swap__swapToAnotherAccountSwitchOn',
+    swapToAnotherAccountSwitchOn,
+  );
+  return useMemo(() => {
     if (
-      getToNetWorkAddressFromAccountId?.result?.accountAddress &&
-      getToNetWorkAddressFromAccountId?.result?.accountAddress !==
-        swapToAnotherAddressInfo.address &&
-      swapToAnotherAddressInfo.networkId ===
-        currentQuoteRes?.toTokenInfo.networkId
+      swapToAddressInfo.address === swapToAnotherAddressInfo.address &&
+      swapToAnotherAccountSwitchOn
     ) {
-      return {
-        accountInfo:
-          swapToAnotherAddressInfo.accountInfo?.account?.address ===
-          swapToAnotherAddressInfo.address
-            ? {
-                walletName: swapToAnotherAddressInfo.accountInfo?.wallet?.name,
-                accountName: swapToAnotherAddressInfo.accountInfo?.accountName,
-                accountId: swapToAnotherAddressInfo.accountInfo?.account?.id,
-              }
-            : getToAddressAccountInfos.result,
-        showAddress: accountUtils.shortenAddress({
-          address: swapToAnotherAddressInfo.address,
-          leadingLength: 6,
-          trailingLength: 6,
-        }),
-        isExtAccount:
-          swapToAnotherAddressInfo.accountInfo?.account?.address !==
-            swapToAnotherAddressInfo.address &&
-          !getToAddressAccountInfos.result,
-      };
+      if (
+        getToNetWorkAddressFromAccountId?.result?.accountAddress &&
+        getToNetWorkAddressFromAccountId?.result?.accountAddress !==
+          swapToAnotherAddressInfo.address &&
+        swapToAnotherAddressInfo.networkId ===
+          currentQuoteRes?.toTokenInfo.networkId
+      ) {
+        return {
+          accountInfo:
+            swapToAnotherAddressInfo.accountInfo?.account?.address ===
+            swapToAnotherAddressInfo.address
+              ? {
+                  walletName:
+                    swapToAnotherAddressInfo.accountInfo?.wallet?.name,
+                  accountName:
+                    swapToAnotherAddressInfo.accountInfo?.accountName,
+                  accountId: swapToAnotherAddressInfo.accountInfo?.account?.id,
+                }
+              : getToAddressAccountInfos.result,
+          showAddress: accountUtils.shortenAddress({
+            address: swapToAnotherAddressInfo.address,
+            leadingLength: 6,
+            trailingLength: 6,
+          }),
+          isExtAccount:
+            swapToAnotherAddressInfo.accountInfo?.account?.address !==
+              swapToAnotherAddressInfo.address &&
+            !getToAddressAccountInfos.result,
+        };
+      }
     }
-  }
+    return undefined;
+  }, [
+    swapToAddressInfo.address,
+    swapToAnotherAddressInfo.address,
+    swapToAnotherAddressInfo.networkId,
+    swapToAnotherAddressInfo.accountInfo?.account?.address,
+    swapToAnotherAddressInfo.accountInfo?.account?.id,
+    swapToAnotherAddressInfo.accountInfo?.wallet?.name,
+    swapToAnotherAddressInfo.accountInfo?.accountName,
+    swapToAnotherAccountSwitchOn,
+    getToNetWorkAddressFromAccountId?.result?.accountAddress,
+    currentQuoteRes?.toTokenInfo.networkId,
+    getToAddressAccountInfos.result,
+  ]);
 }

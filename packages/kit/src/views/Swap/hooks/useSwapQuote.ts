@@ -51,7 +51,6 @@ export function useSwapQuote(swapType: ESwapTabSwitchType) {
     swapActionsQuoteEventTotalCount,
     closeQuoteEvent,
   } = useSwapActions().current;
-  console.log('swap__useSwapQuote', swapType);
   const swapQuoteActionLock = useSwapQuoteActionLock(swapType);
   const swapAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const fromToken = useSwapSelectFromToken(swapType);

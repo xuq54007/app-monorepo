@@ -7,7 +7,6 @@ import { useSwapActions } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import type { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 import { ESwapDirectionType } from '@onekeyhq/shared/types/swap/types';
 
-import { useSwapFromAccountNetworkSync } from '../../hooks/useSwapAccount';
 import {
   useSwapFromTokenAmount,
   useSwapQuoteCurrentSelect,
@@ -45,7 +44,6 @@ const SwapQuoteInput = ({
   const swapQuoteCurrentSelect = useSwapQuoteCurrentSelect(swapTabType);
   const fromTokenBalance = useSwapSelectedFromTokenBalance(swapTabType);
   const toTokenBalance = useSwapSelectedToTokenBalance(swapTabType);
-  useSwapFromAccountNetworkSync(swapTabType);
 
   return (
     <YStack>

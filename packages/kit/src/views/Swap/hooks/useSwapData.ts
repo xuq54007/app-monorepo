@@ -10,6 +10,7 @@ import {
   swapSlippageAutoValue,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
+  ESwapRateDifferenceUnit,
   IFetchQuoteResult,
   ISwapAlertState,
   ISwapToken,
@@ -70,95 +71,111 @@ import {
 } from '../../../states/jotai/contexts/swap';
 
 export function useSwapAlerts(type: ESwapTabSwitchType) {
-  let alert: {
-    states: ISwapAlertState[];
-    quoteId: string;
-  } = { states: [], quoteId: '' };
   const [swapAlerts] = useSwapSwapAlertsAtom();
   const [bridgeAlerts] = useSwapBridgeAlertsAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    alert = swapAlerts;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    alert = bridgeAlerts;
-  }
-  return alert;
+  return useMemo(() => {
+    let alert: {
+      states: ISwapAlertState[];
+      quoteId: string;
+    } = { states: [], quoteId: '' };
+    if (type === ESwapTabSwitchType.SWAP) {
+      alert = swapAlerts;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      alert = bridgeAlerts;
+    }
+    return alert;
+  }, [bridgeAlerts, swapAlerts, type]);
 }
 
 export function useSwapFromTokenAmount(type: ESwapTabSwitchType) {
-  let amount = '';
   const [swapAmount] = useSwapSwapFromTokenAmountAtom();
   const [bridgeAmount] = useSwapBridgeFromTokenAmountAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    amount = swapAmount;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    amount = bridgeAmount;
-  }
-  return amount;
+  return useMemo(() => {
+    let amount = '';
+
+    if (type === ESwapTabSwitchType.SWAP) {
+      amount = swapAmount;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      amount = bridgeAmount;
+    }
+    return amount;
+  }, [bridgeAmount, swapAmount, type]);
 }
 export function useSwapSelectFromToken(type: ESwapTabSwitchType) {
-  let fromToken: ISwapToken | undefined;
   const [swapFromToken] = useSwapSwapSelectFromTokenAtom();
   const [bridgeFromToken] = useSwapBridgeSelectFromTokenAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    fromToken = swapFromToken;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    fromToken = bridgeFromToken;
-  }
-  return fromToken;
+  return useMemo(() => {
+    let fromToken: ISwapToken | undefined;
+    if (type === ESwapTabSwitchType.SWAP) {
+      fromToken = swapFromToken;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      fromToken = bridgeFromToken;
+    }
+    return fromToken;
+  }, [bridgeFromToken, swapFromToken, type]);
 }
 export function useSwapSelectToToken(type: ESwapTabSwitchType) {
-  let toToken: ISwapToken | undefined;
   const [swapToToken] = useSwapSwapSelectToTokenAtom();
   const [bridgeToToken] = useSwapBridgeSelectToTokenAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    toToken = swapToToken;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    toToken = bridgeToToken;
-  }
-  return toToken;
+  return useMemo(() => {
+    let toToken: ISwapToken | undefined;
+
+    if (type === ESwapTabSwitchType.SWAP) {
+      toToken = swapToToken;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      toToken = bridgeToToken;
+    }
+    return toToken;
+  }, [bridgeToToken, swapToToken, type]);
 }
 
 export function useSwapSortType(type: ESwapTabSwitchType) {
-  let sortType = ESwapProviderSort.RECOMMENDED;
   const [swapSortType] = useSwapSwapProviderSortAtom();
   const [bridgeSortType] = useSwapBridgeProviderSortAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    sortType = swapSortType;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    sortType = bridgeSortType;
-  }
-  return sortType;
+  return useMemo(() => {
+    let sortType = ESwapProviderSort.RECOMMENDED;
+    if (type === ESwapTabSwitchType.SWAP) {
+      sortType = swapSortType;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      sortType = bridgeSortType;
+    }
+    return sortType;
+  }, [bridgeSortType, swapSortType, type]);
 }
 
 export function useSwapQuoteList(type: ESwapTabSwitchType) {
-  let list: IFetchQuoteResult[] = [];
   const [bridgeList] = useSwapBridgeQuoteListAtom();
   const [swapList] = useSwapSwapQuoteListAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    list = swapList;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    list = bridgeList;
-  }
-  return list;
+  return useMemo(() => {
+    let list: IFetchQuoteResult[] = [];
+    if (type === ESwapTabSwitchType.SWAP) {
+      list = swapList;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      list = bridgeList;
+    }
+    return list;
+  }, [bridgeList, swapList, type]);
 }
 
 export function useSwapManualSelectQuoteProvider(type: ESwapTabSwitchType) {
-  let manualSelectQuoteProviders: IFetchQuoteResult | undefined;
   const [swapManualSelect] = useSwapSwapManualSelectQuoteProvidersAtom();
   const [bridgeManualSelect] = useSwapBridgeManualSelectQuoteProvidersAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    manualSelectQuoteProviders = swapManualSelect;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    manualSelectQuoteProviders = bridgeManualSelect;
-  }
-  return manualSelectQuoteProviders;
+  return useMemo(() => {
+    let manualSelectQuoteProviders: IFetchQuoteResult | undefined;
+    if (type === ESwapTabSwitchType.SWAP) {
+      manualSelectQuoteProviders = swapManualSelect;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      manualSelectQuoteProviders = bridgeManualSelect;
+    }
+    return manualSelectQuoteProviders;
+  }, [bridgeManualSelect, swapManualSelect, type]);
 }
 
 export function useSwapSortedQuoteList(type: ESwapTabSwitchType) {
@@ -166,20 +183,22 @@ export function useSwapSortedQuoteList(type: ESwapTabSwitchType) {
   const fromTokenAmount = useSwapFromTokenAmount(type);
   const sortType = useSwapSortType(type);
   const fromTokenAmountBN = new BigNumber(fromTokenAmount);
-  const resetList: IFetchQuoteResult[] = list.map(
-    (item: IFetchQuoteResult) => ({
-      ...item,
-      receivedBest: false,
-      isBest: false,
-      minGasCost: false,
-    }),
+  const resetList: IFetchQuoteResult[] = useMemo(
+    () =>
+      list.map((item: IFetchQuoteResult) => ({
+        ...item,
+        receivedBest: false,
+        isBest: false,
+        minGasCost: false,
+      })),
+    [list],
   );
-  let sortedList = [...resetList];
   const gasFeeSorted = resetList.slice().sort((a, b) => {
     const aBig = new BigNumber(a.fee?.estimatedFeeFiatValue || Infinity);
     const bBig = new BigNumber(b.fee?.estimatedFeeFiatValue || Infinity);
     return aBig.comparedTo(bBig);
   });
+  let sortedList = [...resetList];
   if (sortType === ESwapProviderSort.GAS_FEE) {
     sortedList = [...gasFeeSorted];
   }
@@ -250,64 +269,73 @@ export function useSwapSortedQuoteList(type: ESwapTabSwitchType) {
 }
 
 export function useSwapQuoteCurrentSelect(type: ESwapTabSwitchType) {
-  let res: IFetchQuoteResult | undefined;
   const list = useSwapSortedQuoteList(type);
   const manualSelectQuoteProvider = useSwapManualSelectQuoteProvider(type);
-  const manualSelectQuoteResult = list.find(
-    (item) =>
-      item.info.provider === manualSelectQuoteProvider?.info.provider &&
-      item.info.providerName === manualSelectQuoteProvider?.info.providerName,
-  );
-  if (manualSelectQuoteProvider && manualSelectQuoteResult?.toAmount) {
-    res = list.find(
+  return useMemo(() => {
+    let res: IFetchQuoteResult | undefined;
+    const manualSelectQuoteResult = list.find(
       (item) =>
-        item.info.provider === manualSelectQuoteProvider.info.provider &&
-        item.info.providerName === manualSelectQuoteProvider.info.providerName,
+        item.info.provider === manualSelectQuoteProvider?.info.provider &&
+        item.info.providerName === manualSelectQuoteProvider?.info.providerName,
     );
-  }
-  if (list?.length > 0) {
-    res = list[0];
-  }
-  return res;
+    if (manualSelectQuoteProvider && manualSelectQuoteResult?.toAmount) {
+      res = list.find(
+        (item) =>
+          item.info.provider === manualSelectQuoteProvider.info.provider &&
+          item.info.providerName ===
+            manualSelectQuoteProvider.info.providerName,
+      );
+    }
+    if (list?.length > 0) {
+      res = list[0];
+    }
+    return res;
+  }, [list, manualSelectQuoteProvider]);
 }
 
 export function useSwapQuoteFetching(type: ESwapTabSwitchType) {
-  let quoteLoading = false;
   const [swapQuoteLoading] = useSwapSwapQuoteFetchingAtom();
   const [bridgeQuoteLoading] = useSwapBridgeQuoteFetchingAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    quoteLoading = swapQuoteLoading;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    quoteLoading = bridgeQuoteLoading;
-  }
-  return quoteLoading;
+  return useMemo(() => {
+    let quoteLoading = false;
+    if (type === ESwapTabSwitchType.SWAP) {
+      quoteLoading = swapQuoteLoading;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      quoteLoading = bridgeQuoteLoading;
+    }
+    return quoteLoading;
+  }, [bridgeQuoteLoading, swapQuoteLoading, type]);
 }
 
 export function useSwapSilenceQuoteLoading(type: ESwapTabSwitchType) {
-  let silenceQuoteLoading = false;
   const [swapSilenceQuoteLoading] = useSwapSwapSilenceQuoteLoading();
   const [bridgeSilenceQuoteLoading] = useSwapBridgeSilenceQuoteLoading();
-  if (type === ESwapTabSwitchType.SWAP) {
-    silenceQuoteLoading = swapSilenceQuoteLoading;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    silenceQuoteLoading = bridgeSilenceQuoteLoading;
-  }
-  return silenceQuoteLoading;
+  return useMemo(() => {
+    let silenceQuoteLoading = false;
+    if (type === ESwapTabSwitchType.SWAP) {
+      silenceQuoteLoading = swapSilenceQuoteLoading;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      silenceQuoteLoading = bridgeSilenceQuoteLoading;
+    }
+    return silenceQuoteLoading;
+  }, [bridgeSilenceQuoteLoading, swapSilenceQuoteLoading, type]);
 }
 
 export function useSwapQuoteEventTotalCount(type: ESwapTabSwitchType) {
-  let quoteEventTotalCount = 0;
   const [swapEventTotalCount] = useSwapSwapQuoteEventTotalCountAtom();
   const [bridgeEventTotalCount] = useSwapBridgeQuoteEventTotalCountAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    quoteEventTotalCount = swapEventTotalCount;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    quoteEventTotalCount = bridgeEventTotalCount;
-  }
-  return quoteEventTotalCount;
+  return useMemo(() => {
+    let quoteEventTotalCount = 0;
+    if (type === ESwapTabSwitchType.SWAP) {
+      quoteEventTotalCount = swapEventTotalCount;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      quoteEventTotalCount = bridgeEventTotalCount;
+    }
+    return quoteEventTotalCount;
+  }, [bridgeEventTotalCount, swapEventTotalCount, type]);
 }
 
 export function useSwapQuoteLoading(type: ESwapTabSwitchType) {
@@ -323,127 +351,148 @@ export function useSwapQuoteEventFetching(type: ESwapTabSwitchType) {
 }
 
 export function useSwapSelectTokenDetailFetching(type: ESwapTabSwitchType) {
-  let tokenDetailFetching = { from: false, to: false };
   const [swapFetching] = useSwapSwapSelectTokenDetailFetchingAtom();
   const [bridgeFetching] = useSwapBridgeSelectTokenDetailFetchingAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    tokenDetailFetching = swapFetching;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    tokenDetailFetching = bridgeFetching;
-  }
-  return tokenDetailFetching;
+  return useMemo(() => {
+    let tokenDetailFetching = { from: false, to: false };
+    if (type === ESwapTabSwitchType.SWAP) {
+      tokenDetailFetching = swapFetching;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      tokenDetailFetching = bridgeFetching;
+    }
+    return tokenDetailFetching;
+  }, [bridgeFetching, swapFetching, type]);
 }
 
 export function useSwapTokenMetadata(type: ESwapTabSwitchType) {
   const quoteList = useSwapQuoteList(type);
-  const swapTokenMetadata = quoteList.find(
-    (item) => item.tokenMetadata,
-  )?.tokenMetadata;
-  return {
-    swapTokenMetadata,
-  };
+  return useMemo(() => {
+    const swapTokenMetadata = quoteList.find(
+      (item) => item.tokenMetadata,
+    )?.tokenMetadata;
+    return {
+      swapTokenMetadata,
+    };
+  }, [quoteList]);
 }
 
 export function useSwapProviderSupportReceiveAddress(type: ESwapTabSwitchType) {
   const quoteResult = useSwapQuoteCurrentSelect(type);
-  if (!quoteResult) {
-    return true;
-  }
-  return (
-    !quoteResult.unSupportReceiveAddressDifferent && !quoteResult.isWrapped
-  );
+  return useMemo(() => {
+    if (!quoteResult) {
+      return true;
+    }
+    return (
+      !quoteResult.unSupportReceiveAddressDifferent && !quoteResult.isWrapped
+    );
+  }, [quoteResult]);
 }
 
 export function useSwapSlippagePercentageMode(type: ESwapTabSwitchType) {
-  let mode: ESwapSlippageSegmentKey = ESwapSlippageSegmentKey.AUTO;
   const [swapSlippagePercentageMode] = useSwapSwapSlippagePercentageModeAtom();
   const [bridgeSlippagePercentageMode] =
     useSwapBridgeSlippagePercentageModeAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    mode = swapSlippagePercentageMode;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    mode = bridgeSlippagePercentageMode;
-  }
-  return mode;
+  return useMemo(() => {
+    let mode: ESwapSlippageSegmentKey = ESwapSlippageSegmentKey.AUTO;
+    if (type === ESwapTabSwitchType.SWAP) {
+      mode = swapSlippagePercentageMode;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      mode = bridgeSlippagePercentageMode;
+    }
+    return mode;
+  }, [bridgeSlippagePercentageMode, swapSlippagePercentageMode, type]);
 }
 
 export function useSwapSlippagePercentageCustomValue(type: ESwapTabSwitchType) {
-  let customValue = swapSlippageAutoValue;
   const [swapSlippagePercentageMode] =
     useSwapSwapSlippagePercentageCustomValueAtom();
   const [bridgeSlippagePercentageMode] =
     useSwapBridgeSlippagePercentageCustomValueAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    customValue = swapSlippagePercentageMode;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    customValue = bridgeSlippagePercentageMode;
-  }
-  return customValue;
+  return useMemo(() => {
+    let customValue = swapSlippageAutoValue;
+    if (type === ESwapTabSwitchType.SWAP) {
+      customValue = swapSlippagePercentageMode;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      customValue = bridgeSlippagePercentageMode;
+    }
+    return customValue;
+  }, [bridgeSlippagePercentageMode, swapSlippagePercentageMode, type]);
 }
 
 export function useSwapSlippagePercentage(type: ESwapTabSwitchType) {
   const mode = useSwapSlippagePercentageMode(type);
   const quoteResult = useSwapQuoteCurrentSelect(type);
   const customValue = useSwapSlippagePercentageCustomValue(type);
-  let autoValue = swapSlippageAutoValue;
-  let value = swapSlippageAutoValue;
-  if (!isNil(quoteResult?.autoSuggestedSlippage)) {
-    autoValue = quoteResult.autoSuggestedSlippage;
-  }
-  if (mode === ESwapSlippageSegmentKey.AUTO) {
-    value = autoValue;
-  } else {
-    value = customValue;
-  }
-  return {
-    slippageItem: {
-      key: mode,
-      value,
-    },
-    autoValue,
-  };
+  const autoValue = useMemo(() => {
+    if (!isNil(quoteResult?.autoSuggestedSlippage)) {
+      return quoteResult.autoSuggestedSlippage;
+    }
+    return swapSlippageAutoValue;
+  }, [quoteResult]);
+  const value = useMemo(() => {
+    if (mode === ESwapSlippageSegmentKey.AUTO) {
+      return autoValue;
+    }
+    return customValue;
+  }, [autoValue, customValue, mode]);
+  return useMemo(
+    () => ({
+      slippageItem: {
+        key: mode,
+        value,
+      },
+      autoValue,
+    }),
+    [autoValue, mode, value],
+  );
 }
 
 export function useSwapSlippageDialogOpening(type: ESwapTabSwitchType) {
-  let res: { status: boolean; flag?: string } = { status: false };
   const [swapSlippageDialogOpening] = useSwapSwapSlippageDialogOpeningAtom();
   const [bridgeSlippageDialogOpening] =
     useSwapBridgeSlippageDialogOpeningAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    res = swapSlippageDialogOpening;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    res = bridgeSlippageDialogOpening;
-  }
-  return res;
+  return useMemo(() => {
+    let res: { status: boolean; flag?: string } = { status: false };
+    if (type === ESwapTabSwitchType.SWAP) {
+      res = swapSlippageDialogOpening;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      res = bridgeSlippageDialogOpening;
+    }
+    return res;
+  }, [bridgeSlippageDialogOpening, swapSlippageDialogOpening, type]);
 }
 
 export function useSwapSelectedFromTokenBalance(type: ESwapTabSwitchType) {
-  let balance = '';
   const [swapFromBalance] = useSwapSwapSelectedFromTokenBalanceAtom();
   const [bridgeFromBalance] = useSwapBridgeSelectedFromTokenBalanceAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    balance = swapFromBalance;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    balance = bridgeFromBalance;
-  }
-  return balance;
+  return useMemo(() => {
+    let balance = '';
+    if (type === ESwapTabSwitchType.SWAP) {
+      balance = swapFromBalance;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      balance = bridgeFromBalance;
+    }
+    return balance;
+  }, [bridgeFromBalance, swapFromBalance, type]);
 }
 export function useSwapSelectedToTokenBalance(type: ESwapTabSwitchType) {
-  let balance = '';
   const [swapToBalance] = useSwapSwapSelectedToTokenBalanceAtom();
   const [bridgeToBalance] = useSwapBridgeSelectedToTokenBalanceAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    balance = swapToBalance;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    balance = bridgeToBalance;
-  }
-  return balance;
+  return useMemo(() => {
+    let balance = '';
+    if (type === ESwapTabSwitchType.SWAP) {
+      balance = swapToBalance;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      balance = bridgeToBalance;
+    }
+    return balance;
+  }, [bridgeToBalance, swapToBalance, type]);
 }
 
 export function useSwapNetworksIncludeAllNetwork(type: ESwapTabSwitchType) {
@@ -476,100 +525,121 @@ export function useSwapNetworksIncludeAllNetwork(type: ESwapTabSwitchType) {
 }
 
 export function useRateDifference(type: ESwapTabSwitchType) {
-  let rateDifference;
   const [swapRateDifference] = useSwapRateDifferenceAtom();
   const [bridgeRateDifference] = useBridgeRateDifferenceAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    rateDifference = swapRateDifference;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    rateDifference = bridgeRateDifference;
-  }
-  return rateDifference;
+  return useMemo(() => {
+    let rateDifference:
+      | { value: string; unit: ESwapRateDifferenceUnit }
+      | undefined;
+    if (type === ESwapTabSwitchType.SWAP) {
+      rateDifference = swapRateDifference;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      rateDifference = bridgeRateDifference;
+    }
+    return rateDifference;
+  }, [bridgeRateDifference, swapRateDifference, type]);
 }
 
 export function useSwapQuoteApproveAllowanceUnLimit(type: ESwapTabSwitchType) {
-  let unLimit = false;
   const [swapQuoteApproveAllowanceUnLimit] =
     useSwapSwapQuoteApproveAllowanceUnLimitAtom();
   const [bridgeQuoteApproveAllowanceUnLimit] =
     useSwapBridgeQuoteApproveAllowanceUnLimitAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    unLimit = swapQuoteApproveAllowanceUnLimit;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    unLimit = bridgeQuoteApproveAllowanceUnLimit;
-  }
-  return unLimit;
+  return useMemo(() => {
+    let unLimit = false;
+    if (type === ESwapTabSwitchType.SWAP) {
+      unLimit = swapQuoteApproveAllowanceUnLimit;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      unLimit = bridgeQuoteApproveAllowanceUnLimit;
+    }
+    return unLimit;
+  }, [
+    bridgeQuoteApproveAllowanceUnLimit,
+    swapQuoteApproveAllowanceUnLimit,
+    type,
+  ]);
 }
 
 export function useSwapApproveAllowanceSelectOpen(type: ESwapTabSwitchType) {
-  let open = false;
   const [swapApproveAllowanceSelectOpen] =
     useSwapSwapApproveAllowanceSelectOpenAtom();
   const [bridgeApproveAllowanceSelectOpen] =
     useSwapBridgeApproveAllowanceSelectOpenAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    open = swapApproveAllowanceSelectOpen;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    open = bridgeApproveAllowanceSelectOpen;
-  }
-  return open;
+  return useMemo(() => {
+    let open = false;
+
+    if (type === ESwapTabSwitchType.SWAP) {
+      open = swapApproveAllowanceSelectOpen;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      open = bridgeApproveAllowanceSelectOpen;
+    }
+    return open;
+  }, [bridgeApproveAllowanceSelectOpen, swapApproveAllowanceSelectOpen, type]);
 }
 
 export function useSwapQuoteActionLock(swapType: ESwapTabSwitchType) {
-  let res: {
-    actionLock: boolean;
-    fromToken?: ISwapToken;
-    toToken?: ISwapToken;
-    fromTokenAmount?: string;
-    accountId?: string;
-    address?: string;
-  } = { actionLock: false };
   const [swapQuoteActionLock] = useSwapSwapQuoteActionLockAtom();
   const [bridgeQuoteActionLock] = useSwapBridgeQuoteActionLockAtom();
-  if (swapType === ESwapTabSwitchType.SWAP) {
-    res = swapQuoteActionLock;
-  }
-  if (swapType === ESwapTabSwitchType.BRIDGE) {
-    res = bridgeQuoteActionLock;
-  }
-  return res;
+  return useMemo(() => {
+    let res: {
+      actionLock: boolean;
+      fromToken?: ISwapToken;
+      toToken?: ISwapToken;
+      fromTokenAmount?: string;
+      accountId?: string;
+      address?: string;
+    } = { actionLock: false };
+    if (swapType === ESwapTabSwitchType.SWAP) {
+      res = swapQuoteActionLock;
+    }
+    if (swapType === ESwapTabSwitchType.BRIDGE) {
+      res = bridgeQuoteActionLock;
+    }
+    return res;
+  }, [bridgeQuoteActionLock, swapQuoteActionLock, swapType]);
 }
 
 export function useSwapShouldRefreshQuote(type: ESwapTabSwitchType) {
   const [swapShouldRefresh] = useSwapSwapShouldRefreshQuoteAtom();
   const [bridgeShouldRefresh] = useSwapBridgeShouldRefreshQuoteAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    return swapShouldRefresh;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    return bridgeShouldRefresh;
-  }
-  return false;
+  return useMemo(() => {
+    if (type === ESwapTabSwitchType.SWAP) {
+      return swapShouldRefresh;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      return bridgeShouldRefresh;
+    }
+    return false;
+  }, [bridgeShouldRefresh, swapShouldRefresh, type]);
 }
 
 export function useSwapBuildTxFetching(type: ESwapTabSwitchType) {
   const [swapBuildTxFetching] = useSwapSwapBuildTxFetchingAtom();
   const [bridgeBuildTxFetching] = useSwapBridgeBuildTxFetchingAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    return swapBuildTxFetching;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    return bridgeBuildTxFetching;
-  }
-  return false;
+  return useMemo(() => {
+    if (type === ESwapTabSwitchType.SWAP) {
+      return swapBuildTxFetching;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      return bridgeBuildTxFetching;
+    }
+    return false;
+  }, [bridgeBuildTxFetching, swapBuildTxFetching, type]);
 }
 
 export function useSwapQuoteIntervalCount(type: ESwapTabSwitchType) {
   const [swapQuoteIntervalCount] = useSwapSwapQuoteIntervalCountAtom();
   const [bridgeQuoteIntervalCount] = useSwapBridgeQuoteIntervalCountAtom();
-  if (type === ESwapTabSwitchType.SWAP) {
-    return swapQuoteIntervalCount;
-  }
-  if (type === ESwapTabSwitchType.BRIDGE) {
-    return bridgeQuoteIntervalCount;
-  }
-  return 0;
+  return useMemo(() => {
+    if (type === ESwapTabSwitchType.SWAP) {
+      return swapQuoteIntervalCount;
+    }
+    if (type === ESwapTabSwitchType.BRIDGE) {
+      return bridgeQuoteIntervalCount;
+    }
+    return 0;
+  }, [bridgeQuoteIntervalCount, swapQuoteIntervalCount, type]);
 }

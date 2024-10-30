@@ -89,14 +89,13 @@ const SwapHeaderContainer = ({
             borderCurve: 'continuous',
           },
           headerRight,
-          onSelectedPageIndex: (index) => {
-            console.log('swap__onSelectedPageIndex', index);
-            if (index === 0) {
-              swapActionsSwitchSwapType(ESwapTabSwitchType.SWAP);
-            } else {
-              swapActionsSwitchSwapType(ESwapTabSwitchType.BRIDGE);
-            }
-          },
+        }}
+        onSelectedPageIndex={(index) => {
+          if (index === 0) {
+            swapActionsSwitchSwapType(ESwapTabSwitchType.SWAP);
+          } else {
+            swapActionsSwitchSwapType(ESwapTabSwitchType.BRIDGE);
+          }
         }}
       />
     </YStack>

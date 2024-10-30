@@ -92,7 +92,6 @@ const SwapQuoteResult = ({
   const swapRecipientAddress = useSwapRecipientAddressInfo(
     settingsPersistAtom.swapEnableRecipientAddress,
   );
-
   const calculateTaxItem = useCallback(
     (
       tokenBuyTaxBps: BigNumber,

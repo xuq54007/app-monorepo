@@ -257,7 +257,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         this.swapActionsSelectFromToken.call(set, type);
         this.swapActionsSelectedFromTokenBalance.call(set, type, '');
       } else {
-        console.log('swap__=============resetSwapTokenData__toToken');
         this.swapActionsSelectToToken.call(set, type);
         this.swapActionsSelectedToTokenBalance.call(set, type, '');
       }
@@ -291,7 +290,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         toToken,
       });
       if (needChangeToToken && !disableCheckToToken) {
-        console.log('swap__=============selectFromToken__toToken');
         this.swapActionsSelectToToken.call(set, type);
         this.swapActionsSelectFromToken.call(set, type, token);
         this.swapActionsSelectToToken.call(set, type, needChangeToToken);
@@ -319,7 +317,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         this.swapActionsManualSelectQuoteProviders.call(set, type);
         void this.syncNetworksSort.call(set, token.networkId);
       }
-      console.log('swap__=============selectToToken-token');
       this.swapActionsSelectToToken.call(set, type);
     },
   );
@@ -330,7 +327,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
     if (!fromToken && !toToken) {
       return;
     }
-    console.log('swap__=============alternationToken-token');
     this.swapActionsSelectToToken.call(set, type, fromToken);
     this.swapActionsSelectFromToken.call(set, type, toToken);
     this.swapActionsSlippagePercentageMode.call(
@@ -676,7 +672,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       accountId?: string,
       blockNumber?: number,
     ) => {
-      console.log('swap__runQuoteEvent', type);
       const shouldRefreshQuote = this.swapDataShouldRefreshQuote.call(
         set,
         type,
@@ -715,7 +710,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       accountId?: string,
       blockNumber?: number,
     ) => {
-      console.log('swap__quoteAction', type);
       const fromToken = this.swapDataSelectFromToken.call(set, type);
       const toToken = this.swapDataSelectToToken.call(set, type);
       const fromTokenAmount = this.swapDataFromTokenAmount.call(set, type);

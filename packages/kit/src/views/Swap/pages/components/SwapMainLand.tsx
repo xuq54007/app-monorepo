@@ -7,7 +7,7 @@ import { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 
 import { SwapProviderMirror } from '../SwapProviderMirror';
 
-import SwapActionsState from './SwapActionsState';
+import SwapActionsLoop from './SwapActionsLoop';
 import SwapHeaderContainer from './SwapHeaderContainer';
 import SwapMainLandContent from './SwapMainLandContent';
 
@@ -59,7 +59,7 @@ const SwapMainLand = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
           swapPage={swapPage}
           bridgePage={bridgePage}
         />
-        <SwapActionsState />
+        <SwapActionsLoop />
       </YStack>
     </ScrollView>
   );

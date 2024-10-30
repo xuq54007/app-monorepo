@@ -33,6 +33,7 @@ import {
 } from '../../hooks/useSwapData';
 import { useSwapInit } from '../../hooks/useSwapTokens';
 
+import SwapActionsState from './SwapActionsState';
 import SwapAlertContainer from './SwapAlertContainer';
 import SwapQuoteInput from './SwapQuoteInput';
 import SwapQuoteResult from './SwapQuoteResult';
@@ -128,44 +129,47 @@ const SwapMainLandContent = ({
   }, [navigation, pageType, toAddressInfo.address]);
 
   return (
-    <YStack
-      pt="$2.5"
-      px="$5"
-      pb="$5"
-      gap="$5"
-      flex={1}
-      $gtMd={{
-        flex: 'unset',
-        pt: pageType === EPageType.modal ? '$2.5' : '$5',
-      }}
-    >
-      <SwapQuoteInput
-        onSelectToken={onSelectToken}
-        selectLoading={fetchLoading}
-        swapTabType={swapTabType}
-      />
-      <SwapQuoteResult
-        onOpenProviderList={onOpenProviderList}
-        quoteResult={quoteResult}
-        onOpenRecipient={onToAnotherAddressModal}
-        swapTabType={swapTabType}
-      />
-      {alerts.states.length > 0 &&
-      !quoteLoading &&
-      !quoteEventFetching &&
-      alerts.quoteId === (quoteResult?.quoteId ?? '') ? (
-        <SwapAlertContainer
-          alerts={alerts.states}
-          selectTokenDetailLoading={selectTokenDetailLoading}
+    <>
+      <YStack
+        pt="$2.5"
+        px="$5"
+        pb="$5"
+        gap="$5"
+        flex={1}
+        $gtMd={{
+          flex: 'unset',
+          pt: pageType === EPageType.modal ? '$2.5' : '$5',
+        }}
+      >
+        <SwapQuoteInput
+          onSelectToken={onSelectToken}
+          selectLoading={fetchLoading}
+          swapTabType={swapTabType}
         />
-      ) : null}
-      <SwapRecentTokenPairsGroup
-        onSelectTokenPairs={onSelectRecentTokenPairs}
-        tokenPairs={swapRecentTokenPairs}
-        fromTokenAmount={fromTokenAmount}
-        swapTabType={swapTabType}
-      />
-    </YStack>
+        <SwapQuoteResult
+          onOpenProviderList={onOpenProviderList}
+          quoteResult={quoteResult}
+          onOpenRecipient={onToAnotherAddressModal}
+          swapTabType={swapTabType}
+        />
+        {alerts.states.length > 0 &&
+        !quoteLoading &&
+        !quoteEventFetching &&
+        alerts.quoteId === (quoteResult?.quoteId ?? '') ? (
+          <SwapAlertContainer
+            alerts={alerts.states}
+            selectTokenDetailLoading={selectTokenDetailLoading}
+          />
+        ) : null}
+        <SwapRecentTokenPairsGroup
+          onSelectTokenPairs={onSelectRecentTokenPairs}
+          tokenPairs={swapRecentTokenPairs}
+          fromTokenAmount={fromTokenAmount}
+          swapTabType={swapTabType}
+        />
+      </YStack>
+      <SwapActionsState />
+    </>
   );
 };
 
