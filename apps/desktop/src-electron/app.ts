@@ -103,6 +103,16 @@ const initMenu = () => {
         {
           role: 'about',
           label: i18nText(ETranslations.menu_about_onekey_wallet),
+          click: isMac
+            ? undefined
+            : () => {
+                const safelyMainWindow = getSafelyMainWindow();
+                if (safelyMainWindow) {
+                  safelyMainWindow.webContents.send(
+                    ipcMessageKeys.SHOW_ABOUT_WINDOW,
+                  );
+                }
+              },
         },
         { type: 'separator' },
         !process.mas && {
