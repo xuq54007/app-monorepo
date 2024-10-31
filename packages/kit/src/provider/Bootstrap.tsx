@@ -187,21 +187,24 @@ export function Bootstrap() {
     if (platformEnv.isDesktop && !platformEnv.isDesktopMac) {
       desktopApi.on(ipcMessageKeys.SHOW_ABOUT_WINDOW, () => {
         Dialog.show({
+          showFooter: false,
           renderContent: (
-            <YStack gap={4} alignItems="center">
+            <YStack gap={4} alignItems="center" pt={20}>
               <Image
                 source={require('../../assets/logo.png')}
-                size={12}
+                size={60}
                 borderRadius="$full"
               />
-              <SizableText>
-                Version {process.env.VERSION || '1.0.0'}(
-                {platformEnv.buildNumber})
-              </SizableText>
-              <SizableText color="text-subdued">
-                Copyright © {new Date().getFullYear()} OneKey. All rights
-                reserved.
-              </SizableText>
+              <YStack gap="$2" pt={10} alignItems="center">
+                <SizableText size="$heading2xl">OneKey</SizableText>
+                <SizableText>
+                  Version {process.env.VERSION || '1.0.0'}(
+                  {platformEnv.buildNumber})
+                </SizableText>
+                <SizableText color="text-subdued">
+                  Copyright © OneKey
+                </SizableText>
+              </YStack>
             </YStack>
           ),
         });
