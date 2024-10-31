@@ -187,7 +187,6 @@ export function Bootstrap() {
     if (platformEnv.isDesktop && !platformEnv.isDesktopMac) {
       desktopApi.on(ipcMessageKeys.SHOW_ABOUT_WINDOW, () => {
         Dialog.show({
-          title: 'OneKey Wallet',
           renderContent: (
             <YStack gap={4} alignItems="center">
               <Image
