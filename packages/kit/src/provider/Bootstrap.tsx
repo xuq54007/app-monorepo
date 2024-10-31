@@ -3,7 +3,15 @@ import { useCallback, useEffect, useRef } from 'react';
 import { debounce } from 'lodash';
 import { useIntl } from 'react-intl';
 
-import { Dialog, rootNavigationRef, useShortcuts } from '@onekeyhq/components';
+import {
+  Dialog,
+  Image,
+  SizableText,
+  YStack,
+  rootNavigationRef,
+  useShortcuts,
+} from '@onekeyhq/components';
+import { ipcMessageKeys } from '@onekeyhq/desktop/src-electron/config';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
@@ -157,7 +165,49 @@ const useDesktopEvents = platformEnv.isDesktop
 
 export function Bootstrap() {
   useEffect(() => {
+    Dialog.show({
+      title: 'OneKey Wallet',
+      showFooter: false,
+      renderContent: (
+        <YStack gap={4} alignItems="center">
+          <Image
+            alignSelf="center"
+            source={require('../../assets/logo.png')}
+            borderRadius="$full"
+            size={60}
+          />
+          <SizableText>
+            Version {process.env.VERSION || '1.0.0'}({platformEnv.buildNumber})
+          </SizableText>
+          <SizableText color="text-subdued">Copyright © OneKey</SizableText>
+        </YStack>
+      ),
+    });
     void backgroundApiProxy.serviceSetting.fetchCurrencyList();
+    if (platformEnv.isDesktop && !platformEnv.isDesktopMac) {
+      desktopApi.on(ipcMessageKeys.SHOW_ABOUT_WINDOW, () => {
+        Dialog.show({
+          title: 'OneKey Wallet',
+          renderContent: (
+            <YStack gap={4} alignItems="center">
+              <Image
+                source={require('../../assets/logo.png')}
+                size={12}
+                borderRadius="$full"
+              />
+              <SizableText>
+                Version {process.env.VERSION || '1.0.0'}(
+                {platformEnv.buildNumber})
+              </SizableText>
+              <SizableText color="text-subdued">
+                Copyright © {new Date().getFullYear()} OneKey. All rights
+                reserved.
+              </SizableText>
+            </YStack>
+          ),
+        });
+      });
+    }
   }, []);
   useDesktopEvents();
   return null;
