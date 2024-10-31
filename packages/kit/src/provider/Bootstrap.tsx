@@ -165,24 +165,6 @@ const useDesktopEvents = platformEnv.isDesktop
 
 export function Bootstrap() {
   useEffect(() => {
-    Dialog.show({
-      title: 'OneKey Wallet',
-      showFooter: false,
-      renderContent: (
-        <YStack gap={4} alignItems="center">
-          <Image
-            alignSelf="center"
-            source={require('../../assets/logo.png')}
-            borderRadius="$full"
-            size={60}
-          />
-          <SizableText>
-            Version {process.env.VERSION || '1.0.0'}({platformEnv.buildNumber})
-          </SizableText>
-          <SizableText color="text-subdued">Copyright © OneKey</SizableText>
-        </YStack>
-      ),
-    });
     void backgroundApiProxy.serviceSetting.fetchCurrencyList();
     if (platformEnv.isDesktop && !platformEnv.isDesktopMac) {
       desktopApi.on(ipcMessageKeys.SHOW_ABOUT_WINDOW, () => {
