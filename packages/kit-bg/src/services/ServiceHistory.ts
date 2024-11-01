@@ -286,10 +286,27 @@ class ServiceHistory extends ServiceBase {
       tx.decodedTx.networkLogoURI = network.logoURI;
     }
 
+    const accountsWithChangedPendingTxs = new Set<string>(); // accountId_networkId
+    localHistoryPendingTxs.forEach((tx) => {
+      const txInResult = finalPendingTxs.find((item) => item.id === tx.id);
+      if (!txInResult) {
+        accountsWithChangedPendingTxs.add(
+          `${tx.decodedTx.accountId}_${tx.decodedTx.networkId}`,
+        );
+      }
+    });
+
     return {
       txs: result,
-      pendingTxsUpdated:
-        finalPendingTxs.length !== localHistoryPendingTxs.length,
+      accountsWithChangedPendingTxs: Array.from(
+        accountsWithChangedPendingTxs,
+      ).map((item) => {
+        const [a, n] = item.split('_');
+        return {
+          accountId: a,
+          networkId: n,
+        };
+      }),
     };
   }
 
@@ -864,6 +881,29 @@ class ServiceHistory extends ServiceBase {
       );
 
     return localHistoryConfirmedTxs;
+  }
+
+  @backgroundMethod()
+  public async getAccountLocalPendingTxsNonceList(params: {
+    networkId: string;
+    accountId: string;
+  }) {
+    const { networkId, accountId } = params;
+    const [xpub, accountAddress] = await Promise.all([
+      this.backgroundApi.serviceAccount.getAccountXpub({
+        accountId,
+        networkId,
+      }),
+      this.backgroundApi.serviceAccount.getAccountAddressForApi({
+        accountId,
+        networkId,
+      }),
+    ]);
+    return this.backgroundApi.simpleDb.localHistory.getPendingNonceList({
+      networkId,
+      accountAddress,
+      xpub,
+    });
   }
 
   @backgroundMethod()
