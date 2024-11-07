@@ -37,13 +37,13 @@ module.exports = ({
     optimization: {
       splitChunks: {
         chunks: 'all',
-        minSize: 102400,
-        maxSize: 4194304,
+        minSize: 102_400,
+        maxSize: 4_194_304,
         hidePathInfo: true,
         automaticNameDelimiter: '.',
         name: false,
         maxInitialRequests: 20,
-        maxAsyncRequests: 50000,
+        maxAsyncRequests: 50_000,
         cacheGroups: {},
       },
     },
@@ -53,7 +53,9 @@ module.exports = ({
       path: path.resolve(basePath, 'build', getOutputFolder()),
       // do not include [hash] here, as `content-script.bundle.js` filename should be stable
       filename: '[name].bundle.js',
-      chunkFilename: `${name}.[name]-[chunkhash:6].chunk.js`,
+      chunkFilename: isDev
+        ? `${name}.[name].chunk.js`
+        : `${name}.[name]-[chunkhash:6].chunk.js`,
       publicPath: '/',
       globalObject: 'this', // FIX: window is not defined in service-worker background
     },
@@ -102,6 +104,34 @@ module.exports = ({
           ...pluginsHtml.uiHtml,
           // ...(isManifestV3 ? [] : pluginsHtml.backgroundHtml),
         ].filter(Boolean);
+        return config;
+      },
+    },
+
+    // **** passkey standalone entry build without code-split
+    {
+      config: {
+        name: devUtils.consts.configName.passkey,
+        entry: {
+          [devUtils.consts.entry['ui-passkey']]: path.join(
+            basePath,
+            'src/entry/ui-passkey.tsx',
+          ),
+        },
+      },
+      configUpdater(config) {
+        if (isManifestV2) {
+          codeSplit.enableCodeSplitChunks({
+            config,
+          });
+        } else {
+          codeSplit.enableCodeSplitChunks({
+            config,
+          });
+        }
+        config.plugins = [...config.plugins, ...pluginsHtml.passkeyHtml].filter(
+          Boolean,
+        );
         return config;
       },
     },

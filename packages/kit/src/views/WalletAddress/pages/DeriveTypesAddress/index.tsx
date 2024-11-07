@@ -135,7 +135,7 @@ const DeriveTypesAddressItem = ({
         const walletId = accountUtils.getWalletIdFromAccountId({
           accountId: indexedAccountId,
         });
-        await createAddress({
+        const createAddressResult = await createAddress({
           selectAfterCreate: false,
           num: 0,
           account: {
@@ -145,11 +145,13 @@ const DeriveTypesAddressItem = ({
             networkId: network.id,
           },
         });
-        Toast.success({
-          title: intl.formatMessage({
-            id: ETranslations.swap_page_toast_address_generated,
-          }),
-        });
+        if (createAddressResult) {
+          Toast.success({
+            title: intl.formatMessage({
+              id: ETranslations.swap_page_toast_address_generated,
+            }),
+          });
+        }
         refreshLocalData?.();
       } finally {
         setLoading(false);
@@ -173,7 +175,12 @@ const DeriveTypesAddressItem = ({
       title={item.deriveInfo.label}
       subtitle={subtitle}
       renderAvatar={
-        <NetworkAvatarBase logoURI={network?.logoURI ?? ''} size="$10" />
+        <NetworkAvatarBase
+          logoURI={network?.logoURI ?? ''}
+          isCustomNetwork={network?.isCustomNetwork}
+          networkName={network?.name}
+          size="$8"
+        />
       }
       onPress={onPress}
       disabled={loading}

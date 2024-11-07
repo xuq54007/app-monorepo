@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
 import { useIntl } from 'react-intl';
+import { I18nManager } from 'react-native';
 
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
 import type { IDialogButtonProps } from '@onekeyhq/components/src/composite/Dialog/type';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { ListItem } from '@onekeyhq/kit/src/components/ListItem';
+import { Section } from '@onekeyhq/kit/src/components/Section';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { useDevSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms/devSettings';
@@ -30,6 +32,10 @@ import {
 } from '@onekeyhq/shared/src/modules3rdParty/expo-notifications';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { EModalSettingRoutes } from '@onekeyhq/shared/src/routes';
+import {
+  isBgApiSerializableCheckingDisabled,
+  toggleBgApiSerializableChecking,
+} from '@onekeyhq/shared/src/utils/assertUtils';
 import { formatDateFns } from '@onekeyhq/shared/src/utils/dateUtils';
 import {
   isWebInDappMode,
@@ -37,10 +43,10 @@ import {
 } from '@onekeyhq/shared/src/utils/devModeUtils';
 import { stableStringify } from '@onekeyhq/shared/src/utils/stringUtils';
 
-import { Section } from '../Section';
-
 import { AddressBookDevSetting } from './AddressBookDevSetting';
 import { CrashDevSettings } from './CrasshDevSettings';
+import { NetInfo } from './NetInfo';
+import { NotificationDevSettings } from './NotificationDevSettings';
 import { SectionFieldItem } from './SectionFieldItem';
 import { SectionPressItem } from './SectionPressItem';
 import { StartTimePanel } from './StartTimePanel';
@@ -113,7 +119,7 @@ export const DevSettingsSection = () => {
       onConfirm: () => {
         void backgroundApiProxy.serviceDevSetting.switchDevMode(false);
         if (platformEnv.isDesktop) {
-          window?.desktopApi.changeDevTools(false);
+          globalThis?.desktopApi.changeDevTools(false);
         }
       },
     });
@@ -123,9 +129,14 @@ export const DevSettingsSection = () => {
     showDevOnlyPasswordDialog({
       title: 'Danger Zone: Open Chrome DevTools',
       onConfirm: async () => {
-        window?.desktopApi.changeDevTools(true);
+        globalThis?.desktopApi.changeDevTools(true);
       },
     });
+  }, []);
+
+  const forceIntoRTL = useCallback(() => {
+    I18nManager.forceRTL(!I18nManager.isRTL);
+    backgroundApiProxy.serviceApp.restartApp();
   }, []);
 
   if (!devSettings.enabled) {
@@ -152,7 +163,7 @@ export const DevSettingsSection = () => {
             title="Print Env Path in Desktop"
             subtitle="getEnvPath()"
             onPress={async () => {
-              const envPath = window?.desktopApi.getEnvPath();
+              const envPath = globalThis?.desktopApi.getEnvPath();
               console.log(envPath);
               Dialog.show({
                 title: 'getEnvPath',
@@ -183,9 +194,16 @@ export const DevSettingsSection = () => {
             ? ONEKEY_TEST_API_HOST
             : ONEKEY_API_HOST
         }
+        onBeforeValueChange={async () => {
+          try {
+            await backgroundApiProxy.serviceNotification.unregisterClient();
+          } catch (error) {
+            console.error(error);
+          }
+        }}
         onValueChange={(enabled: boolean) => {
           if (platformEnv.isDesktop) {
-            window.desktopApi?.setAutoUpdateSettings?.({
+            globalThis.desktopApi?.setAutoUpdateSettings?.({
               useTestFeedUrl: enabled,
             });
           }
@@ -194,6 +212,20 @@ export const DevSettingsSection = () => {
           }, 300);
         }}
       >
+        <Switch size={ESwitchSize.small} />
+      </SectionFieldItem>
+      <SectionPressItem
+        title="force RTL"
+        subtitle="强制启用 RTL 布局"
+        drillIn={false}
+      >
+        <Switch
+          onChange={forceIntoRTL}
+          size={ESwitchSize.small}
+          value={I18nManager.isRTL}
+        />
+      </SectionPressItem>
+      <SectionFieldItem name="showTradingView" title="显示 Trading View">
         <Switch size={ESwitchSize.small} />
       </SectionFieldItem>
       <SectionFieldItem
@@ -219,6 +251,20 @@ export const DevSettingsSection = () => {
       >
         <Switch size={ESwitchSize.small} />
       </SectionFieldItem>
+
+      <ListItem
+        title="Bg Api 可序列化检测"
+        subtitle="启用后会影响性能, 仅在开发环境生效, 关闭 1 天后重新开启"
+      >
+        <Switch
+          isUncontrolled
+          size={ESwitchSize.small}
+          defaultChecked={!isBgApiSerializableCheckingDisabled()}
+          onChange={(v) => {
+            toggleBgApiSerializableChecking(v);
+          }}
+        />
+      </ListItem>
 
       <SectionPressItem
         title="Export Accounts Data"
@@ -260,6 +306,17 @@ export const DevSettingsSection = () => {
           // });
         }}
       />
+
+      <SectionPressItem
+        title="NotificationDevSettings"
+        onPress={() => {
+          const dialog = Dialog.cancel({
+            title: 'NotificationDevSettings',
+            renderContent: <NotificationDevSettings />,
+          });
+        }}
+      />
+
       {platformEnv.isNative ? (
         <SectionPressItem
           title="AppNotificationBadge"
@@ -340,6 +397,9 @@ export const DevSettingsSection = () => {
                         await backgroundApiProxy.serviceE2E.clearWalletsAndAccounts(
                           params,
                         );
+                        if (platformEnv.isExtension) {
+                          backgroundApiProxy.serviceApp.restartApp();
+                        }
                         Toast.success({
                           title: 'Success',
                         });
@@ -412,23 +472,16 @@ export const DevSettingsSection = () => {
       />
       <SectionPressItem
         title="Reset Spotlight"
-        subtitle="Will reset after 5 seconds."
         onPress={() => {
-          setTimeout(() => {
-            void backgroundApiProxy.serviceSpotlight.reset();
-          }, 5000);
+          void backgroundApiProxy.serviceSpotlight.reset();
         }}
       />
       <SectionPressItem
-        title="重置清空应用更新状态"
+        title="Check Network info"
         onPress={() => {
-          void backgroundApiProxy.serviceAppUpdate.reset();
-        }}
-      />
-      <SectionPressItem
-        title="重置清空应用更新状态为失败状态"
-        onPress={() => {
-          void backgroundApiProxy.serviceAppUpdate.notifyFailed();
+          Dialog.confirm({
+            renderContent: <NetInfo />,
+          });
         }}
       />
       {platformEnv.isNativeAndroid ? (
@@ -442,12 +495,12 @@ export const DevSettingsSection = () => {
           <SectionPressItem
             copyable
             title={`Desktop Channel:${process.env.DESK_CHANNEL || ''} ${
-              window?.desktopApi?.channel || ''
-            } ${window?.desktopApi?.isMas ? 'mas' : ''}`}
+              globalThis?.desktopApi?.channel || ''
+            } ${globalThis?.desktopApi?.isMas ? 'mas' : ''}`}
           />
           <SectionPressItem
             copyable
-            title={`Desktop arch: ${window?.desktopApi?.arch || ''}`}
+            title={`Desktop arch: ${globalThis?.desktopApi?.arch || ''}`}
           />
         </>
       ) : null}
@@ -457,7 +510,7 @@ export const DevSettingsSection = () => {
           drillIn
           onPress={() => {
             switchWebDappMode();
-            window.location.reload();
+            globalThis.location.reload();
           }}
           title={`Switch web mode: ${
             isWebInDappMode() ? 'dapp' : 'wallet'

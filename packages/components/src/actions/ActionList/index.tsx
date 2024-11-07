@@ -1,11 +1,18 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useIntl } from 'react-intl';
 import { type GestureResponderEvent } from 'react-native';
 import { useMedia, withStaticProperties } from 'tamagui';
 import { useDebouncedCallback } from 'use-debounce';
 
+import { dismissKeyboard } from '@onekeyhq/shared/src/keyboard';
+import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import {
+  type EShortcutEvents,
+  shortcutsMap,
+} from '@onekeyhq/shared/src/shortcuts/shortcuts.enum';
 
 import { Divider } from '../../content';
 import { Portal } from '../../hocs';
@@ -14,9 +21,11 @@ import {
   Heading,
   Icon,
   SizableText,
+  XStack,
   YStack,
 } from '../../primitives';
 import { Popover } from '../Popover';
+import { Shortcut } from '../Shortcut';
 import { Trigger } from '../Trigger';
 
 import type { IIconProps, IKeyOfIcons } from '../../primitives';
@@ -27,9 +36,10 @@ export interface IActionListItemProps {
   iconProps?: IIconProps;
   label: string;
   destructive?: boolean;
-  onPress?: () => void | Promise<boolean | void>;
+  onPress?: (close: () => void) => void | Promise<boolean | void>;
   disabled?: boolean;
   testID?: string;
+  shortcutKeys?: string[] | EShortcutEvents;
 }
 
 export function ActionListItem({
@@ -41,19 +51,30 @@ export function ActionListItem({
   disabled,
   onClose,
   testID,
+  shortcutKeys,
 }: IActionListItemProps & {
-  onClose?: () => void;
+  onClose: () => void;
 }) {
   const handlePress = useCallback(
     async (event: GestureResponderEvent) => {
       event.stopPropagation();
-      const result = await onPress?.();
-      if (result || result === undefined) {
+      await onPress?.(onClose);
+      if (!onPress?.length) {
         onClose?.();
       }
     },
     [onClose, onPress],
   );
+
+  const keys = useMemo(() => {
+    if (shortcutKeys) {
+      if (Array.isArray(shortcutKeys)) {
+        return shortcutKeys;
+      }
+      return shortcutsMap[shortcutKeys].keys;
+    }
+    return undefined;
+  }, [shortcutKeys]);
   return (
     <ButtonFrame
       justifyContent="flex-start"
@@ -83,24 +104,40 @@ export function ActionListItem({
       onPress={handlePress}
       testID={testID}
     >
-      {icon ? (
-        <Icon
-          name={icon}
-          size="$5"
-          mr="$3"
-          $md={{ size: '$6' }}
-          color={destructive ? '$iconCritical' : '$icon'}
-          {...iconProps}
-        />
-      ) : null}
-      <SizableText
-        textAlign="left"
-        size="$bodyMd"
-        $md={{ size: '$bodyLg' }}
-        color={destructive ? '$textCritical' : '$text'}
-      >
-        {label}
-      </SizableText>
+      <XStack jc="space-between" flex={1}>
+        <XStack flex={1}>
+          {icon ? (
+            <Icon
+              name={icon}
+              size="$5"
+              mr="$3"
+              $md={{ size: '$6' }}
+              color={destructive ? '$iconCritical' : '$icon'}
+              {...iconProps}
+            />
+          ) : null}
+          <SizableText
+            textAlign="left"
+            size="$bodyMd"
+            width="100%"
+            flexShrink={1}
+            $md={{ size: '$bodyLg' }}
+            color={destructive ? '$textCritical' : '$text'}
+          >
+            {label}
+          </SizableText>
+        </XStack>
+        {(platformEnv.isDesktop || platformEnv.isNativeIOSPad) &&
+        keys?.length ? (
+          <XStack>
+            <Shortcut>
+              {keys.map((key) => (
+                <Shortcut.Key key={key}>{key}</Shortcut.Key>
+              ))}
+            </Shortcut>
+          </XStack>
+        ) : null}
+      </XStack>
     </ButtonFrame>
   );
 }
@@ -162,6 +199,7 @@ function BasicActionList({
   renderItems,
   renderItemsAsync,
   estimatedContentHeight,
+  title,
   ...props
 }: IActionListProps) {
   const [isOpen, setOpenStatus] = useDefaultOpen(defaultOpen);
@@ -182,6 +220,7 @@ function BasicActionList({
   }, [handleOpenStatusChange]);
 
   const { md } = useMedia();
+  const intl = useIntl();
   useEffect(() => {
     if (renderItemsAsync && isOpen) {
       if (platformEnv.isDev && md && !estimatedContentHeight) {
@@ -217,6 +256,7 @@ function BasicActionList({
   );
   return (
     <Popover
+      title={title || intl.formatMessage({ id: ETranslations.explore_options })}
       open={isOpen}
       onOpenChange={handleOpenStatusChange}
       renderContent={
@@ -230,7 +270,9 @@ function BasicActionList({
 
           {sections?.map((section, sectionIdx) => (
             <YStack key={sectionIdx}>
-              {sectionIdx > 0 ? <Divider mx="$2" my="$1" /> : null}
+              {sectionIdx > 0 && section.items.length > 0 ? (
+                <Divider mx="$2" my="$1" />
+              ) : null}
               {section.title ? (
                 <Heading
                   size="$headingXs"
@@ -274,6 +316,7 @@ const showActionList = (
     onClose?: () => void;
   },
 ) => {
+  dismissKeyboard();
   const ref = Portal.Render(
     Portal.Constant.FULL_WINDOW_OVERLAY_PORTAL,
     <BasicActionList

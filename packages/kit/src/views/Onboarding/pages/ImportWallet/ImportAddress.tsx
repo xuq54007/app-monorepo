@@ -83,6 +83,7 @@ const FormDeriveTypeInput = ({
           enabledItems={deriveInfoItems}
           renderTrigger={({ label, onPress }) => (
             <Stack
+              testID="derive-type-input"
               userSelect="none"
               flexDirection="row"
               px="$3.5"
@@ -156,7 +157,7 @@ function ImportAddress() {
   const {
     activeAccount: { network },
   } = useAccountSelectorTrigger({ num: 0 });
-  const { clearText } = useClipboard();
+  const { onPasteClearText } = useClipboard();
   const form = useForm<IFormValues>({
     values: {
       networkId:
@@ -276,7 +277,7 @@ function ImportAddress() {
   );
 
   return (
-    <Page>
+    <Page scrollEnabled>
       <Page.Header
         title={intl.formatMessage({ id: ETranslations.global_import_address })}
       />
@@ -304,12 +305,14 @@ function ImportAddress() {
                     id: ETranslations.global_address,
                   }),
                   value: EImportMethod.Address,
+                  testID: 'import-address-address',
                 },
                 {
                   label: intl.formatMessage({
                     id: ETranslations.global_public_key,
                   }),
                   value: EImportMethod.PublicKey,
+                  testID: 'import-address-publicKey',
                 },
               ]}
             />
@@ -329,7 +332,7 @@ function ImportAddress() {
                   })}
                   testID="import-address-input"
                   size={media.gtMd ? 'medium' : 'large'}
-                  onPaste={clearText}
+                  onPaste={onPasteClearText}
                   addOns={[
                     {
                       iconName: 'ScanOutline',

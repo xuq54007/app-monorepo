@@ -53,6 +53,8 @@ const settings: IVaultSettings = {
     },
   },
 
+  customRpcEnabled: true,
+
   minTransferAmount: '0.001',
 
   withMemo: true,
@@ -61,6 +63,7 @@ const settings: IVaultSettings = {
 
   cannotSendToSelf: true,
   hasFrozenBalance: true,
+  isNativeTokenContractAddressEmpty: true,
 };
 
 export default Object.freeze(settings);

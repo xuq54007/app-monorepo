@@ -1,8 +1,10 @@
 import type { IDecodedTxExtraAlgo } from '@onekeyhq/core/src/chains/algo/types';
 import type { IDecodedTxExtraDnx } from '@onekeyhq/core/src/chains/dnx/types';
 import type { IDecodedTxExtraLightning } from '@onekeyhq/core/src/chains/lightning/types';
+import type { IDecodedTxExtraTron } from '@onekeyhq/core/src/chains/tron/types';
 import type { IDecodedTxExtraXrp } from '@onekeyhq/core/src/chains/xrp/types';
 import type { IEncodedTx, ISignedTxPro } from '@onekeyhq/core/src/types';
+import type { IApproveInfo } from '@onekeyhq/kit-bg/src/vaults/types';
 
 import type { IFeeInfoUnit } from './fee';
 import type { EOnChainHistoryTxType } from './history';
@@ -83,7 +85,8 @@ export type IDecodedTxExtraInfo =
   | IDecodedTxExtraAlgo
   | IDecodedTxExtraLightning
   | IDecodedTxExtraXrp
-  | IDecodedTxExtraDnx;
+  | IDecodedTxExtraDnx
+  | IDecodedTxExtraTron;
 
 export type IDecodedTx = {
   txid: string; // blockHash
@@ -109,6 +112,7 @@ export type IDecodedTx = {
   xpub?: string;
 
   feeInfo?: IFeeInfoUnit;
+  approveInfo?: IApproveInfo;
   totalFeeInNative?: string;
   totalFeeFiatValue?: string;
 
@@ -125,7 +129,7 @@ export type IDecodedTx = {
   nativeAmount?: string;
   nativeAmountValue?: string;
 
-  toAddressLabel?: string; // used for display swap provider or staking protocol name, such as "Uniswap", "Compound", "1Inch", "Lido"
+  originalTxId?: string; // for ton
 };
 
 export type IDecodedTxActionBase = {
@@ -172,6 +176,8 @@ export type IDecodedTxActionAssetTransfer = IDecodedTxActionBase & {
     name: string;
     icon: string;
   };
+  internalStakingLabel?: string;
+  isInternalStaking?: boolean;
   isInternalSwap?: boolean;
   swapReceivedAddress?: string;
   swapReceivedNetworkId?: string;
@@ -212,6 +218,8 @@ export type IDecodedTxAction = {
 export type ISendTxOnSuccessData = {
   signedTx: ISignedTxPro;
   decodedTx: IDecodedTx;
+  feeInfo?: IFeeInfoUnit;
+  approveInfo?: IApproveInfo;
 };
 
 export type IReplaceTxInfo = {

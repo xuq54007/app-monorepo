@@ -3,7 +3,7 @@ import { memo, useMemo, useState } from 'react';
 import BigNumber from 'bignumber.js';
 import { MotiView } from 'moti';
 import { useIntl } from 'react-intl';
-import { StyleSheet } from 'react-native';
+import { I18nManager, StyleSheet } from 'react-native';
 
 import {
   Badge,
@@ -322,7 +322,8 @@ const SwapProviderListItem = ({
         </Stack>
         {providerResult.isBest ||
         providerResult.receivedBest ||
-        providerResult.minGasCost ? (
+        providerResult.minGasCost ||
+        providerResult.isAntiMEV ? (
           <XStack flexWrap="wrap" justifyContent="flex-end" m={-3} flex={1}>
             {providerResult.isBest ? (
               <Stack p={3}>
@@ -347,6 +348,15 @@ const SwapProviderListItem = ({
                 <Badge badgeType="info">
                   {intl.formatMessage({
                     id: ETranslations.provider_label_min_fee,
+                  })}
+                </Badge>
+              </Stack>
+            ) : null}
+            {providerResult.isAntiMEV ? (
+              <Stack p={3}>
+                <Badge badgeType="info">
+                  {intl.formatMessage({
+                    id: ETranslations.provider_label_anti_mev,
                   })}
                 </Badge>
               </Stack>
@@ -413,7 +423,11 @@ const SwapProviderListItem = ({
                 }}
               >
                 <Icon
-                  name="ChevronRightSmallOutline"
+                  name={
+                    I18nManager.isRTL
+                      ? 'ChevronLeftSmallOutline'
+                      : 'ChevronRightSmallOutline'
+                  }
                   size="$5"
                   color="$iconSubdued"
                 />

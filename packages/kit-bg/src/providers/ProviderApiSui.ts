@@ -1,4 +1,4 @@
-import { TransactionBlock } from '@mysten/sui.js';
+import { Transaction } from '@mysten/sui/transactions';
 import { web3Errors } from '@onekeyfe/cross-inpage-provider-errors';
 import { IInjectedProviderNames } from '@onekeyfe/cross-inpage-provider-types';
 
@@ -16,6 +16,7 @@ import type {
   ISignMessageInput,
   ISignTransactionBlockInput,
   ISignTransactionBlockOutput,
+  ISuiSignMessageOutput,
 } from '@onekeyhq/shared/types/ProviderApis/ProviderApiSui.type';
 
 import { vaultFactory } from '../vaults/factory';
@@ -23,23 +24,25 @@ import { vaultFactory } from '../vaults/factory';
 import ProviderApiBase from './ProviderApiBase';
 
 import type { IProviderBaseBackgroundNotifyInfo } from './ProviderApiBase';
-import type {
-  SignedMessage,
-  SuiTransactionBlockResponse,
-} from '@mysten/sui.js';
+import type { SuiTransactionBlockResponse } from '@mysten/sui/client';
 import type { IJsBridgeMessagePayload } from '@onekeyfe/cross-inpage-provider-types';
 
 @backgroundClass()
 class ProviderApiSui extends ProviderApiBase {
-  public providerName = IInjectedProviderNames.ethereum;
+  public providerName = IInjectedProviderNames.sui;
 
   public override notifyDappAccountsChanged(
     info: IProviderBaseBackgroundNotifyInfo,
   ): void {
     const data = async ({ origin }: { origin: string }) => {
+      const params = await this.sui_accounts({
+        origin,
+        scope: this.providerName,
+      });
+
       const result = {
         method: 'wallet_events_accountChanged',
-        params: await this.sui_accounts({ origin }),
+        params,
       };
       return result;
     };
@@ -149,7 +152,7 @@ class ProviderApiSui extends ProviderApiBase {
       await this.getAccountsInfo(request)
     )[0];
     const encodedTx: IEncodedTxSui = {
-      rawTx: TransactionBlock.from(params.blockSerialize).serialize(),
+      rawTx: Transaction.from(params.blockSerialize).serialize(),
       sender: address ?? '',
     };
     const result =
@@ -182,7 +185,7 @@ class ProviderApiSui extends ProviderApiBase {
       await this.getAccountsInfo(request)
     )[0];
     const encodedTx: IEncodedTxSui = {
-      rawTx: TransactionBlock.from(params.blockSerialize).serialize(),
+      rawTx: Transaction.from(params.blockSerialize).serialize(),
       sender: address ?? '',
     };
 
@@ -207,9 +210,9 @@ class ProviderApiSui extends ProviderApiBase {
   public async signMessage(
     request: IJsBridgeMessagePayload,
     params: ISignMessageInput,
-  ): Promise<SignedMessage> {
+  ): Promise<ISuiSignMessageOutput> {
     defaultLogger.discovery.dapp.dappRequest({ request });
-    const { accountInfo: { accountId, networkId, address } = {} } = (
+    const { accountInfo: { accountId, networkId } = {} } = (
       await this.getAccountsInfo(request)
     )[0];
 

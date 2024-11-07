@@ -410,6 +410,13 @@ const MarkdownGallery = LazyLoadPage(
     ),
 );
 
+const NotificationGallery = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/NotificationGallery'
+    ),
+);
+
 const WebEmbedGallery = LazyLoadPage(
   () =>
     import(
@@ -442,6 +449,27 @@ const CurrencyGallery = LazyLoadPage(
   () =>
     import(
       '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/Currency'
+    ),
+);
+
+const PasswordKeyboardGallery = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/PasswordKeyboard'
+    ),
+);
+
+const TradingViewGallery = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/TradingView'
+    ),
+);
+
+const LetterAvatarGallery = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/LetterAvatar'
     ),
 );
 
@@ -622,6 +650,10 @@ export const galleryScreenList: {
     component: MarkdownGallery,
   },
   {
+    name: EGalleryRoutes.ComponentNotification,
+    component: NotificationGallery,
+  },
+  {
     name: EGalleryRoutes.ComponentWebEmbed,
     component: WebEmbedGallery,
   },
@@ -640,5 +672,17 @@ export const galleryScreenList: {
   {
     name: EGalleryRoutes.ComponentCurrency,
     component: CurrencyGallery,
+  },
+  {
+    name: EGalleryRoutes.ComponentPasswordKeyboardGallery,
+    component: PasswordKeyboardGallery,
+  },
+  {
+    name: EGalleryRoutes.ComponentTradingViewGallery,
+    component: TradingViewGallery,
+  },
+  {
+    name: EGalleryRoutes.LetterAvatarGallery,
+    component: LetterAvatarGallery,
   },
 ];

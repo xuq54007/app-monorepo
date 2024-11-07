@@ -118,7 +118,14 @@ const WalletAddressDeriveTypeItem = ({ item }: { item: IServerNetwork }) => {
       title={item.name}
       subtitle={subtitle}
       onPress={onPress}
-      renderAvatar={<NetworkAvatarBase logoURI={item.logoURI} size="$10" />}
+      renderAvatar={
+        <NetworkAvatarBase
+          logoURI={item.logoURI}
+          isCustomNetwork={item.isCustomNetwork}
+          networkName={item.name}
+          size="$10"
+        />
+      }
     >
       <Icon name="ChevronRightOutline" color="$iconSubdued" />
     </ListItem>
@@ -172,7 +179,7 @@ const WalletAddressListItem = ({ item }: { item: IServerNetwork }) => {
         const { walletId } = accountUtils.parseIndexedAccountId({
           indexedAccountId,
         });
-        await createAddress({
+        const createAddressResult = await createAddress({
           account: {
             walletId,
             networkId: item.id,
@@ -182,12 +189,14 @@ const WalletAddressListItem = ({ item }: { item: IServerNetwork }) => {
           selectAfterCreate: false,
           num: 0,
         });
-        Toast.success({
-          title: intl.formatMessage({
-            id: ETranslations.swap_page_toast_address_generated,
-          }),
-        });
-        refreshLocalData();
+        if (createAddressResult) {
+          Toast.success({
+            title: intl.formatMessage({
+              id: ETranslations.swap_page_toast_address_generated,
+            }),
+          });
+          refreshLocalData();
+        }
       } finally {
         setLoading(false);
       }
@@ -224,7 +233,14 @@ const WalletAddressListItem = ({ item }: { item: IServerNetwork }) => {
     <ListItem
       title={item.name}
       subtitle={subtitle}
-      renderAvatar={<NetworkAvatarBase logoURI={item.logoURI} size="$10" />}
+      renderAvatar={
+        <NetworkAvatarBase
+          logoURI={item.logoURI}
+          isCustomNetwork={item.isCustomNetwork}
+          networkName={item.name}
+          size="$10"
+        />
+      }
       onPress={onPress}
       disabled={loading}
     >
@@ -362,10 +378,13 @@ const WalletAddressContent = ({
 };
 
 const WalletAddress = ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  accountId,
   mainnetItems,
   testnetItems,
   frequentlyUsedNetworks,
 }: {
+  accountId: string | undefined;
   mainnetItems: IServerNetwork[];
   testnetItems: IServerNetwork[];
   frequentlyUsedNetworks: IServerNetwork[];
@@ -375,6 +394,7 @@ const WalletAddress = ({
   return (
     <Page safeAreaEnabled={false}>
       <Page.Header
+        // title={accountId || ''}
         title={intl.formatMessage({
           id: ETranslations.copy_address_modal_title,
         })}
@@ -396,12 +416,12 @@ export default function WalletAddressPage({
   IModalWalletAddressParamList,
   EModalWalletAddressRoutes.WalletAddress
 >) {
-  const { accountId, indexedAccountId } = route.params;
+  const { accountId, walletId, indexedAccountId } = route.params;
   const { result, run: refreshLocalData } = usePromiseResult(
     async () => {
       const networks =
         await backgroundApiProxy.serviceNetwork.getChainSelectorNetworksCompatibleWithAccountId(
-          { accountId },
+          { accountId, walletId },
         );
       const networkIds = Array.from(
         new Set(
@@ -418,7 +438,7 @@ export default function WalletAddressPage({
         );
       return { networksAccount, networks };
     },
-    [accountId, indexedAccountId],
+    [accountId, indexedAccountId, walletId],
     {
       initResult: {
         networksAccount: [],
@@ -462,6 +482,7 @@ export default function WalletAddressPage({
     >
       <WalletAddressContext.Provider value={context}>
         <WalletAddress
+          accountId={accountId} // route.params.accountId
           testnetItems={result.networks.testnetItems}
           mainnetItems={result.networks.mainnetItems}
           frequentlyUsedNetworks={result.networks.frequentlyUsedItems}

@@ -1,6 +1,5 @@
 import { useOnRouterChange } from '@onekeyhq/components';
-import type { ETabRoutes } from '@onekeyhq/shared/src/routes';
-import { ERootRoutes } from '@onekeyhq/shared/src/routes';
+import { ERootRoutes, ETabRoutes } from '@onekeyhq/shared/src/routes';
 
 export default function useListenTabFocusState(
   tabName: ETabRoutes | ETabRoutes[],
@@ -8,15 +7,20 @@ export default function useListenTabFocusState(
 ) {
   const tabNames = Array.isArray(tabName) ? tabName : [tabName];
   useOnRouterChange((state) => {
+    // the state may be undefined when initializing the interface on the Ext.
+    if (!state) {
+      callback(tabName === ETabRoutes.Home, false);
+      return;
+    }
     const rootState = state?.routes.find(
       ({ name }) => name === ERootRoutes.Main,
     )?.state;
     const modalRoutes = state?.routes.find(
       ({ name }) => name === ERootRoutes.Modal,
-    )?.state;
+    )?.key;
     const fullModalRoutes = state?.routes.find(
       ({ name }) => name === ERootRoutes.iOSFullScreen,
-    )?.state;
+    )?.key;
     const currentTabName = rootState?.routeNames
       ? (rootState?.routeNames?.[rootState?.index || 0] as ETabRoutes)
       : (rootState?.routes[0].name as ETabRoutes);

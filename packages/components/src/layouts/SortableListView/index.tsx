@@ -1,5 +1,5 @@
-import { forwardRef, useCallback, useMemo } from 'react';
-import type { ForwardedRef } from 'react';
+import { Fragment, forwardRef, useCallback, useMemo } from 'react';
+import type { ForwardedRef, PropsWithChildren } from 'react';
 
 import { useStyle } from '@tamagui/core';
 // eslint-disable-next-line spellcheck/spell-checker
@@ -20,101 +20,28 @@ import { ListView } from '../ListView';
 
 import type { ISortableListViewProps, ISortableListViewRef } from './types';
 import type { DragStart, DropResult } from 'react-beautiful-dnd';
-import type {
-  CellRendererProps,
-  ListRenderItem,
-  ListRenderItemInfo,
-} from 'react-native';
+import type { ListRenderItem, ListRenderItemInfo } from 'react-native';
 
-let lastIndexHeight: undefined | number;
-
-function DragCellRendererComponent<T>({
-  item,
-  index,
-  renderItem,
-  enabled,
-  keyExtractor,
-  getItemLayout,
-  contentContainerStyle,
-  data,
-  stickyHeaderIndices = [],
-}: {
-  item: T;
-  index: number;
-  renderItem: ISortableListViewProps<T>['renderItem'];
-  enabled: boolean;
-  keyExtractor: ISortableListViewProps<T>['keyExtractor'];
-  getItemLayout: ISortableListViewProps<T>['getItemLayout'];
-  contentContainerStyle: Record<string, unknown>;
-  data: T[];
-  stickyHeaderIndices: number[];
-}) {
-  const id = keyExtractor?.(item, index);
-  const layout = getItemLayout?.(data, index);
-  const paddingTop =
-    contentContainerStyle?.paddingTop ?? contentContainerStyle?.paddingVertical;
-  const findIsStickyIndex = (i: number) =>
-    stickyHeaderIndices.findIndex((x) => x === i) !== -1;
-  const isSticky = findIsStickyIndex(index);
-  const insertHeight = lastIndexHeight ?? 0;
-  lastIndexHeight = layout?.length;
-  return (
-    <Draggable draggableId={`${id}`} index={index} isDragDisabled={!enabled}>
-      {(provided) => {
-        const dragHandleProps = (provided.dragHandleProps ?? {}) as Record<
-          string,
-          any
-        >;
-        lastIndexHeight = undefined;
-
-        return (
-          <>
-            {!isSticky ? (
-              <div
-                style={
-                  layout
-                    ? {
-                        height: layout.length + insertHeight,
-                      }
-                    : {}
-                }
-              />
-            ) : null}
-            <div
-              ref={provided.innerRef}
-              {...provided.draggableProps}
-              style={{
-                ...provided.draggableProps.style,
-                ...(!isSticky
-                  ? {
-                      position: 'absolute',
-                      top:
-                        (layout?.offset ?? 0) +
-                        (paddingTop ? parseInt(paddingTop as string, 10) : 0),
-                      height: layout?.length,
-                      width: '100%',
-                    }
-                  : {}),
-              }}
-            >
-              {renderItem({
-                item,
-                drag: () => {},
-                dragProps: Object.keys(dragHandleProps).reduce((acc, key) => {
-                  const reloadKey = key.replace(/^data-/, '');
-                  acc[reloadKey] = dragHandleProps[key];
-                  return acc;
-                }, {} as Record<string, any>),
-                getIndex: () => 0,
-                isActive: false,
-              })}
-            </div>
-          </>
-        );
-      }}
-    </Draggable>
+// eslint-disable-next-line unicorn/prefer-global-this
+if (typeof window !== 'undefined') {
+  Object.defineProperty(
+    // eslint-disable-next-line unicorn/prefer-global-this
+    window,
+    '__react-beautiful-dnd-disable-dev-warnings',
+    {
+      value: true,
+    },
   );
 }
+
+function FragmentComponent({
+  key,
+  children,
+}: PropsWithChildren & { key?: React.Key }) {
+  return <Fragment key={key}>{children}</Fragment>;
+}
+
+let lastIndexHeight: undefined | number;
 
 function BaseSortableListView<T>(
   {
@@ -126,7 +53,7 @@ function BaseSortableListView<T>(
     keyExtractor,
     getItemLayout,
     contentContainerStyle = {},
-    stickyHeaderIndices,
+    stickyHeaderIndices = [],
     ListHeaderComponent,
     ...restProps
   }: ISortableListViewProps<T>,
@@ -173,40 +100,96 @@ function BaseSortableListView<T>(
     [stickyHeaderIndices, ListHeaderComponent],
   );
 
-  const reloadCellRendererComponent = useCallback(
-    (props: CellRendererProps<T>) => (
-      <DragCellRendererComponent
-        {...props}
-        enabled={enabled}
-        getItemLayout={getItemLayout}
-        contentContainerStyle={rawContentContainerStyle}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        data={data}
-        stickyHeaderIndices={reallyStickyHeaderIndices}
-      />
-    ),
+  const contentPaddingTop = useMemo(() => {
+    const paddingTop =
+      rawContentContainerStyle?.paddingTop ??
+      rawContentContainerStyle?.paddingVertical;
+    return paddingTop ? parseInt(paddingTop as string, 10) : 0;
+  }, [
+    rawContentContainerStyle?.paddingTop,
+    rawContentContainerStyle?.paddingVertical,
+  ]);
+
+  const reloadRenderItem = useCallback(
+    (props: ListRenderItemInfo<T>) => {
+      const { item, index } = props;
+      const id = keyExtractor?.(item, index);
+      const layout = getItemLayout?.(data, index);
+      const isSticky =
+        reallyStickyHeaderIndices.findIndex((x) => x === index) !== -1;
+      const insertHeight = lastIndexHeight ?? 0;
+      lastIndexHeight = layout?.length;
+      return (
+        <Draggable
+          draggableId={`${id}`}
+          index={index}
+          isDragDisabled={!enabled}
+        >
+          {(provided) => {
+            const dragHandleProps = (provided.dragHandleProps ?? {}) as Record<
+              string,
+              any
+            >;
+            lastIndexHeight = undefined;
+
+            return (
+              <>
+                {!isSticky ? (
+                  <div
+                    style={
+                      layout
+                        ? {
+                            height: layout.length + insertHeight,
+                          }
+                        : {}
+                    }
+                  />
+                ) : null}
+                <div
+                  ref={provided.innerRef}
+                  {...provided.draggableProps}
+                  style={{
+                    ...provided.draggableProps.style,
+                    ...(!isSticky
+                      ? {
+                          position: 'absolute',
+                          top: (layout?.offset ?? 0) + contentPaddingTop,
+                          height: layout?.length,
+                          width: '100%',
+                        }
+                      : {}),
+                  }}
+                >
+                  {renderItem({
+                    item,
+                    drag: () => {},
+                    dragProps: Object.keys(dragHandleProps).reduce(
+                      (acc, key) => {
+                        const reloadKey = key.replace(/^data-/, '');
+                        acc[reloadKey] = dragHandleProps[key];
+                        return acc;
+                      },
+                      {} as Record<string, any>,
+                    ),
+                    getIndex: () => index,
+                    isActive: false,
+                  })}
+                </div>
+              </>
+            );
+          }}
+        </Draggable>
+      );
+    },
     [
-      reallyStickyHeaderIndices,
+      renderItem,
+      data,
       enabled,
       getItemLayout,
       keyExtractor,
-      data,
-      renderItem,
-      rawContentContainerStyle,
+      reallyStickyHeaderIndices,
+      contentPaddingTop,
     ],
-  );
-
-  const reloadRenderItem = useCallback(
-    (props: ListRenderItemInfo<T>) =>
-      renderItem({
-        ...props,
-        getIndex: () => props.index,
-        drag: () => {},
-        dragProps: {},
-        isActive: false,
-      }),
-    [renderItem],
   );
 
   return (
@@ -262,7 +245,7 @@ function BaseSortableListView<T>(
                 paddingBottom: overridePaddingBottom,
               }}
               renderItem={reloadRenderItem as ListRenderItem<T>}
-              CellRendererComponent={reloadCellRendererComponent}
+              CellRendererComponent={FragmentComponent}
               getItemLayout={getItemLayout}
               keyExtractor={keyExtractor}
               stickyHeaderIndices={stickyHeaderIndices}

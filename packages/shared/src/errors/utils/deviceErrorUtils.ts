@@ -69,21 +69,17 @@ export function convertDeviceError(
     case HardwareErrorCode.DeviceFwException:
       return new HardwareErrors.FirmwareVersionTooLow({ payload });
     case HardwareErrorCode.DeviceUnexpectedMode:
-      if (
-        typeof message === 'string' &&
-        message.indexOf('ui-device_bootloader_mode') !== -1
-      ) {
-        return new HardwareErrors.NotInBootLoaderMode({ payload });
-      }
       return new HardwareErrors.UnknownHardwareError({ payload });
+    case HardwareErrorCode.NotAllowInBootloaderMode:
+      return new HardwareErrors.NotInBootLoaderMode({ payload });
+    // case HardwareErrorCode.RequiredButInBootloaderMode:
+    //   return new HardwareErrors.NotInBootLoaderMode({ payload });
     case HardwareErrorCode.DeviceCheckDeviceIdError:
       return new HardwareErrors.DeviceNotSame({ payload });
     case HardwareErrorCode.DeviceNotFound:
       return new HardwareErrors.DeviceNotFound({ payload });
     case HardwareErrorCode.DeviceInitializeFailed:
       return new HardwareErrors.DeviceInitializeFailed({ payload });
-    case HardwareErrorCode.DeviceUnexpectedBootloaderMode:
-      return new HardwareErrors.NotInBootLoaderMode({ payload });
     case HardwareErrorCode.DeviceDetectInBootloaderMode:
       return new HardwareErrors.DeviceDetectInBootloaderMode({ payload });
     case HardwareErrorCode.DeviceInterruptedFromOutside:
@@ -171,7 +167,7 @@ export function convertDeviceError(
       return new HardwareErrors.BridgeNetworkError({ payload });
     case HardwareErrorCode.BridgeTimeoutError:
       if (platformEnv.isDesktop) {
-        window.desktopApi.reloadBridgeProcess();
+        globalThis.desktopApi.reloadBridgeProcess();
       }
       return new HardwareErrors.BridgeTimeoutError({ payload });
     case HardwareErrorCode.PollingTimeout:
@@ -188,6 +184,8 @@ export function convertDeviceError(
       return new HardwareErrors.NotInSigningModeError({ payload });
     case HardwareErrorCode.DataOverload:
       return new HardwareErrors.DeviceDataOverload({ payload });
+    case HardwareErrorCode.BridgeDeviceDisconnected:
+      return new HardwareErrors.DeviceDisconnectedError({ payload });
 
     // Bridge error
     case 'ERR_BAD_REQUEST':
@@ -257,8 +255,9 @@ export function isHardwareInterruptErrorByCode({
       HardwareErrorCode.NewFirmwareForceUpdate,
       HardwareErrorCode.BridgeNotInstalled,
       HardwareErrorCode.BridgeTimeoutError,
-      HardwareErrorCode.DeviceUnexpectedBootloaderMode, // 108
+      HardwareErrorCode.NotAllowInBootloaderMode, // 116
       HardwareErrorCode.DeviceUnexpectedMode, // 102
+      HardwareErrorCode.BridgeDeviceDisconnected, // 817
     ],
   });
 }

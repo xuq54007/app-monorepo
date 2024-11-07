@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { useIntl } from 'react-intl';
 
@@ -22,6 +22,9 @@ import { getSharedInputStyles } from '@onekeyhq/components/src/forms/Input/share
 import type { IFormFieldProps } from '@onekeyhq/components/src/forms/types';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import type { NUMBER_FORMATTER } from '@onekeyhq/shared/src/utils/numberUtils';
+
+import { LetterAvatar } from '../LetterAvatar';
 
 type IAmountInputFormItemProps = IFormFieldProps<
   string,
@@ -36,12 +39,15 @@ type IAmountInputFormItemProps = IFormFieldProps<
       onPress?: () => void;
       loading?: boolean;
       currency?: string;
+      tokenSymbol?: string;
+      formatter?: keyof typeof NUMBER_FORMATTER;
       moreComponent?: React.ReactNode;
     };
     balanceProps?: {
       value?: string;
       onPress?: () => void;
       loading?: boolean;
+      iconText?: string;
     };
     balanceHelperProps?: {
       onPress?: () => void;
@@ -50,6 +56,8 @@ type IAmountInputFormItemProps = IFormFieldProps<
       selectedTokenImageUri?: string;
       selectedNetworkImageUri?: string;
       selectedTokenSymbol?: string;
+      selectedNetworkName?: string;
+      isCustomNetwork?: boolean;
       loading?: boolean;
       disabled?: boolean;
     } & IXStackProps;
@@ -78,6 +86,16 @@ export function AmountInput({
   });
   const [selection, setSelection] = useState({ start: 0, end: 0 });
 
+  const handleChangeText = useCallback(
+    (text: string) => {
+      // Keep compatibility with Chinese keyboard input
+      // Replace the Chinese full-width period with the standard period
+      const sanitizedText = text.replace('。', '.');
+      onChange?.(sanitizedText);
+    },
+    [onChange],
+  );
+
   const InputElement = useMemo(() => {
     if (inputProps?.loading)
       return (
@@ -99,18 +117,23 @@ export function AmountInput({
           borderWidth: 0,
         }}
         value={value}
-        onChangeText={onChange}
+        onChangeText={platformEnv.isNative ? onChange : handleChangeText}
         // maybe should replace with ref.current.setNativeProps({ selection })
         {...(platformEnv.isNativeAndroid && {
           selection,
           onSelectionChange: ({ nativeEvent }) =>
             setSelection(nativeEvent.selection),
+          onFocus: () =>
+            setSelection({
+              start: value?.length ?? 0,
+              end: value?.length ?? 0,
+            }),
           onBlur: () => setSelection({ start: 0, end: 0 }),
         })}
         {...inputProps}
       />
     );
-  }, [inputProps, onChange, value, selection]);
+  }, [inputProps, value, onChange, handleChangeText, selection]);
 
   const AmountElement = useMemo(() => {
     if (!valueProps) {
@@ -127,8 +150,11 @@ export function AmountInput({
     return (
       <>
         <NumberSizeableText
-          formatter="value"
-          formatterOptions={{ currency: valueProps.currency ?? '$' }}
+          formatter={valueProps.formatter ?? 'value'}
+          formatterOptions={{
+            currency: valueProps.currency,
+            tokenSymbol: valueProps.tokenSymbol,
+          }}
           size="$bodyMd"
           color={valueProps.color ?? '$textSubdued'}
           pr="$0.5"
@@ -191,16 +217,16 @@ export function AmountInput({
               <Icon size="$6" name="CryptoCoinOutline" color="$iconSubdued" />
             </Image.Fallback>
           </Image>
-          <Stack
-            position="absolute"
-            right="$-1"
-            bottom="$-1"
-            p="$0.5"
-            borderRadius="$full"
-            flexShrink={1}
-            bg="$bgApp"
-          >
-            {tokenSelectorTriggerProps?.selectedNetworkImageUri ? (
+          {tokenSelectorTriggerProps?.selectedNetworkImageUri ? (
+            <Stack
+              position="absolute"
+              right="$-1"
+              bottom="$-1"
+              p="$0.5"
+              borderRadius="$full"
+              flexShrink={1}
+              bg="$bgApp"
+            >
               <Image height="$3" width="$3" borderRadius="$full">
                 <Image.Source
                   source={{
@@ -215,8 +241,25 @@ export function AmountInput({
                   />
                 </Image.Fallback>
               </Image>
-            ) : null}
-          </Stack>
+            </Stack>
+          ) : null}
+          {tokenSelectorTriggerProps?.isCustomNetwork &&
+          tokenSelectorTriggerProps?.selectedNetworkName ? (
+            <Stack
+              position="absolute"
+              right="$-1"
+              bottom="$-1"
+              p="$0.5"
+              borderRadius="$full"
+              flexShrink={1}
+              bg="$bgApp"
+            >
+              <LetterAvatar
+                size="$3"
+                letter={tokenSelectorTriggerProps.selectedNetworkName[0]}
+              />
+            </Stack>
+          ) : null}
         </Stack>
         <SizableText size="$headingXl" numberOfLines={1} flexShrink={1}>
           {tokenSelectorTriggerProps?.selectedTokenSymbol ||
@@ -237,9 +280,11 @@ export function AmountInput({
   }, [
     intl,
     tokenSelectorTriggerProps?.disabled,
+    tokenSelectorTriggerProps?.isCustomNetwork,
     tokenSelectorTriggerProps?.loading,
     tokenSelectorTriggerProps?.onPress,
     tokenSelectorTriggerProps?.selectedNetworkImageUri,
+    tokenSelectorTriggerProps?.selectedNetworkName,
     tokenSelectorTriggerProps?.selectedTokenImageUri,
     tokenSelectorTriggerProps?.selectedTokenSymbol,
   ]);
@@ -275,7 +320,13 @@ export function AmountInput({
             pr: '$0',
           })}
         >
-          <Icon name="WalletOutline" size="$5" color="$iconSubdued" mr="$1" />
+          {balanceProps.iconText ? (
+            <SizableText color="$textSubdued" size="$bodyMd" mr="$1">
+              {balanceProps.iconText}
+            </SizableText>
+          ) : (
+            <Icon name="WalletOutline" size="$5" color="$iconSubdued" mr="$1" />
+          )}
           <SizableText size="$bodyMd" color="$textSubdued">
             <NumberSizeableText
               size="$bodyMd"

@@ -1,11 +1,13 @@
 import { ECoreApiExportedSecretKeyType } from '@onekeyhq/core/src/types';
-import { WALLET_TYPE_HW } from '@onekeyhq/shared/src/consts/dbConsts';
+import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
+import { EMPTY_NATIVE_TOKEN_ADDRESS } from '@onekeyhq/shared/src/consts/addresses';
 import {
   COINTYPE_SOL,
   IMPL_SOL,
   INDEX_PLACEHOLDER,
 } from '@onekeyhq/shared/src/engine/engineConsts';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { EEarnProviderEnum } from '@onekeyhq/shared/types/earn';
 
 import { EDBAccountType } from '../../../dbs/local/consts';
 
@@ -26,14 +28,14 @@ const accountDeriveInfo: IAccountDeriveInfoMapSol = {
     template: `m/44'/${COINTYPE_SOL}'/${INDEX_PLACEHOLDER}'/0'`,
     coinType: COINTYPE_SOL,
     labelKey: ETranslations.bip44__standard,
-    desc: 'OneKey, Phantom, Sollet, m/44’/501’/*’/0’',
+    desc: `OneKey, Phantom, Sollet, m/44'/501'/*'/0'`,
   },
   ledgerLive: {
     namePrefix: 'SOL Ledger Live',
     template: `m/44'/${COINTYPE_SOL}'/${INDEX_PLACEHOLDER}'`,
     coinType: COINTYPE_SOL,
     label: 'Ledger Live',
-    desc: 'Ledger Live, Solflare, m/44’/501’/*’',
+    desc: `Ledger Live, Solflare, m/44'/501'/*'`,
   },
 };
 
@@ -79,6 +81,25 @@ const settings: IVaultSettings = {
   customRpcEnabled: true,
 
   sendZeroWithZeroTokenBalanceDisabled: true,
+
+  stakingConfig: {
+    [getNetworkIdsMap().sol]: {
+      providers: {
+        [EEarnProviderEnum.Everstake]: {
+          supportedSymbols: ['SOL'],
+          configs: {
+            'SOL': {
+              enabled: true,
+              tokenAddress: EMPTY_NATIVE_TOKEN_ADDRESS,
+              displayProfit: true,
+              withdrawWithTx: true,
+              claimWithTx: true,
+            },
+          },
+        },
+      },
+    },
+  },
 };
 
 export default Object.freeze(settings);

@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 
-import _ from 'lodash';
 import { useIntl } from 'react-intl';
 
 import {
@@ -10,7 +9,9 @@ import {
   SortableSectionList,
   Stack,
   XStack,
+  useShortcuts,
 } from '@onekeyhq/components';
+import type { ISortableSectionListRef } from '@onekeyhq/components';
 import type { IPageNavigationProp } from '@onekeyhq/components/src/layouts/Navigation';
 import { DesktopTabItem } from '@onekeyhq/components/src/layouts/Navigation/Tab/TabBar/DesktopTabItem';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
@@ -29,26 +30,44 @@ import {
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type { IDiscoveryModalParamList } from '@onekeyhq/shared/src/routes';
 import {
   EDiscoveryModalRoutes,
   EModalRoutes,
   ETabRoutes,
 } from '@onekeyhq/shared/src/routes';
+import { EShortcutEvents } from '@onekeyhq/shared/src/shortcuts/shortcuts.enum';
 
 import DesktopCustomTabBarItem from '../../components/DesktopCustomTabBarItem';
 import { useDesktopNewWindow } from '../../hooks/useDesktopNewWindow';
-import { useShortcuts } from '../../hooks/useShortcuts';
+import { useDiscoveryShortcuts } from '../../hooks/useShortcuts';
 import { useActiveTabId, useWebTabs } from '../../hooks/useWebTabs';
 import { withBrowserProvider } from '../Browser/WithBrowserProvider';
 
-import type { ScrollView as RNScrollView } from 'react-native';
-
 const ITEM_HEIGHT = 32;
+const TIMESTAMP_DIFF_MULTIPLIER = 2;
+
+const getShortcutKey = (index: number) => {
+  switch (index) {
+    case 0:
+      return EShortcutEvents.TabPin6;
+    case 1:
+      return EShortcutEvents.TabPin7;
+    case 2:
+      return EShortcutEvents.TabPin8;
+    case 3:
+      return EShortcutEvents.TabPin9;
+    default:
+      return undefined;
+  }
+};
+
 function DesktopCustomTabBar() {
   const intl = useIntl();
   // register desktop shortcuts for browser tab
-  useShortcuts();
+  useDiscoveryShortcuts();
   // register desktop new window event
   useDesktopNewWindow();
 
@@ -62,6 +81,7 @@ function DesktopCustomTabBar() {
     setPinnedTab,
     closeAllWebTabs,
     setTabs,
+    reOpenLastClosedTab,
   } = useBrowserTabActions().current;
   const { addBrowserBookmark, removeBrowserBookmark } =
     useBrowserBookmarkAction().current;
@@ -94,14 +114,17 @@ function DesktopCustomTabBar() {
     };
   }, [tabs]);
 
-  // scroll to top when new tab is added
-  const scrollViewRef = useRef<RNScrollView>(null);
+  const scrollViewRef = useRef<ISortableSectionListRef<any>>(null);
   const previousTabsLength = usePrevious(tabs?.length);
   useEffect(() => {
     if (previousTabsLength && tabs?.length > previousTabsLength) {
-      scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: false });
+      scrollViewRef.current?.scrollToLocation({
+        sectionIndex: 0,
+        itemIndex: result?.pinnedTabs?.length ?? 0,
+        animated: true,
+      });
     }
-  }, [previousTabsLength, tabs?.length]);
+  }, [previousTabsLength, tabs?.length, result?.pinnedTabs]);
 
   const handlePinnedPress = useCallback(
     (id: string, pinned: boolean) => {
@@ -111,7 +134,7 @@ function DesktopCustomTabBar() {
   );
   const handleCloseTab = useCallback(
     (id: string) => {
-      void closeWebTab(id);
+      void closeWebTab({ tabId: id, entry: 'Menu' });
     },
     [closeWebTab],
   );
@@ -133,6 +156,7 @@ function DesktopCustomTabBar() {
         await backgroundApiProxy.serviceDApp.disconnectWebsite({
           origin,
           storageType: 'injectedProvider',
+          entry: 'Browser',
         });
         setTimeout(() => run(), 200);
       }
@@ -145,16 +169,6 @@ function DesktopCustomTabBar() {
       setCurrentWebTab('');
     }
   });
-
-  useEffect(() => {
-    const listener = () => {
-      closeAllWebTabs();
-    };
-    appEventBus.on(EAppEventBusNames.CloseAllBrowserTab, listener);
-    return () => {
-      appEventBus.off(EAppEventBusNames.CloseAllBrowserTab, listener);
-    };
-  }, [closeAllWebTabs]);
 
   // For risk detection
   useEffect(() => {
@@ -190,6 +204,37 @@ function DesktopCustomTabBar() {
     () => [{ data: result?.pinnedTabs }, { data: result?.unpinnedTabs }],
     [result?.pinnedTabs, result?.unpinnedTabs],
   );
+
+  const handleShortcuts = useCallback(
+    (eventName: EShortcutEvents) => {
+      switch (eventName) {
+        case EShortcutEvents.TabPin6:
+        case EShortcutEvents.TabPin7:
+        case EShortcutEvents.TabPin8:
+        case EShortcutEvents.TabPin9:
+          if (result?.pinnedTabs?.length) {
+            const id =
+              result?.pinnedTabs?.[Number(eventName.match(/\d+/)?.[0]) - 6]?.id;
+            if (id) {
+              navigation.switchTab(ETabRoutes.MultiTabBrowser);
+              setCurrentWebTab(id);
+            }
+          }
+          break;
+        case EShortcutEvents.ReOpenLastClosedTab:
+          if (reOpenLastClosedTab()) {
+            navigation.switchTab(ETabRoutes.MultiTabBrowser);
+          }
+          break;
+        default:
+          break;
+      }
+    },
+    [navigation, reOpenLastClosedTab, result?.pinnedTabs, setCurrentWebTab],
+  );
+
+  useShortcuts(undefined, handleShortcuts);
+
   const layoutList = useMemo(() => {
     let offset = 0;
     const layouts: { offset: number; length: number; index: number }[] = [];
@@ -219,64 +264,7 @@ function DesktopCustomTabBar() {
         sectionIndex: number;
         itemIndex: number;
       };
-      to?: {
-        sectionIndex: number;
-        itemIndex: number;
-      };
     }) => {
-      const reloadTimeStamp = () => {
-        if (!dragResult?.from || !dragResult?.to || !result) {
-          return;
-        }
-        const fromItem =
-          sections?.[dragResult?.from?.sectionIndex]?.data?.[
-            dragResult?.from?.itemIndex
-          ];
-        const toItemId =
-          sections?.[dragResult?.to?.sectionIndex]?.data?.[
-            dragResult?.to?.itemIndex
-          ]?.id;
-        if (!fromItem || !toItemId) {
-          return;
-        }
-        const reloadTabs = [...result.pinnedTabs, ...result.unpinnedTabs];
-        const toItemIndex = reloadTabs.findIndex(
-          (item) => item.id === toItemId,
-        );
-        if (toItemIndex === -1) {
-          return;
-        }
-        const isDown =
-          dragResult.to.sectionIndex > dragResult.from.sectionIndex ||
-          (dragResult.to.sectionIndex === dragResult.from.sectionIndex &&
-            dragResult.to.itemIndex > dragResult.from.itemIndex);
-        const toItem = reloadTabs?.[toItemIndex];
-        if (!toItem) {
-          return;
-        }
-        const toItemTimestamp = toItem?.timestamp;
-        if (!toItemTimestamp) {
-          return;
-        }
-        const toItemBeforeIndex = isDown
-          ? reloadTabs.findIndex(
-              (item, index) =>
-                item.isPinned === toItem.isPinned && index > toItemIndex,
-            )
-          : _.findLastIndex(
-              reloadTabs,
-              (item, index) =>
-                item.isPinned === toItem.isPinned && index < toItemIndex,
-            );
-        const toItemBeforeTimestamp =
-          reloadTabs?.[toItemBeforeIndex]?.timestamp ??
-          toItemTimestamp + (isDown ? 2 : -2) * (toItem.isPinned ? 1 : -1);
-        fromItem.timestamp = Math.round(
-          (toItemBeforeTimestamp + toItemTimestamp) / 2,
-        );
-      };
-      reloadTimeStamp();
-
       const pinnedTabs = (dragResult?.sections?.[0]?.data ?? []) as (IWebTab & {
         hasConnectedAccount: boolean;
       })[];
@@ -286,23 +274,77 @@ function DesktopCustomTabBar() {
       })[];
       pinnedTabs?.forEach?.((item) => (item.isPinned = true));
       unpinnedTabs?.forEach?.((item) => (item.isPinned = false));
+      const reloadTimeStamp = () => {
+        if (!dragResult?.from) {
+          return;
+        }
+        const fromItem =
+          sections?.[dragResult?.from?.sectionIndex]?.data?.[
+            dragResult?.from?.itemIndex
+          ];
+        let fromItemIndex: number | undefined;
+        let fromSectionData: IWebTab[] | undefined;
+        dragResult?.sections?.forEach((section) => {
+          section?.data?.forEach((item, index) => {
+            if (item === fromItem) {
+              fromItemIndex = index;
+              fromSectionData = section?.data;
+            }
+          });
+        });
+
+        if (
+          !fromSectionData ||
+          fromSectionData.length === 1 ||
+          !fromItem ||
+          fromItemIndex === undefined
+        ) {
+          return;
+        }
+
+        const beforeTimestamp =
+          fromItemIndex === 0
+            ? undefined
+            : fromSectionData?.[fromItemIndex - 1]?.timestamp;
+        const afterTimestamp =
+          fromItemIndex === fromSectionData.length - 1
+            ? undefined
+            : fromSectionData?.[fromItemIndex + 1]?.timestamp;
+        const isPinnedDiff = fromItem.isPinned ? 1 : -1;
+        if (!beforeTimestamp && afterTimestamp) {
+          fromItem.timestamp =
+            afterTimestamp + isPinnedDiff * -TIMESTAMP_DIFF_MULTIPLIER;
+        } else if (!afterTimestamp && beforeTimestamp) {
+          fromItem.timestamp =
+            beforeTimestamp + isPinnedDiff * TIMESTAMP_DIFF_MULTIPLIER;
+        } else if (beforeTimestamp && afterTimestamp) {
+          fromItem.timestamp = Math.round(
+            (beforeTimestamp + afterTimestamp) / 2,
+          );
+        }
+      };
+      reloadTimeStamp();
       setResult({ pinnedTabs, unpinnedTabs });
       setTabs([...pinnedTabs, ...unpinnedTabs]);
+      defaultLogger.discovery.browser.tabDragSorting();
     },
-    [setTabs, setResult, sections, result],
+    [setTabs, setResult, sections],
   );
 
   return (
     <Stack testID="sideabr-browser-section" flex={1}>
       <HandleRebuildBrowserData />
       <SortableSectionList
+        ref={scrollViewRef}
         sections={sections}
         renderItem={({
           item: t,
           dragProps,
+          index,
         }: {
           item: IWebTab & { hasConnectedAccount: boolean };
           dragProps?: Record<string, any>;
+          index: number;
         }) => (
           <Stack dataSet={dragProps}>
             <DesktopCustomTabBarItem
@@ -310,6 +352,7 @@ function DesktopCustomTabBar() {
               key={t.id}
               activeTabId={activeTabId}
               onPress={onTabPress}
+              shortcutKey={t.isPinned ? getShortcutKey(index) : undefined}
               onBookmarkPress={handleBookmarkPress}
               onPinnedPress={handlePinnedPress}
               onClose={handleCloseTab}
@@ -346,7 +389,7 @@ function DesktopCustomTabBar() {
                     }}
                     style={{
                       containerType: 'normal',
-                      transform: 'translateY(-50%)',
+                      transform: platformEnv.isNative ? '' : 'translateY(-50%)',
                     }}
                     onPress={closeAllWebTabs}
                   >
@@ -374,6 +417,7 @@ function DesktopCustomTabBar() {
                 label={intl.formatMessage({
                   id: ETranslations.explore_new_tab,
                 })}
+                shortcutKey={EShortcutEvents.NewTab}
                 icon="PlusSmallOutline"
                 testID="browser-bar-add"
                 onPress={(e) => {

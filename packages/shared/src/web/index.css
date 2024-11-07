@@ -168,3 +168,16 @@ textarea {
 .app-region-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* react-beautiful-dnd */
+[data-rbd-drag-handle-context-id] {
+  cursor: default !important;
+}
+
+.onekey-img-cropper {
+  height: 100%;
+}
+
+body > div.cet-container {
+  z-index: unset;
+}

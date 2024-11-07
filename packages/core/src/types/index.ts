@@ -88,7 +88,9 @@ export enum ECoreApiExportedSecretKeyType {
   privateKey = 'privateKey',
   xpub = 'xpub',
   xprvt = 'xprvt',
+  mnemonic = 'mnemonic', // TON mnemonic
 }
+export type IExportKeyType = 'privateKey' | 'publicKey' | 'mnemonic';
 export type ICoreApiGetExportedSecretKey = ICoreApiSignBasePayload & {
   keyType: ECoreApiExportedSecretKeyType;
   addressEncoding?: EAddressEncodings;
@@ -126,6 +128,7 @@ export type ICoreApiSignBasePayload = {
 
   account: ICoreApiSignAccount;
   relPaths?: string[]; // used for get privateKey of other utxo address
+  signOnly?: boolean;
 };
 export type ICoreApiSignBtcExtraInfo = {
   inputAddressesEncodings?: Array<EAddressEncodings | undefined>;

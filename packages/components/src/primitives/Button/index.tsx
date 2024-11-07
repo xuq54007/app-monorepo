@@ -27,6 +27,7 @@ export interface IButtonProps extends ThemeableStackProps {
   children?: React.ReactNode;
   color?: ColorTokens;
   iconColor?: ColorTokens;
+  textAlign?: 'left' | 'center' | 'right';
   /**
    * stop propagation from button.
    *
@@ -186,6 +187,7 @@ const ButtonComponent = ButtonFrame.styleable<IButtonProps>((props, ref) => {
     color: outerColor,
     iconColor: outerIconColor,
     variant = 'secondary',
+    textAlign,
     ...rest
   } = useProps(props, {});
 
@@ -212,8 +214,8 @@ const ButtonComponent = ButtonFrame.styleable<IButtonProps>((props, ref) => {
       px={variant === 'tertiary' ? '$2' : px}
       borderRadius={borderRadius}
       borderCurve="continuous"
-      disabled={disabled || loading}
-      aria-disabled={disabled || loading}
+      disabled={!!disabled || !!loading}
+      aria-disabled={!!disabled || !!loading}
       {...sharedFrameStyles}
       hoverStyle={{
         ...sharedFrameStyles.hoverStyle,
@@ -244,6 +246,7 @@ const ButtonComponent = ButtonFrame.styleable<IButtonProps>((props, ref) => {
         <Spinner size="small" mr="$2" color={outerIconColor || iconColor} />
       ) : null}
       <SizableText
+        textAlign={textAlign}
         size={textVariant as FontSizeTokens}
         color={outerColor || color}
       >

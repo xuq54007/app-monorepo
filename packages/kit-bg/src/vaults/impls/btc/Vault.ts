@@ -1,4 +1,5 @@
 import BigNumber from 'bignumber.js';
+import { Psbt } from 'bitcoinjs-lib';
 import { cloneDeep, isEmpty, isNil, uniq } from 'lodash';
 
 import {
@@ -6,8 +7,14 @@ import {
   getBtcForkNetwork,
   getBtcXpubFromXprvt,
   getBtcXpubSupportedAddressEncodings,
+  getInputsToSignFromPsbt,
   validateBtcAddress,
 } from '@onekeyhq/core/src/chains/btc/sdkBtc';
+import {
+  decodedPsbt as decodedPsbtFN,
+  formatPsbtHex,
+  toPsbtNetwork,
+} from '@onekeyhq/core/src/chains/btc/sdkBtc/providerUtils';
 import type {
   IBtcInput,
   ICoinSelectUTXO,
@@ -56,6 +63,8 @@ import type {
   IMeasureRpcStatusResult,
 } from '@onekeyhq/shared/types/customRpc';
 import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
+import type { IStakeTxBtcBabylon } from '@onekeyhq/shared/types/staking';
+import { IStakeTxResponse } from '@onekeyhq/shared/types/staking';
 import type { IDecodedTx, IDecodedTxAction } from '@onekeyhq/shared/types/tx';
 import {
   EDecodedTxActionType,
@@ -116,11 +125,43 @@ export default class VaultBtc extends VaultBase {
   ): Promise<IDecodedTx> {
     const { unsignedTx } = params;
     const encodedTx = unsignedTx.encodedTx as IEncodedTxBtc;
-    const { swapInfo } = unsignedTx;
+    const { swapInfo, stakingInfo } = unsignedTx;
     const { inputs, outputs, inputsToSign, psbtHex } = encodedTx;
 
     if (psbtHex && Array.isArray(inputsToSign)) {
-      return this.buildDecodedPsbtTx(params);
+      const decodedPsbt = await this.buildDecodedPsbtTx(params);
+      const decodedPsbtAction = decodedPsbt.actions[0];
+      if (stakingInfo) {
+        const accountAddress = await this.getAccountAddress();
+        const { send } = stakingInfo;
+        const action = await this.buildInternalStakingAction({
+          accountAddress,
+          stakingInfo,
+          stakingToAddress: decodedPsbtAction.assetTransfer?.to,
+        });
+
+        let sendNativeTokenAmountBN = new BigNumber(0);
+        let sendNativeTokenAmountValueBN = new BigNumber(0);
+
+        if (send && send.token.isNative) {
+          sendNativeTokenAmountBN = new BigNumber(send.amount);
+          sendNativeTokenAmountValueBN = sendNativeTokenAmountBN.shiftedBy(
+            send.token.decimals,
+          );
+          decodedPsbt.nativeAmount = sendNativeTokenAmountBN.toFixed();
+          decodedPsbt.nativeAmountValue =
+            sendNativeTokenAmountValueBN.toFixed();
+        }
+
+        if (action.assetTransfer) {
+          action.assetTransfer.utxoFrom =
+            decodedPsbtAction.assetTransfer?.utxoFrom;
+          action.assetTransfer.utxoTo = decodedPsbtAction.assetTransfer?.utxoTo;
+        }
+        decodedPsbt.actions = [action];
+      }
+
+      return decodedPsbt;
     }
 
     const network = await this.getNetwork();
@@ -230,6 +271,25 @@ export default class VaultBtc extends VaultBase {
         sendNativeTokenAmountBN = new BigNumber(swapInfo.sender.amount);
         sendNativeTokenAmountValueBN = sendNativeTokenAmountBN.shiftedBy(
           swapSendToken.decimals,
+        );
+      }
+      if (action.assetTransfer) {
+        action.assetTransfer.utxoFrom = utxoFrom;
+        action.assetTransfer.utxoTo = originalUtxoTo;
+      }
+      actions = [action];
+    } else if (stakingInfo) {
+      const accountAddress = await this.getAccountAddress();
+      const { send } = stakingInfo;
+      const action = await this.buildInternalStakingAction({
+        accountAddress,
+        stakingInfo,
+        stakingToAddress: utxoTo[0].address,
+      });
+      if (send && send.token.isNative) {
+        sendNativeTokenAmountBN = new BigNumber(send.amount);
+        sendNativeTokenAmountValueBN = sendNativeTokenAmountBN.shiftedBy(
+          send.token.decimals,
         );
       }
       if (action.assetTransfer) {
@@ -404,7 +464,7 @@ export default class VaultBtc extends VaultBase {
         },
       },
     ];
-    const shouldCalculateNativeTokenAmount = utxoFrom.length > 1;
+    const shouldCalculateNativeTokenAmount = utxoFrom.length >= 1;
     utxoTo.forEach((utxo) => {
       if (!utxo.isMine && shouldCalculateNativeTokenAmount) {
         sendNativeTokenAmountBN = sendNativeTokenAmountBN.plus(utxo.balance);
@@ -1271,6 +1331,63 @@ export default class VaultBtc extends VaultBase {
       // @ts-expect-error
       return '';
     }
+    return encodedTx;
+  }
+
+  override async buildStakeEncodedTx(
+    params: IStakeTxBtcBabylon,
+  ): Promise<IEncodedTxBtc> {
+    const { psbtHex } = params;
+    const network = await this.getNetwork();
+    const formattedPsbtHex = formatPsbtHex(psbtHex);
+    const psbtNetwork = toPsbtNetwork(network);
+    const psbt = Psbt.fromHex(formattedPsbtHex, { network: psbtNetwork });
+    const decodedPsbt = decodedPsbtFN({ psbt, psbtNetwork });
+    console.log('Babylon Staking PSBT ====>>>>: ', decodedPsbt);
+    const account = await this.backgroundApi.serviceAccount.getAccount({
+      accountId: this.accountId,
+      networkId: this.networkId,
+    });
+
+    const inputsToSign = getInputsToSignFromPsbt({
+      psbt,
+      psbtNetwork,
+      account,
+      isBtcWalletProvider: true,
+    });
+
+    // Check for change address:
+    // 1. More than one output
+    // 2. Not all output addresses are the same as the current account address
+    // This often happens in BRC-20 transfer transactions
+    const hasChangeAddress =
+      decodedPsbt.outputInfos.length > 1 &&
+      !(decodedPsbt.outputInfos ?? []).every(
+        (v) => v.address === account.address,
+      );
+    const encodedTx = {
+      inputs: (decodedPsbt.inputInfos ?? []).map((v) => ({
+        ...v,
+        path: '',
+        value: new BigNumber(v.value).toFixed(),
+      })),
+      outputs: (decodedPsbt.outputInfos ?? []).map((v) => ({
+        ...v,
+        value: new BigNumber(v.value).toFixed(),
+        payload: hasChangeAddress
+          ? {
+              isChange: v.address === account.address,
+            }
+          : undefined,
+      })),
+      inputsForCoinSelect: [],
+      outputsForCoinSelect: [],
+      fee: new BigNumber(decodedPsbt.fee).toFixed(),
+      inputsToSign,
+      psbtHex: psbt.toHex(),
+      disabledCoinSelect: true,
+    };
+
     return encodedTx;
   }
 }

@@ -57,6 +57,8 @@ export const swapNetworksCommonCountMD = 5;
 export const swapRateDifferenceMax = -10;
 export const swapRateDifferenceMin = 0.05;
 
+export const maxRecentTokenPairs = 10;
+
 export enum ESwapProviderSort {
   RECOMMENDED = 'recommended',
   GAS_FEE = 'gasFee',
@@ -78,6 +80,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address--1721282106924.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
     toToken: {
       'networkId': 'evm--1',
@@ -88,6 +91,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png',
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
   },
   'evm--1': {
@@ -100,6 +104,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address--1721282106924.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
     toToken: {
       'networkId': 'evm--1',
@@ -110,6 +115,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png',
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
   },
   'evm--56': {
@@ -122,6 +128,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
     toToken: {
       'networkId': 'evm--56',
@@ -132,19 +139,21 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d.png',
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
   },
   'evm--137': {
     fromToken: {
       'networkId': 'evm--137',
       'contractAddress': '',
-      'name': 'Matic',
-      'symbol': 'MATIC',
+      'name': 'Polygon',
+      'symbol': 'POL',
       'decimals': 18,
       'logoURI':
-        'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address-.png',
+        'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address--1720669850773.png',
 
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
     },
     toToken: {
       'networkId': 'evm--137',
@@ -156,6 +165,7 @@ export const swapDefaultSetTokens: Record<
         'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address-0x3c499c542cef5e3811e1192ce70d8cc03d5c3359.png',
 
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
     },
   },
   'evm--43114': {
@@ -168,6 +178,8 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--43114/tokens/address-.png',
       'isNative': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/avalanche.png',
     },
     toToken: {
       'networkId': 'evm--43114',
@@ -178,6 +190,8 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--43114/tokens/address-0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e.png',
       'isNative': false,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/avalanche.png',
     },
   },
   'evm--10': {
@@ -188,9 +202,11 @@ export const swapDefaultSetTokens: Record<
       'symbol': 'ETH',
       'decimals': 18,
       'logoURI':
-        'https://uni.onekey-asset.com/server-service-indexer/evm--10/tokens/address-.png',
+        'https://uni.onekey-asset.com/server-service-indexer/evm--10/tokens/address--1721283262262.png',
 
       'isNative': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/optimism.png',
     },
     toToken: {
       'networkId': 'evm--10',
@@ -201,6 +217,8 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--10/tokens/address-0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
       'isNative': false,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/optimism.png',
     },
   },
   'evm--42161': {
@@ -211,8 +229,10 @@ export const swapDefaultSetTokens: Record<
       'symbol': 'ETH',
       'decimals': 18,
       'logoURI':
-        'https://uni.onekey-asset.com/server-service-indexer/evm--42161/tokens/address-.png',
+        'https://uni.onekey-asset.com/server-service-indexer/evm--42161/tokens/address--1720669989878.png',
       'isNative': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/arbitrum.png',
     },
     toToken: {
       'networkId': 'evm--42161',
@@ -223,6 +243,8 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--42161/tokens/address-0xaf88d065e77c8cc2239327c5edb3a432268e5831.png',
       'isNative': false,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/arbitrum.png',
     },
   },
   'evm--8453': {
@@ -233,8 +255,9 @@ export const swapDefaultSetTokens: Record<
       'symbol': 'ETH',
       'decimals': 18,
       'logoURI':
-        'https://uni.onekey-asset.com/server-service-indexer/evm--8453/tokens/address-.png',
+        'https://uni.onekey-asset.com/server-service-indexer/evm--8453/tokens/address--1721283653512.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
     },
     toToken: {
       'networkId': 'evm--8453',
@@ -245,6 +268,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--8453/tokens/address-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.png',
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
     },
   },
   'evm--250': {
@@ -258,6 +282,7 @@ export const swapDefaultSetTokens: Record<
         'https://uni-test.onekey-asset.com/server-service-onchain/evm--250/tokens/native.png',
 
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/fantom.png',
     },
     toToken: {
       'networkId': 'evm--250',
@@ -268,6 +293,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/evm--250/tokens/0x04068da6c83afcfa0e13ba15a6696662335d5b75.png',
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/fantom.png',
     },
   },
   'evm--324': {
@@ -280,6 +306,8 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/evm--324/tokens/native.png',
       'isNative': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/zksync-era-mainnet.png',
     },
     toToken: {
       'networkId': 'evm--324',
@@ -290,6 +318,8 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/evm--324/tokens/0x1d17cbcf0d6d143135ae902365d2e5e2a16538d4.png',
       'isNative': false,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/zksync-era-mainnet.png',
     },
   },
   'btc--0': {
@@ -302,6 +332,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/btc--0/tokens/address-.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/btc.png',
     },
   },
   'ltc--0': {
@@ -314,6 +345,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/ltc--0/tokens/address-.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/ltc.png',
     },
   },
   'bch--0': {
@@ -326,6 +358,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/bch--0/tokens/address-.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bch.png',
     },
   },
   'doge--0': {
@@ -338,6 +371,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/doge--0/tokens/address-.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/doge.png',
     },
   },
   'sol--101': {
@@ -350,6 +384,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/sol--101/tokens/native.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sol.png',
     },
     toToken: {
       'networkId': 'sol--101',
@@ -360,6 +395,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/sol--101/tokens/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v.png',
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sol.png',
     },
   },
   'xrp--0': {
@@ -372,6 +408,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/xrp--0/tokens/native.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/xrp.png',
     },
   },
   'kaspa--kaspa': {
@@ -384,6 +421,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/kaspa--kaspa/tokens/native.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/kas.png',
     },
   },
   'evm--1030': {
@@ -396,6 +434,8 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/evm--1030/tokens/native.png',
       'isNative': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/conflux-espace.png',
     },
   },
   'near--0': {
@@ -408,6 +448,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni-test.onekey-asset.com/server-service-onchain/near--0/tokens/native.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/near.png',
     },
   },
   'tron--0x2b6653dc': {
@@ -420,6 +461,7 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/tron--0x2b6653dc/tokens/address--1720669765494.png',
       'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/tron.png',
     },
     toToken: {
       'networkId': 'tron--0x2b6653dc',
@@ -430,7 +472,296 @@ export const swapDefaultSetTokens: Record<
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/tron--0x2b6653dc/tokens/address-TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t-1720668500740.png',
       'isNative': false,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/tron.png',
     },
+  },
+  'sui--mainnet': {
+    fromToken: {
+      'networkId': 'sui--mainnet',
+      'contractAddress': '0x2::sui::SUI',
+      'name': 'Sui',
+      'symbol': 'SUI',
+      'decimals': 9,
+      'logoURI':
+        'https://uni-test.onekey-asset.com/server-service-onchain/sui--mainnet/tokens/0x2::sui::SUI.png',
+      'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sui.png',
+    },
+  },
+  'ton--mainnet': {
+    fromToken: {
+      'networkId': 'ton--mainnet',
+      'contractAddress': '',
+      'name': 'Toncoin',
+      'symbol': 'TON',
+      'decimals': 9,
+      'logoURI':
+        'https://uni-test.onekey-asset.com/server-service-onchain/ton--mainnet/tokens/native.png',
+      'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/ton.png',
+    },
+  },
+  'aptos--1': {
+    fromToken: {
+      'networkId': 'aptos--1',
+      'contractAddress': '0x1::aptos_coin::AptosCoin',
+      'name': 'Aptos Coin',
+      'symbol': 'APT',
+      'decimals': 8,
+      'logoURI':
+        'https://uni-test.onekey-asset.com/server-service-onchain/aptos--1/tokens/0x1::aptos_coin::AptosCoin.png',
+      'isNative': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/apt.png',
+    },
+  },
+};
+export const tokenDetailSwapDefaultToTokens: Record<string, ISwapToken> = {
+  'evm--1': {
+    'networkId': 'evm--1',
+    'contractAddress': '',
+    'name': 'Ethereum',
+    'symbol': 'ETH',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address--1721282106924.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
+  },
+  'evm--56': {
+    'networkId': 'evm--56',
+    'contractAddress': '',
+    'name': 'BNB',
+    'symbol': 'BNB',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
+  },
+  'evm--137': {
+    'networkId': 'evm--137',
+    'contractAddress': '',
+    'name': 'Polygon',
+    'symbol': 'POL',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address--1720669850773.png',
+
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
+  },
+  'evm--43114': {
+    'networkId': 'evm--43114',
+    'contractAddress': '',
+    'name': 'Avalanche',
+    'symbol': 'AVAX',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--43114/tokens/address-.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/avalanche.png',
+  },
+  'evm--10': {
+    'networkId': 'evm--10',
+    'contractAddress': '',
+    'name': 'Ethereum',
+    'symbol': 'ETH',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--10/tokens/address--1721283262262.png',
+
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/optimism.png',
+  },
+  'evm--42161': {
+    'networkId': 'evm--42161',
+    'contractAddress': '',
+    'name': 'Ethereum',
+    'symbol': 'ETH',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--42161/tokens/address--1720669989878.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/arbitrum.png',
+  },
+  'evm--8453': {
+    'networkId': 'evm--8453',
+    'contractAddress': '',
+    'name': 'Ethereum',
+    'symbol': 'ETH',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--8453/tokens/address--1721283653512.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
+  },
+  'evm--250': {
+    'networkId': 'evm--250',
+    'contractAddress': '',
+    'name': 'Fantom',
+    'symbol': 'FTM',
+    'decimals': 18,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/evm--250/tokens/native.png',
+
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/fantom.png',
+  },
+  'evm--324': {
+    'networkId': 'evm--324',
+    'contractAddress': '',
+    'name': 'Ethereum',
+    'symbol': 'ETH',
+    'decimals': 18,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/evm--324/tokens/native.png',
+    'isNative': true,
+    'networkLogoURI':
+      'https://uni.onekey-asset.com/static/chain/zksync-era-mainnet.png',
+  },
+  'btc--0': {
+    'networkId': 'btc--0',
+    'contractAddress': '',
+    'name': 'Bitcoin',
+    'symbol': 'BTC',
+    'decimals': 8,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/btc--0/tokens/address-.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/btc.png',
+  },
+  'ltc--0': {
+    'networkId': 'ltc--0',
+    'contractAddress': '',
+    'name': 'Litecoin',
+    'symbol': 'LTC',
+    'decimals': 8,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/ltc--0/tokens/address-.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/ltc.png',
+  },
+  'bch--0': {
+    'networkId': 'bch--0',
+    'contractAddress': '',
+    'name': 'Bitcoin Cash',
+    'symbol': 'BCH',
+    'decimals': 8,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/bch--0/tokens/address-.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bch.png',
+  },
+  'doge--0': {
+    'networkId': 'doge--0',
+    'contractAddress': '',
+    'name': 'Dogecoin',
+    'symbol': 'DOGE',
+    'decimals': 8,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/doge--0/tokens/address-.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/doge.png',
+  },
+  'sol--101': {
+    'networkId': 'sol--101',
+    'contractAddress': '',
+    'name': 'Solana',
+    'symbol': 'SOL',
+    'decimals': 9,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/sol--101/tokens/native.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sol.png',
+  },
+  'xrp--0': {
+    'networkId': 'xrp--0',
+    'contractAddress': '',
+    'name': 'Ripple',
+    'symbol': 'XRP',
+    'decimals': 6,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/xrp--0/tokens/native.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/xrp.png',
+  },
+  'kaspa--kaspa': {
+    'networkId': 'kaspa--kaspa',
+    'contractAddress': '',
+    'name': 'Kaspa',
+    'symbol': 'KAS',
+    'decimals': 8,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/kaspa--kaspa/tokens/native.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/kas.png',
+  },
+  'evm--1030': {
+    'networkId': 'evm--1030',
+    'contractAddress': '',
+    'name': 'Conflux eSpace',
+    'symbol': 'CFX',
+    'decimals': 18,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/evm--1030/tokens/native.png',
+    'isNative': true,
+    'networkLogoURI':
+      'https://uni.onekey-asset.com/static/chain/conflux-espace.png',
+  },
+  'near--0': {
+    'networkId': 'near--0',
+    'contractAddress': '',
+    'name': 'Near',
+    'symbol': 'NEAR',
+    'decimals': 24,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/near--0/tokens/native.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/near.png',
+  },
+  'tron--0x2b6653dc': {
+    'networkId': 'tron--0x2b6653dc',
+    'contractAddress': '',
+    'name': 'Tron',
+    'symbol': 'TRX',
+    'decimals': 6,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/tron--0x2b6653dc/tokens/address--1720669765494.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/tron.png',
+  },
+  'sui--mainnet': {
+    'networkId': 'sui--mainnet',
+    'contractAddress': '0x2::sui::SUI',
+    'name': 'Sui',
+    'symbol': 'SUI',
+    'decimals': 9,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/sui--mainnet/tokens/0x2::sui::SUI.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sui.png',
+  },
+  'ton--mainnet': {
+    'networkId': 'ton--mainnet',
+    'contractAddress': '',
+    'name': 'Toncoin',
+    'symbol': 'TON',
+    'decimals': 9,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/ton--mainnet/tokens/native.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/ton.png',
+  },
+  'aptos--1': {
+    'networkId': 'aptos--1',
+    'contractAddress': '0x1::aptos_coin::AptosCoin',
+    'name': 'Aptos Coin',
+    'symbol': 'APT',
+    'decimals': 8,
+    'logoURI':
+      'https://uni-test.onekey-asset.com/server-service-onchain/aptos--1/tokens/0x1::aptos_coin::AptosCoin.png',
+    'isNative': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/apt.png',
   },
 };
 
@@ -445,6 +776,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address--1721282106924.png',
       'isNative': true,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
     {
       'networkId': 'evm--1',
@@ -456,6 +789,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xdac17f958d2ee523a2206206994597c13d831ec7-1722246302921.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
     {
       'networkId': 'evm--1',
@@ -467,6 +801,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
     {
       'networkId': 'evm--1',
@@ -478,6 +813,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
     {
       'networkId': 'evm--1',
@@ -489,6 +825,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2-1720667871986.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
     {
       'networkId': 'evm--1',
@@ -500,6 +837,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0x6b175474e89094c44da98b954eedeac495271d0f.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
     },
   ],
   'evm--56': [
@@ -513,6 +851,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-.png',
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
     {
       'networkId': 'evm--56',
@@ -524,6 +863,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-0x55d398326f99059ff775485246999027b3197955-1720668660063.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
     {
       'networkId': 'evm--56',
@@ -535,6 +875,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d-1720669239205.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
     {
       'networkId': 'evm--56',
@@ -547,6 +888,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
     {
       'networkId': 'evm--56',
@@ -558,6 +900,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
     {
       'networkId': 'evm--56',
@@ -569,6 +912,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
     },
   ],
   'evm--42161': [
@@ -583,6 +927,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/arbitrum.png',
     },
     {
       'networkId': 'evm--42161',
@@ -595,6 +941,22 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/arbitrum.png',
+    },
+    {
+      'networkId': 'evm--42161',
+      'contractAddress': '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+      'name': 'USD Coin',
+      'symbol': 'USDC',
+      'decimals': 6,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--42161/tokens/address-0xaf88d065e77c8cc2239327c5edb3a432268e5831-1720669320510.png',
+
+      'isNative': false,
+      'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/arbitrum.png',
     },
     {
       'networkId': 'evm--42161',
@@ -607,6 +969,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/arbitrum.png',
     },
   ],
   'evm--8453': [
@@ -621,6 +985,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
     },
     {
       'networkId': 'evm--8453',
@@ -633,6 +998,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
     },
     {
       'networkId': 'evm--8453',
@@ -645,6 +1011,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
     },
     {
       'networkId': 'evm--8453',
@@ -657,6 +1024,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
     },
     {
       'networkId': 'evm--8453',
@@ -668,19 +1036,22 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--8453/tokens/address-0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/base.png',
     },
   ],
   'evm--137': [
     {
       'networkId': 'evm--137',
       'contractAddress': '',
-      'name': 'Matic',
-      'symbol': 'MATIC',
+      'name': 'Polygon',
+      'symbol': 'POL',
       'decimals': 18,
       'logoURI':
         'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address--1720669850773.png',
+
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
     },
     {
       'networkId': 'evm--137',
@@ -693,6 +1064,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
     },
     {
       'networkId': 'evm--137',
@@ -704,6 +1076,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address-0xc2132d05d31c914a87c6611c10748aeb04b58e8f-1720668692077.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
     },
     {
       'networkId': 'evm--137',
@@ -715,6 +1088,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address-0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
     },
     {
       'networkId': 'evm--137',
@@ -726,6 +1100,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--137/tokens/address-0x7ceb23fd6bc0add59e62ac25578270cff1b9f619-1720668277811.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/polygon.png',
     },
   ],
   'sol--101': [
@@ -740,6 +1115,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sol.png',
     },
     {
       'networkId': 'sol--101',
@@ -752,6 +1128,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sol.png',
     },
     {
       'networkId': 'sol--101',
@@ -764,6 +1141,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sol.png',
     },
     {
       'networkId': 'sol--101',
@@ -776,6 +1154,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/sol.png',
     },
   ],
   'evm--43114': [
@@ -789,6 +1168,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--43114/tokens/address-.png',
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/avalanche.png',
     },
     {
       'networkId': 'evm--43114',
@@ -800,6 +1181,9 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--43114/tokens/address-0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e-1720669345050.png',
 
       'isNative': false,
+      'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/avalanche.png',
     },
     {
       'networkId': 'evm--43114',
@@ -811,6 +1195,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--43114/tokens/address-0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7-1720668785282.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/avalanche.png',
     },
     {
       'networkId': 'evm--43114',
@@ -823,6 +1209,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/avalanche.png',
     },
   ],
   'evm--10': [
@@ -837,6 +1225,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/optimism.png',
     },
     {
       'networkId': 'evm--10',
@@ -848,6 +1238,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--10/tokens/address-0x0b2c639c533813f4aa9d7837caf62653d097ff85-1720669214787.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/optimism.png',
     },
     {
       'networkId': 'evm--10',
@@ -859,6 +1251,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--10/tokens/address-0x94b008aa00579c1307b0ef2c499ad98a8ce58e58-1720668629218.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/optimism.png',
     },
     {
       'networkId': 'evm--10',
@@ -870,6 +1264,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
         'https://uni.onekey-asset.com/server-service-indexer/evm--10/tokens/address-0x68f180fcce6836688e9084f035309e29bf0a2095.png',
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/optimism.png',
     },
     {
       'networkId': 'evm--10',
@@ -882,6 +1278,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/optimism.png',
     },
   ],
   'evm--250': [
@@ -896,6 +1294,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/fantom.png',
     },
     {
       'networkId': 'evm--250',
@@ -908,6 +1307,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/fantom.png',
     },
     {
       'networkId': 'evm--250',
@@ -920,6 +1320,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/fantom.png',
     },
     {
       'networkId': 'evm--250',
@@ -932,6 +1333,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/fantom.png',
     },
   ],
   'tron--0x2b6653dc': [
@@ -946,6 +1348,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/tron.png',
     },
     {
       'networkId': 'tron--0x2b6653dc',
@@ -958,6 +1361,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/tron.png',
     },
     {
       'networkId': 'tron--0x2b6653dc',
@@ -970,6 +1374,7 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/tron.png',
     },
   ],
   'evm--324': [
@@ -984,6 +1389,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': true,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/zksync-era-mainnet.png',
     },
     {
       'networkId': 'evm--324',
@@ -996,6 +1403,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/zksync-era-mainnet.png',
     },
     {
       'networkId': 'evm--324',
@@ -1008,6 +1417,8 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/zksync-era-mainnet.png',
     },
     {
       'networkId': 'evm--324',
@@ -1020,6 +1431,245 @@ export const swapPopularTokens: Record<string, ISwapToken[]> = {
 
       'isNative': false,
       'isPopular': true,
+      'networkLogoURI':
+        'https://uni.onekey-asset.com/static/chain/zksync-era-mainnet.png',
     },
   ],
+};
+
+export const swapBridgeDefaultTokenMap: Record<string, ISwapToken[]> = {
+  'evm--1': [
+    {
+      'networkId': 'evm--1',
+      'contractAddress': '',
+      'name': 'Ethereum',
+      'symbol': 'ETH',
+      'decimals': 18,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address--1721282106924.png',
+      'isNative': true,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
+    },
+    {
+      'networkId': 'evm--1',
+      'contractAddress': '0xdac17f958d2ee523a2206206994597c13d831ec7',
+      'name': 'Tether USD',
+      'symbol': 'USDT',
+      'decimals': 6,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xdac17f958d2ee523a2206206994597c13d831ec7-1722246302921.png',
+      'isNative': false,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
+    },
+    {
+      'networkId': 'evm--1',
+      'contractAddress': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      'name': 'USD Coin',
+      'symbol': 'USDC',
+      'decimals': 6,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png',
+      'isNative': false,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
+    },
+  ],
+  'evm--56': [],
+  'evm--42161': [],
+  'evm--137': [],
+  'sol--101': [],
+  'evm--43114': [],
+  'evm--10': [],
+};
+
+export const swapBridgeDefaultTokenConfigs = [
+  // ETH USDT USDC
+  {
+    fromTokens: [
+      {
+        networkId: 'evm--1',
+        contractAddress: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+        isNative: false,
+      },
+    ],
+    toTokenDefaultMatch: {
+      'networkId': 'evm--56',
+      'contractAddress': '0x55d398326f99059ff775485246999027b3197955',
+      'name': 'Tether USD',
+      'symbol': 'USDT',
+      'decimals': 18,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-0x55d398326f99059ff775485246999027b3197955-1720668660063.png',
+      'isNative': false,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
+    },
+  },
+  {
+    fromTokens: [
+      {
+        networkId: 'evm--1',
+        contractAddress: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        isNative: false,
+      },
+    ],
+    toTokenDefaultMatch: {
+      'networkId': 'evm--56',
+      'contractAddress': '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+      'name': 'USD Coin',
+      'symbol': 'USDC',
+      'decimals': 18,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d-1720669239205.png',
+      'isNative': false,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
+    },
+  },
+  // USDT
+  {
+    fromTokens: [
+      {
+        networkId: 'evm--56',
+        contractAddress: '0x55d398326f99059ff775485246999027b3197955',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--42161',
+        contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--137',
+        contractAddress: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f',
+        isNative: false,
+      },
+      {
+        networkId: 'sol--101',
+        contractAddress: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--43114',
+        contractAddress: '0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--10',
+        contractAddress: '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58',
+        isNative: false,
+      },
+      {
+        networkId: 'tron--0x2b6653dc',
+        contractAddress: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--324',
+        contractAddress: '0x493257fd37edb34451f62edf8d2a0c418852ba4c',
+        isNative: false,
+      },
+      {
+        networkId: 'ton--mainnet',
+        contractAddress: 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs',
+        isNative: false,
+      },
+    ],
+    toTokenDefaultMatch: {
+      'networkId': 'evm--1',
+      'contractAddress': '0xdac17f958d2ee523a2206206994597c13d831ec7',
+      'name': 'Tether USD',
+      'symbol': 'USDT',
+      'decimals': 6,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xdac17f958d2ee523a2206206994597c13d831ec7-1722246302921.png',
+      'isNative': false,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
+    },
+  },
+  // USDC
+  {
+    fromTokens: [
+      {
+        networkId: 'evm--56',
+        contractAddress: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--42161',
+        contractAddress: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--137',
+        contractAddress: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+        isNative: false,
+      },
+      {
+        networkId: 'sol--101',
+        contractAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--43114',
+        contractAddress: '0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--10',
+        contractAddress: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+        isNative: false,
+      },
+      {
+        networkId: 'evm--8453',
+        contractAddress: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+        isNative: false,
+      },
+    ],
+    toTokenDefaultMatch: {
+      'networkId': 'evm--1',
+      'contractAddress': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      'name': 'USD Coin',
+      'symbol': 'USDC',
+      'decimals': 6,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.png',
+      'isNative': false,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
+    },
+  },
+];
+
+export const swapBridgeDefaultTokenExtraConfigs = {
+  defaultToToken: {
+    'networkId': 'evm--1',
+    'contractAddress': '',
+    'name': 'Ethereum',
+    'symbol': 'ETH',
+    'decimals': 18,
+    'logoURI':
+      'https://uni.onekey-asset.com/server-service-indexer/evm--1/tokens/address--1721282106924.png',
+    'isNative': true,
+    'isPopular': true,
+    'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/eth.png',
+  },
+  mainNetDefaultToTokenConfig: {
+    networkId: 'evm--1',
+    defaultToToken: {
+      'networkId': 'evm--56',
+      'contractAddress': '',
+      'name': 'BNB',
+      'symbol': 'BNB',
+      'decimals': 18,
+      'logoURI':
+        'https://uni.onekey-asset.com/server-service-indexer/evm--56/tokens/address-.png',
+      'isNative': true,
+      'isPopular': true,
+      'networkLogoURI': 'https://uni.onekey-asset.com/static/chain/bsc.png',
+    },
+  },
 };

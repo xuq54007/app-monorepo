@@ -75,7 +75,7 @@ function CommonAssetContent(props: IProps) {
             address: nft.collectionAddress,
           }),
           onPress: () => copyText(nft.collectionAddress),
-          iconAfter: 'Copy1Outline' as IKeyOfIcons,
+          iconAfter: 'Copy3Outline' as IKeyOfIcons,
         },
       ].filter((item) => !isNil(item.value)),
     [
@@ -102,7 +102,7 @@ function CommonAssetContent(props: IProps) {
         {details.map(({ label, value, onPress, iconAfter, source }) => (
           <DescriptionList.Item key={label}>
             <DescriptionList.Item.Key
-              maxWidth="30%"
+              maxWidth="40%"
               size="$bodyMd"
               color="$textSubdued"
             >
@@ -148,7 +148,13 @@ function CommonAssetContent(props: IProps) {
                   </SizableText>
                   <SizableText size="$bodyMdMedium">
                     {displayType === ETraitsDisplayType.Date
-                      ? formatDate(new Date(value), {})
+                      ? formatDate(
+                          new Date(
+                            Number(value) *
+                              (value.toString().length === 10 ? 1000 : 1),
+                          ),
+                          {},
+                        )
                       : value}
                   </SizableText>
                 </Stack>

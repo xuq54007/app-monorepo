@@ -72,7 +72,7 @@ export function ImportSingleChainBase({
   const {
     activeAccount: { network },
   } = useAccountSelectorTrigger({ num: 0 });
-  const { clearText } = useClipboard();
+  const { onPasteClearText } = useClipboard();
   const form = useForm<IFormValues>({
     values: {
       networkId:
@@ -171,7 +171,7 @@ export function ImportSingleChainBase({
   const { start } = useScanQrCode();
 
   return (
-    <Page>
+    <Page scrollEnabled>
       <Page.Header title={title} />
       <Page.Body px="$5">
         <Form form={form}>
@@ -187,7 +187,7 @@ export function ImportSingleChainBase({
               placeholder={inputPlaceholder}
               size={media.gtMd ? 'medium' : 'large'}
               testID={inputTestID}
-              onPaste={clearText}
+              onPaste={onPasteClearText}
               addOns={[
                 {
                   iconName: 'ScanOutline',
@@ -219,6 +219,7 @@ export function ImportSingleChainBase({
                 enabledItems={validateResult?.deriveInfoItems || []}
                 renderTrigger={({ label, onPress }) => (
                   <Stack
+                    testID="wallet-derivation-path-selector-trigger"
                     userSelect="none"
                     flexDirection="row"
                     px="$3.5"

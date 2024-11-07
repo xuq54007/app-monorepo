@@ -52,13 +52,16 @@ const settings: IVaultSettings = {
   replaceTxEnabled: false,
   estimatedFeePollingInterval: 30,
 
+  customRpcEnabled: true,
+
   supportExportedSecretKeys: [
     ECoreApiExportedSecretKeyType.privateKey,
-    // ECoreApiExportedSecretKeyType.publicKey,
+    ECoreApiExportedSecretKeyType.mnemonic,
   ],
 
   withMemo: true,
   memoMaxLength: 123,
+  useRemoteTxId: true,
 
   accountDeriveInfo,
   networkInfo: {

@@ -27,6 +27,7 @@ export type IDialogContextType = {
 export interface IDialogContentProps extends PropsWithChildren {
   estimatedContentHeight?: number;
   testID?: string;
+  isAsync?: boolean;
 }
 
 export type IDialogButtonProps = Omit<IButtonProps, 'children'> & {
@@ -53,6 +54,7 @@ export type IDialogHeaderProps = PropsWithChildren<{
   description?: string;
   showExitButton?: boolean;
   tone?: 'default' | 'destructive' | 'warning' | 'success';
+  renderIcon?: ReactElement;
 }>;
 
 export interface IDialogHeaderContextType {
@@ -61,9 +63,12 @@ export interface IDialogHeaderContextType {
 }
 
 interface IBasicDialogProps extends TMDialogProps {
+  /* If true, the content will be rendered later and fit content height. */
+  isAsync?: boolean;
   onOpen?: () => void;
   onClose: (extra?: { flag?: string }) => Promise<void>;
   icon?: IKeyOfIcons;
+  renderIcon?: ReactElement;
   title?: string;
   description?: string;
   /* estimatedContentHeight is a single numeric value that hints Dialog about the approximate size of the content before they're rendered.  */

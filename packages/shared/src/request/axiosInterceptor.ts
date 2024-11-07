@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-restricted-imports */
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import axios from 'axios';
-import { forEach } from 'lodash';
 
-import { OneKeyServerApiError } from '@onekeyhq/shared/src/errors';
+import axios, { AxiosError } from 'axios';
+import { debounce, forEach } from 'lodash';
+
+import { OneKeyError, OneKeyServerApiError } from '@onekeyhq/shared/src/errors';
+import { refresh } from '@onekeyhq/shared/src/modules3rdParty/@react-native-community/netinfo';
 import type { IOneKeyAPIBaseResponse } from '@onekeyhq/shared/types/request';
 
+import { EOneKeyErrorClassNames } from '../errors/types/errorTypes';
 import { ETranslations } from '../locale';
 import { appLocale } from '../locale/appLocale';
 import { defaultLogger } from '../logger/logger';
+import { isEnableLogNetwork } from '../logger/scopes/app/scenes/network';
 import platformEnv from '../platformEnv';
 
 import {
@@ -20,6 +24,10 @@ import {
 
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 
+const refreshNetInfo = debounce(() => {
+  void refresh();
+}, 1000);
+
 axios.interceptors.request.use(async (config) => {
   if (config.timeout === undefined) {
     config.timeout = 30_000;
@@ -28,7 +36,9 @@ axios.interceptors.request.use(async (config) => {
     const isOneKeyDomain = await checkRequestIsOneKeyDomain({ config });
 
     if (!isOneKeyDomain) {
-      defaultLogger.app.network.call('axios', config.method, config.url);
+      if (isEnableLogNetwork(config.url)) {
+        defaultLogger.app.network.start('axios', config.method, config.url);
+      }
       return config;
     }
   } catch (e) {
@@ -40,12 +50,14 @@ axios.interceptors.request.use(async (config) => {
     config.headers[key] = val;
   });
 
-  defaultLogger.app.network.call(
-    'axios',
-    config.method,
-    config.url,
-    headers[HEADER_REQUEST_ID_KEY],
-  );
+  if (isEnableLogNetwork(config.url)) {
+    defaultLogger.app.network.start(
+      'axios',
+      config.method,
+      config.url,
+      headers[HEADER_REQUEST_ID_KEY],
+    );
+  }
   return config;
 });
 
@@ -55,14 +67,26 @@ axios.interceptors.response.use(
 
     try {
       const isOneKeyDomain = await checkRequestIsOneKeyDomain({ config });
-      if (!isOneKeyDomain) return response;
+      if (!isOneKeyDomain) {
+        if (isEnableLogNetwork(config.url)) {
+          defaultLogger.app.network.end({
+            requestType: 'axios',
+            method: config.method as string,
+            path: config.url as string,
+            statusCode: response.status,
+            requestId: config.headers[HEADER_REQUEST_ID_KEY],
+            responseCode: response.data.code,
+          });
+        }
+        return response;
+      }
     } catch (e) {
       return response;
     }
 
     const data = response.data as IOneKeyAPIBaseResponse;
 
-    if (data.code !== 0) {
+    if ((config as any).autoHandleError !== false && data.code !== 0) {
       const requestIdKey = HEADER_REQUEST_ID_KEY;
       if (platformEnv.isDev) {
         console.error(requestIdKey, config.headers[requestIdKey]);
@@ -70,10 +94,22 @@ axios.interceptors.response.use(
 
       throw new OneKeyServerApiError({
         autoToast: true,
+        disableFallbackMessage: true,
         message: data.message,
         code: data.code,
         data,
         requestId: `RequestId: ${config.headers[requestIdKey] as string}`,
+      });
+    }
+    if (isEnableLogNetwork(config.url)) {
+      defaultLogger.app.network.end({
+        requestType: 'axios',
+        method: config.method as string,
+        path: config.url as string,
+        statusCode: response.status,
+        requestId: config.headers[HEADER_REQUEST_ID_KEY],
+        responseCode: data.code,
+        responseErrorMessage: data.code !== 0 ? data.message : '',
       });
     }
     return response;
@@ -81,8 +117,18 @@ axios.interceptors.response.use(
   async (error) => {
     const { response } = error;
     if (response?.status && response?.config) {
+      const config = response.config;
       const isOneKeyDomain = await checkRequestIsOneKeyDomain({
-        config: response.config,
+        config,
+      });
+      defaultLogger.app.network.error({
+        requestType: 'axios',
+        method: config.method as string,
+        path: config.url as string,
+        statusCode: response?.status,
+        requestId: config.headers[HEADER_REQUEST_ID_KEY],
+        responseCode: response?.data?.code,
+        errorMessage: response?.data?.message,
       });
       if (isOneKeyDomain && Number(response.status) === 403) {
         const title = appLocale.intl.formatMessage({
@@ -98,6 +144,24 @@ axios.interceptors.response.use(
           requestId: description,
         });
       }
+    }
+    if (
+      error &&
+      error instanceof AxiosError &&
+      error.message === 'Network Error' &&
+      error.code === AxiosError.ERR_NETWORK &&
+      error.name === 'AxiosError'
+    ) {
+      refreshNetInfo();
+      const title = appLocale.intl.formatMessage({
+        id: ETranslations.global_network_error,
+      });
+      throw new OneKeyError({
+        name: error.name,
+        message: title,
+        className: EOneKeyErrorClassNames.AxiosNetworkError,
+        key: ETranslations.global_network_error,
+      });
     }
     throw error;
   },

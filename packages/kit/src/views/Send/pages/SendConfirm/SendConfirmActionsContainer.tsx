@@ -1,23 +1,30 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 
+import BigNumber from 'bignumber.js';
+import { isNil } from 'lodash';
 import { useIntl } from 'react-intl';
 
 import { Page, Toast, usePageUnMounted } from '@onekeyhq/components';
 import type { IPageNavigationProp } from '@onekeyhq/components';
+import type { IEncodedTxEvm } from '@onekeyhq/core/src/chains/evm/types';
 import type { IUnsignedTxPro } from '@onekeyhq/core/src/types';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import useDappApproveAction from '@onekeyhq/kit/src/hooks/useDappApproveAction';
+import { usePromiseResult } from '@onekeyhq/kit/src/hooks/usePromiseResult';
 import {
   useNativeTokenInfoAtom,
   useNativeTokenTransferAmountToUpdateAtom,
   usePreCheckTxStatusAtom,
+  useSendConfirmActions,
   useSendFeeStatusAtom,
   useSendSelectedFeeInfoAtom,
   useSendTxStatusAtom,
   useTokenApproveInfoAtom,
+  useTxAdvancedSettingsAtom,
   useUnsignedTxsAtom,
 } from '@onekeyhq/kit/src/states/jotai/contexts/sendConfirm';
+import { checkIsEmptyData } from '@onekeyhq/kit-bg/src/vaults/impls/evm/decoder/utils';
 import type { ITransferPayload } from '@onekeyhq/kit-bg/src/vaults/types';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
@@ -25,7 +32,11 @@ import type { IModalSendParamList } from '@onekeyhq/shared/src/routes';
 import { getTxnType } from '@onekeyhq/shared/src/utils/txActionUtils';
 import type { IDappSourceInfo } from '@onekeyhq/shared/types';
 import { ESendPreCheckTimingEnum } from '@onekeyhq/shared/types/send';
-import type { ISendTxOnSuccessData } from '@onekeyhq/shared/types/tx';
+import {
+  EReplaceTxType,
+  type IReplaceTxInfo,
+  type ISendTxOnSuccessData,
+} from '@onekeyhq/shared/types/tx';
 
 import { usePreCheckFeeInfo } from '../../hooks/usePreCheckFeeInfo';
 
@@ -58,7 +69,6 @@ function SendConfirmActionsContainer(props: IProps) {
     feeInfoEditable,
   } = props;
   const intl = useIntl();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmitted = useRef(false);
   const navigation =
     useAppNavigation<IPageNavigationProp<IModalSendParamList>>();
@@ -71,11 +81,22 @@ function SendConfirmActionsContainer(props: IProps) {
     useNativeTokenTransferAmountToUpdateAtom();
   const [preCheckTxStatus] = usePreCheckTxStatusAtom();
   const [tokenApproveInfo] = useTokenApproveInfoAtom();
+  const [txAdvancedSettings] = useTxAdvancedSettingsAtom();
+  const { updateSendTxStatus } = useSendConfirmActions().current;
+  const successfullySentTxs = useRef<string[]>([]);
 
   const dappApprove = useDappApproveAction({
     id: sourceInfo?.id ?? '',
     closeWindowAfterResolved: true,
   });
+
+  const vaultSettings = usePromiseResult(
+    () =>
+      backgroundApiProxy.serviceNetwork.getVaultSettings({
+        networkId,
+      }),
+    [networkId],
+  ).result;
 
   const { checkFeeInfoIsOverflow, showFeeInfoOverflowConfirm } =
     usePreCheckFeeInfo({
@@ -86,7 +107,7 @@ function SendConfirmActionsContainer(props: IProps) {
   const handleOnConfirm = useCallback(async () => {
     const { serviceSend } = backgroundApiProxy;
 
-    setIsSubmitting(true);
+    updateSendTxStatus({ isSubmitting: true });
     isSubmitted.current = true;
 
     // Pre-check before submit
@@ -101,10 +122,10 @@ function SendConfirmActionsContainer(props: IProps) {
             }
           : undefined,
         precheckTiming: ESendPreCheckTimingEnum.Confirm,
-        feeInfo: sendSelectedFeeInfo?.feeInfo,
+        feeInfos: sendSelectedFeeInfo?.feeInfos,
       });
     } catch (e: any) {
-      setIsSubmitting(false);
+      updateSendTxStatus({ isSubmitting: false });
       onFail?.(e as Error);
       isSubmitted.current = false;
       void dappApprove.reject(e);
@@ -118,7 +139,10 @@ function SendConfirmActionsContainer(props: IProps) {
         networkId,
         unsignedTxs,
         tokenApproveInfo,
-        feeInfo: sendSelectedFeeInfo,
+        feeInfos: sendSelectedFeeInfo?.feeInfos,
+        nonceInfo: txAdvancedSettings.nonce
+          ? { nonce: Number(txAdvancedSettings.nonce) }
+          : undefined,
         nativeAmountInfo: nativeTokenTransferAmountToUpdate.isMaxSend
           ? {
               maxSendAmount: nativeTokenTransferAmountToUpdate.amountToUpdate,
@@ -126,7 +150,7 @@ function SendConfirmActionsContainer(props: IProps) {
           : undefined,
       });
     } catch (e: any) {
-      setIsSubmitting(false);
+      updateSendTxStatus({ isSubmitting: false });
       onFail?.(e as Error);
       isSubmitted.current = false;
       void dappApprove.reject(e);
@@ -136,8 +160,9 @@ function SendConfirmActionsContainer(props: IProps) {
     // fee info pre-check
     if (sendSelectedFeeInfo) {
       const isFeeInfoOverflow = await checkFeeInfoIsOverflow({
-        feeAmount: sendSelectedFeeInfo.totalNative,
-        feeSymbol: sendSelectedFeeInfo.feeInfo.common.nativeSymbol,
+        feeAmount: sendSelectedFeeInfo.feeInfos?.[0]?.totalNative,
+        feeSymbol:
+          sendSelectedFeeInfo.feeInfos?.[0]?.feeInfo?.common?.nativeSymbol,
         encodedTx: newUnsignedTxs[0].encodedTx,
       });
 
@@ -145,47 +170,71 @@ function SendConfirmActionsContainer(props: IProps) {
         const isConfirmed = await showFeeInfoOverflowConfirm();
         if (!isConfirmed) {
           isSubmitted.current = false;
-          setIsSubmitting(false);
+          updateSendTxStatus({ isSubmitting: false });
           return;
         }
       }
     }
 
     try {
+      let replaceTxInfo: IReplaceTxInfo | undefined;
+      if (
+        vaultSettings?.replaceTxEnabled &&
+        newUnsignedTxs.length === 1 &&
+        !isNil(newUnsignedTxs[0].nonce)
+      ) {
+        const encodedTx = unsignedTxs[0].encodedTx as IEncodedTxEvm;
+        const localPendingTxs =
+          await backgroundApiProxy.serviceHistory.getAccountsLocalHistoryTxs({
+            accountId,
+            networkId,
+          });
+        const localPendingTxWithSameNonce = localPendingTxs.find((tx) =>
+          new BigNumber(tx.decodedTx.nonce).isEqualTo(
+            newUnsignedTxs[0].nonce as number,
+          ),
+        );
+        if (localPendingTxWithSameNonce) {
+          replaceTxInfo = {
+            replaceType:
+              new BigNumber(encodedTx.value).isZero() &&
+              checkIsEmptyData(encodedTx.data)
+                ? EReplaceTxType.Cancel
+                : EReplaceTxType.SpeedUp,
+            replaceHistoryId: localPendingTxWithSameNonce.id,
+          };
+        }
+      }
+
       const result =
         await backgroundApiProxy.serviceSend.batchSignAndSendTransaction({
           accountId,
           networkId,
           unsignedTxs: newUnsignedTxs,
-          feeInfo: sendSelectedFeeInfo,
+          feeInfos: sendSelectedFeeInfo?.feeInfos,
           signOnly,
           sourceInfo,
+          replaceTxInfo,
           transferPayload,
+          successfullySentTxs: successfullySentTxs.current,
         });
 
       const transferInfo = newUnsignedTxs?.[0].transfersInfo?.[0];
       const swapInfo = newUnsignedTxs?.[0].swapInfo;
       const stakingInfo = newUnsignedTxs?.[0].stakingInfo;
       defaultLogger.transaction.send.sendConfirm({
-        txnHash: result?.[0].signedTx.txid,
         network: networkId,
         txnType: getTxnType({
           actions: result?.[0].decodedTx.actions,
           swapInfo,
           stakingInfo,
         }),
-        fromAddress: transferInfo?.from,
-        toAddress: transferInfo?.to,
-        fee: sendSelectedFeeInfo?.totalNative,
         tokenAddress: transferInfo?.tokenInfo?.address,
         tokenSymbol: transferInfo?.tokenInfo?.symbol,
         tokenType: transferInfo?.nftInfo ? 'NFT' : 'Token',
-        tokenAmount: transferInfo?.amount,
-        tokenValue: undefined,
         interactContract: undefined,
       });
-      onSuccess?.(result);
-      setIsSubmitting(false);
+
       Toast.success({
         title: intl.formatMessage({
           id: ETranslations.feedback_transaction_submitted,
@@ -197,8 +246,10 @@ function SendConfirmActionsContainer(props: IProps) {
       void dappApprove.resolve({ result: signedTx });
 
       navigation.popStack();
+      updateSendTxStatus({ isSubmitting: false });
+      onSuccess?.(result);
     } catch (e: any) {
-      setIsSubmitting(false);
+      updateSendTxStatus({ isSubmitting: false });
       // show toast by @toastIfError() in background method
       // Toast.error({
       //   title: (e as Error).message,
@@ -209,6 +260,7 @@ function SendConfirmActionsContainer(props: IProps) {
       throw e;
     }
   }, [
+    updateSendTxStatus,
     sendSelectedFeeInfo,
     networkId,
     accountId,
@@ -218,15 +270,26 @@ function SendConfirmActionsContainer(props: IProps) {
     onFail,
     dappApprove,
     tokenApproveInfo,
+    txAdvancedSettings.nonce,
     checkFeeInfoIsOverflow,
     showFeeInfoOverflowConfirm,
+    vaultSettings?.replaceTxEnabled,
     signOnly,
     sourceInfo,
     transferPayload,
-    onSuccess,
     intl,
     navigation,
+    onSuccess,
   ]);
+
+  const cancelCalledRef = useRef(false);
+  const onCancelOnce = useCallback(() => {
+    if (cancelCalledRef.current) {
+      return;
+    }
+    cancelCalledRef.current = true;
+    onCancel?.();
+  }, [onCancel]);
 
   const handleOnCancel = useCallback(
     (close: () => void, closePageStack: () => void) => {
@@ -236,30 +299,32 @@ function SendConfirmActionsContainer(props: IProps) {
       } else {
         close();
       }
-      onCancel?.();
+      onCancelOnce();
     },
-    [dappApprove, onCancel, sourceInfo],
+    [dappApprove, onCancelOnce, sourceInfo],
   );
 
   const isSubmitDisabled = useMemo(() => {
-    if (isSubmitting) return true;
+    if (sendTxStatus.isSubmitting) return true;
     if (nativeTokenInfo.isLoading || sendTxStatus.isInsufficientNativeBalance)
       return true;
 
     if (!sendSelectedFeeInfo || sendFeeStatus.errMessage) return true;
     if (preCheckTxStatus.errorMessage) return true;
+    if (txAdvancedSettings.dataChanged) return true;
   }, [
-    sendFeeStatus.errMessage,
-    isSubmitting,
-    nativeTokenInfo.isLoading,
+    sendTxStatus.isSubmitting,
     sendTxStatus.isInsufficientNativeBalance,
+    nativeTokenInfo.isLoading,
     sendSelectedFeeInfo,
+    sendFeeStatus.errMessage,
     preCheckTxStatus.errorMessage,
+    txAdvancedSettings.dataChanged,
   ]);
 
   usePageUnMounted(() => {
     if (!isSubmitted.current) {
-      onCancel?.();
+      onCancelOnce();
     }
   });
 
@@ -268,10 +333,10 @@ function SendConfirmActionsContainer(props: IProps) {
       <Page.FooterActions
         confirmButtonProps={{
           disabled: isSubmitDisabled,
-          loading: isSubmitting,
+          loading: sendTxStatus.isSubmitting,
         }}
         cancelButtonProps={{
-          disabled: isSubmitting,
+          disabled: sendTxStatus.isSubmitting,
         }}
         onConfirmText={
           signOnly

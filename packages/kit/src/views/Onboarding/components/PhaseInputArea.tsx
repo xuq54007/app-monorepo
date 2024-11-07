@@ -15,17 +15,19 @@ import {
 
 import { compact, range } from 'lodash';
 import { useIntl } from 'react-intl';
-import { Dimensions, View } from 'react-native';
+import { View } from 'react-native';
 
 import type {
   IButtonProps,
   IElement,
   IInputProps,
   IPageFooterProps,
+  IPasteEventParams,
   IPropsWithTestId,
 } from '@onekeyhq/components';
 import {
   Button,
+  EPasteEventPayloadItemType,
   Form,
   HeightTransition,
   Icon,
@@ -42,13 +44,13 @@ import {
   useIsKeyboardShown,
   useKeyboardEvent,
   useMedia,
-  usePage,
 } from '@onekeyhq/components';
+import type { EMnemonicType } from '@onekeyhq/core/src/secret';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
-import { useSuggestion } from './hooks';
+import { PHRASE_LENGTHS, useSuggestion } from './hooks';
 
 import type { ReturnKeyTypeOptions, TextInput, ViewProps } from 'react-native';
 
@@ -188,9 +190,6 @@ function PageFooter({
   );
 }
 
-const { height: windowHeight } = Dimensions.get('window');
-const visibleHeight = windowHeight / 5;
-
 const PINYIN_COMPOSITION_SPACE = platformEnv.isNative
   ? String.fromCharCode(8198)
   : ' ';
@@ -220,7 +219,7 @@ function BasicPhaseInput(
     onInputChange: (value: string) => string;
     onChange?: (value: string) => void;
     onInputFocus: (index: number) => void;
-    onPasteMnemonic: (text: string) => boolean;
+    onPasteMnemonic: (text: string, index: number) => void;
     onInputBlur: (index: number) => void;
     suggestionsRef: RefObject<string[]>;
     selectInputIndex: number;
@@ -234,7 +233,6 @@ function BasicPhaseInput(
 ) {
   const inputRef: RefObject<TextInput> | null = useRef(null);
   const media = useMedia();
-  const { getContentOffset, pageRef } = usePage();
   const firstButtonRef = useRef<IElement>(null);
   const [tabFocusable, setTabFocusable] = useState(false);
 
@@ -251,30 +249,7 @@ function BasicPhaseInput(
 
   const handleInputFocus = useCallback(() => {
     onInputFocus(index);
-    if (platformEnv.isNative && pageRef) {
-      inputRef.current?.measure(
-        (
-          x: number,
-          y: number,
-          width: number,
-          height: number,
-          pageX: number,
-          pageY: number,
-        ) => {
-          const contentOffset = getContentOffset();
-          if (pageY > visibleHeight) {
-            setTimeout(() => {
-              pageRef.scrollTo({
-                x: 0,
-                y: contentOffset.y + pageY - visibleHeight,
-                animated: true,
-              });
-            });
-          }
-        },
-      );
-    }
-  }, [getContentOffset, index, onInputFocus, pageRef]);
+  }, [index, onInputFocus]);
 
   const handleInputBlur = useCallback(() => {
     onInputBlur(index);
@@ -282,16 +257,11 @@ function BasicPhaseInput(
 
   const handleChangeText = useCallback(
     (v: string) => {
-      if (onPasteMnemonic(v)) {
-        onInputChange('');
-        onChange?.('');
-        return;
-      }
       const rawText = v.replaceAll(PINYIN_COMPOSITION_SPACE, '');
       const text = onInputChange(rawText);
       onChange?.(text);
     },
-    [onChange, onInputChange, onPasteMnemonic],
+    [onChange, onInputChange],
   );
 
   const handleOpenChange = useCallback(
@@ -318,6 +288,16 @@ function BasicPhaseInput(
       }
     },
     [suggestionsRef, updateInputValue],
+  );
+
+  const handlePaste = useCallback(
+    (event: IPasteEventParams) => {
+      const item = event.nativeEvent?.items?.[0];
+      if (item?.type === EPasteEventPayloadItemType.TextPlain && item.data) {
+        onPasteMnemonic(item?.data, index);
+      }
+    },
+    [index, onPasteMnemonic],
   );
 
   const handleKeyPress = useCallback(
@@ -364,6 +344,7 @@ function BasicPhaseInput(
       pr: '$0',
       justifyContent: 'center',
     },
+    onPaste: handlePaste,
     error: isShowError,
     onChangeText: handleChangeText,
     onFocus: handleInputFocus,
@@ -441,7 +422,10 @@ export function PhaseInputArea({
   showClearAllButton = true,
   defaultPhrases = [],
 }: {
-  onConfirm: (mnemonic: string) => void;
+  onConfirm: (params: {
+    mnemonic: string;
+    mnemonicType: EMnemonicType;
+  }) => void;
   showPhraseLengthSelector?: boolean;
   showClearAllButton?: boolean;
   FooterComponent?: ReactElement;
@@ -449,7 +433,7 @@ export function PhaseInputArea({
 }) {
   const intl = useIntl();
 
-  const phraseLengths = [12, 15, 18, 21, 24];
+  const phraseLengths = PHRASE_LENGTHS;
   const phraseLengthOptions = phraseLengths.map((length) => ({
     label: intl.formatMessage({ id: ETranslations.count_words }, { length }),
     value: `${length}`,
@@ -484,11 +468,11 @@ export function PhaseInputArea({
     const mnemonicEncoded = await servicePassword.encodeSensitiveText({
       text: mnemonic,
     });
-    await serviceAccount.validateMnemonic(mnemonicEncoded);
-    onConfirm(mnemonicEncoded);
+    const { mnemonicType } = await serviceAccount.validateMnemonic(
+      mnemonicEncoded,
+    );
+    onConfirm({ mnemonic: mnemonicEncoded, mnemonicType });
   }, [form, onConfirm, serviceAccount, servicePassword]);
-
-  // useScrollToInputArea(alertRef);
 
   const {
     suggestions,
@@ -503,7 +487,9 @@ export function PhaseInputArea({
     focusNextInput,
     onPasteMnemonic,
     isShowErrors,
-  } = useSuggestion(form, Number(phraseLength));
+  } = useSuggestion(form, Number(phraseLength), {
+    setPhraseLength,
+  });
 
   const handleReturnKeyPressed = useCallback(
     (index: number) => {
@@ -601,7 +587,6 @@ export function PhaseInputArea({
                   }}
                   flexBasis="33.33%"
                   p="$1"
-                  testID={`phrase-input-index${index}`}
                 >
                   <Form.Field name={`phrase${index + 1}`}>
                     <PhaseInput

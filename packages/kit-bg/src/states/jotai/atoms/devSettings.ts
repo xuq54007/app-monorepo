@@ -12,6 +12,8 @@ export interface IDevSettings {
   alwaysSignOnlySendTx?: boolean;
   // show dev export private key
   showDevExportPrivateKey?: boolean;
+  // show trading view
+  showTradingView?: boolean;
 }
 
 export type IDevSettingsKeys = keyof IDevSettings;
@@ -30,6 +32,8 @@ export const {
     enabled: !!platformEnv.isDev || !!platformEnv.isE2E,
     settings: {
       enableTestEndpoint: !!platformEnv.isDev || !!platformEnv.isE2E,
+      showDevOverlayWindow: !!platformEnv.isE2E,
+      showTradingView: false,
     },
   },
 });
@@ -68,5 +72,24 @@ export const {
     forceUpdateBootloader: false,
     showDeviceDebugLogs: false,
     showAutoCheckHardwareUpdatesToast: false,
+  },
+});
+
+export type INotificationsDevSettings = {
+  showMessagePushSource?: boolean;
+  disabledWebSocket?: boolean;
+  disabledJPush?: boolean;
+};
+export type INotificationsDevSettingsKeys = keyof INotificationsDevSettings;
+export const {
+  target: notificationsDevSettingsPersistAtom,
+  use: useNotificationsDevSettingsPersistAtom,
+} = globalAtom<INotificationsDevSettings>({
+  persist: true,
+  name: EAtomNames.notificationsDevSettingsPersistAtom,
+  initialValue: {
+    showMessagePushSource: false,
+    disabledWebSocket: false,
+    disabledJPush: false,
   },
 });

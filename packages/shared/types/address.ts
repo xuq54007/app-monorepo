@@ -111,6 +111,12 @@ export enum EServerInteractedStatus {
   UNKNOWN = '2',
 }
 
+export type IServerAccountBadgeResp = {
+  interacted: EServerInteractedStatus;
+  isContract?: boolean;
+  badges?: { label: string }[];
+};
+
 export type IAddressInteractionStatus =
   | 'interacted'
   | 'not-interacted'
@@ -130,6 +136,30 @@ export type IQueryCheckAddressArgs = {
   enableAddressBook?: boolean;
   enableWalletName?: boolean;
   enableAddressInteractionStatus?: boolean;
+  enableAddressContract?: boolean;
   enableVerifySendFundToSelf?: boolean;
   skipValidateAddress?: boolean;
 };
+
+export type IFetchServerAccountDetailsParams = IFetchAccountDetailsParams & {
+  accountAddress: string;
+  xpub?: string;
+  signal?: AbortSignal;
+};
+
+export interface IFetchServerAccountDetailsResponse {
+  data: {
+    data: IFetchAccountDetailsResp;
+  };
+}
+
+export interface IServerGetAccountNetWorthResponse {
+  netWorth?: string;
+  balance?: string;
+  balanceParsed?: string;
+}
+
+export interface IServerFetchNonceResponse {
+  nonce: number | undefined;
+  accountNumber?: number;
+}

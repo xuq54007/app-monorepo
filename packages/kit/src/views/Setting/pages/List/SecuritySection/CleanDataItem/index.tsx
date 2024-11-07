@@ -29,11 +29,13 @@ const ClearCacheOnAppContent = () => {
           transactionHistory: true,
           swapHistory: true,
           browserCache: true,
+          appUpdateCache: true,
           browserHistory: false,
           connectSites: false,
           signatureRecord: false,
           customToken: false,
           customRpc: false,
+          serverNetworks: false,
         } as IClearCacheOnAppState,
       }}
     >
@@ -66,6 +68,13 @@ const ClearCacheOnAppContent = () => {
             })}
           />
         </Dialog.FormField>
+        <Dialog.FormField name="appUpdateCache">
+          <Checkbox
+            label={intl.formatMessage({
+              id: ETranslations.settings_app_update_cache,
+            })}
+          />
+        </Dialog.FormField>
         <Dialog.FormField name="browserHistory">
           <Checkbox
             label={intl.formatMessage({
@@ -85,6 +94,13 @@ const ClearCacheOnAppContent = () => {
           <Checkbox
             label={intl.formatMessage({
               id: ETranslations.custom_rpc_title,
+            })}
+          />
+        </Dialog.FormField>
+        <Dialog.FormField name="serverNetworks">
+          <Checkbox
+            label={intl.formatMessage({
+              id: ETranslations.clear_build_in_networks_data,
             })}
           />
         </Dialog.FormField>
@@ -188,7 +204,7 @@ export const CleanDataItem = () => {
                         confirmButtonProps: {
                           variant: 'primary',
                           size: 'large',
-                          icon: 'Copy1Outline',
+                          icon: 'Copy3Outline',
                         },
                         onConfirmText: intl.formatMessage({
                           id: ETranslations.global_copy,

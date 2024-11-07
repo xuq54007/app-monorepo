@@ -272,10 +272,12 @@ function SendDataInputContainer() {
       };
 
     if (isUseFiat) {
-      const originalAmount = amountBN
-        .dividedBy(tokenPrice)
-        .decimalPlaces(tokenDecimals, BigNumber.ROUND_CEIL)
-        .toFixed();
+      const originalAmount = new BigNumber(tokenPrice).isGreaterThan(0)
+        ? amountBN
+            .dividedBy(tokenPrice)
+            .decimalPlaces(tokenDecimals, BigNumber.ROUND_CEIL)
+            .toFixed()
+        : '0';
       return {
         amount: getFormattedNumber(originalAmount, { decimal: 4 }) ?? '0',
         originalAmount,
@@ -473,8 +475,6 @@ function SendDataInputContainer() {
             tokenAddress: isNFT
               ? `${nft?.collectionAddress ?? ''}:${nft?.itemId ?? ''}`
               : tokenInfo?.address,
-            tokenAmount: realAmount,
-            tokenValue: linkedAmount.originalAmount,
           });
 
           await sendConfirm.navigationToSendConfirm({
@@ -487,6 +487,7 @@ function SendDataInputContainer() {
               amountToSend: realAmount,
               isMaxSend,
               isNFT,
+              originalRecipient: toAddress,
             },
           });
           setIsSubmitting(false);
@@ -536,6 +537,14 @@ function SendDataInputContainer() {
 
       let isInsufficientBalance = false;
       let isLessThanMinTransferAmount = false;
+      const isNative = tokenDetails?.info.isNative;
+
+      const minTransferAmount = isNative
+        ? vaultSettings?.nativeMinTransferAmount ??
+          vaultSettings?.minTransferAmount ??
+          '0'
+        : vaultSettings?.minTransferAmount ?? '0';
+
       if (isUseFiat) {
         if (amountBN.isGreaterThan(tokenDetails?.fiatValue ?? 0)) {
           isInsufficientBalance = true;
@@ -543,9 +552,8 @@ function SendDataInputContainer() {
 
         if (
           tokenDetails?.price &&
-          amountBN
-            .dividedBy(tokenDetails.price)
-            .isLessThan(vaultSettings?.minTransferAmount ?? 0)
+          !new BigNumber(minTransferAmount).isZero() &&
+          amountBN.dividedBy(tokenDetails.price).isLessThan(minTransferAmount)
         ) {
           isLessThanMinTransferAmount = true;
         }
@@ -554,7 +562,7 @@ function SendDataInputContainer() {
           isInsufficientBalance = true;
         }
 
-        if (amountBN.isLessThan(vaultSettings?.minTransferAmount ?? 0)) {
+        if (amountBN.isLessThan(minTransferAmount)) {
           isLessThanMinTransferAmount = true;
         }
       }
@@ -575,10 +583,7 @@ function SendDataInputContainer() {
             id: ETranslations.send_error_minimum_amount,
           },
           {
-            amount: BigNumber.max(
-              tokenMinAmount,
-              vaultSettings?.minTransferAmount ?? '0',
-            ).toFixed(),
+            amount: BigNumber.max(tokenMinAmount, minTransferAmount).toFixed(),
             token: tokenSymbol,
           },
         );
@@ -612,17 +617,18 @@ function SendDataInputContainer() {
       return true;
     },
     [
-      isUseFiat,
-      intl,
-      tokenSymbol,
-      tokenMinAmount,
-      vaultSettings?.minTransferAmount,
-      vaultSettings?.transferZeroNativeTokenEnabled,
-      isNFT,
       tokenDetails?.info.isNative,
       tokenDetails?.fiatValue,
       tokenDetails?.price,
       tokenDetails?.balanceParsed,
+      vaultSettings?.nativeMinTransferAmount,
+      vaultSettings?.minTransferAmount,
+      vaultSettings?.transferZeroNativeTokenEnabled,
+      isUseFiat,
+      intl,
+      tokenSymbol,
+      tokenMinAmount,
+      isNFT,
       form,
       currentAccount.accountId,
       currentAccount.networkId,
@@ -708,9 +714,9 @@ function SendDataInputContainer() {
             },
           }}
           valueProps={{
-            value: isUseFiat
-              ? `${linkedAmount.amount} ${tokenSymbol}`
-              : `${currencySymbol}${linkedAmount.amount}`,
+            currency: isUseFiat ? undefined : currencySymbol,
+            tokenSymbol: isUseFiat ? tokenSymbol : undefined,
+            value: linkedAmount.originalAmount,
             onPress: handleOnChangeAmountMode,
           }}
           inputProps={{
@@ -729,9 +735,11 @@ function SendDataInputContainer() {
               ? nft?.metadata?.image
               : tokenInfo?.logoURI,
             selectedNetworkImageUri: network?.logoURI,
+            selectedNetworkName: network?.name,
             selectedTokenSymbol: isNFT
               ? nft?.metadata?.name
               : tokenInfo?.symbol,
+            isCustomNetwork: network?.isCustomNetwork,
             onPress: isNFT ? undefined : handleOnSelectToken,
             disabled: isSelectTokenDisabled,
           }}
@@ -762,10 +770,12 @@ function SendDataInputContainer() {
       isNFT,
       isSelectTokenDisabled,
       isUseFiat,
-      linkedAmount.amount,
+      linkedAmount.originalAmount,
       maxBalance,
       maxBalanceFiat,
+      network?.isCustomNetwork,
       network?.logoURI,
+      network?.name,
       nft?.metadata?.image,
       nft?.metadata?.name,
       tokenDetails?.info.decimals,
@@ -828,16 +838,9 @@ function SendDataInputContainer() {
 
     return (
       <>
-        <XStack pt="$5" />
         <Form.Field
           label={intl.formatMessage({ id: ETranslations.send_tag })}
-          labelAddon={
-            <SizableText size="$bodyMdMedium" color="$textSubdued">
-              {intl.formatMessage({
-                id: ETranslations.form_optional_indicator,
-              })}
-            </SizableText>
-          }
+          optional
           name="memo"
           rules={{
             maxLength: {
@@ -860,7 +863,7 @@ function SendDataInputContainer() {
         >
           <TextArea
             numberOfLines={2}
-            size="large"
+            size={media.gtMd ? 'medium' : 'large'}
             placeholder={intl.formatMessage({
               id: ETranslations.send_tag_placeholder,
             })}
@@ -868,7 +871,7 @@ function SendDataInputContainer() {
         </Form.Field>
       </>
     );
-  }, [displayMemoForm, intl, memoMaxLength, numericOnlyMemo]);
+  }, [displayMemoForm, intl, media.gtMd, memoMaxLength, numericOnlyMemo]);
 
   const renderPaymentIdForm = useCallback(() => {
     if (!displayPaymentIdForm) return null;
@@ -877,13 +880,7 @@ function SendDataInputContainer() {
         <XStack pt="$5" />
         <Form.Field
           label="Payment ID"
-          labelAddon={
-            <SizableText size="$bodyMdMedium" color="$textSubdued">
-              {intl.formatMessage({
-                id: ETranslations.form_optional_indicator,
-              })}
-            </SizableText>
-          }
+          optional
           name="paymentId"
           rules={{
             validate: (value) => {
@@ -917,13 +914,7 @@ function SendDataInputContainer() {
         label={intl.formatMessage({
           id: ETranslations.global_Note,
         })}
-        labelAddon={
-          <SizableText size="$bodyMdMedium" color="$textSubdued">
-            {intl.formatMessage({
-              id: ETranslations.form_optional_indicator,
-            })}
-          </SizableText>
-        }
+        optional
         name="note"
         rules={{
           maxLength: {
@@ -988,6 +979,15 @@ function SendDataInputContainer() {
     }
   }, [networkId, token, nft, isNFT, currentAccount.networkId]);
 
+  useEffect(() => {
+    if (
+      !isNil(tokenDetails?.balance) &&
+      form.getFieldState('amount').isTouched
+    ) {
+      void form.trigger('amount');
+    }
+  }, [form, tokenDetails?.balance]);
+
   const addressInputAccountSelectorArgs = useMemo<{ num: number } | undefined>(
     () =>
       addressBookEnabledNetworkIds.includes(currentAccount.networkId)
@@ -1040,6 +1040,8 @@ function SendDataInputContainer() {
                       size="lg"
                       tokenImageUri={nft?.metadata?.image}
                       networkImageUri={network?.logoURI}
+                      networkId={network?.id}
+                      showNetworkIcon
                     />
                     <ListItem.Text
                       flex={1}
@@ -1092,6 +1094,7 @@ function SendDataInputContainer() {
                 enableWalletName
                 enableVerifySendFundToSelf
                 enableAddressInteractionStatus
+                enableAddressContract
                 contacts={addressBookEnabledNetworkIds.includes(
                   currentAccount.networkId,
                 )}

@@ -1,6 +1,5 @@
 import BigNumber from 'bignumber.js';
 
-import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { EFeeType } from '@onekeyhq/shared/types/fee';
 import type {
@@ -47,6 +46,24 @@ export function calculateSolTotalFee({
     .plus(baseFee)
     .shiftedBy(-feeInfo.common.feeDecimals)
     .toFixed();
+}
+
+export function calculateCkbTotalFee({
+  feeRate,
+  txSize,
+  feeInfo,
+}: {
+  feeRate: string | BigNumber;
+  txSize: number;
+  feeInfo: IFeeInfoUnit;
+}) {
+  const ratio = 1000;
+  const base = new BigNumber(txSize).multipliedBy(feeRate);
+  let fee = base.div(ratio);
+  if (fee.multipliedBy(ratio).lt(base)) {
+    fee = fee.plus(1);
+  }
+  return fee.shiftedBy(-feeInfo.common.feeDecimals).toFixed();
 }
 
 export function calculateTotalFeeRange({
@@ -161,6 +178,23 @@ export function calculateTotalFeeRange({
     };
   }
 
+  if (feeInfo.feeCkb) {
+    let fee = '0';
+    const { feeRate } = feeInfo.feeCkb;
+    fee = calculateCkbTotalFee({
+      feeRate: feeRate ?? '0',
+      txSize: txSize ?? 0,
+      feeInfo,
+    });
+    return {
+      min: nanToZeroString(fee),
+      max: nanToZeroString(fee),
+      minForDisplay: nanToZeroString(fee),
+      maxForDisplay: nanToZeroString(fee),
+      withoutBaseFee: true,
+    };
+  }
+
   return {
     min: '0',
     max: '0',
@@ -209,8 +243,10 @@ export function calculateFeeForSend({
     txSize,
     estimateFeeParams,
   });
-  const total = feeRange.max;
-  const totalForDisplay = feeRange.maxForDisplay;
+  const total = new BigNumber(feeRange.max).toFixed();
+
+  const totalForDisplay = new BigNumber(feeRange.maxForDisplay).toFixed();
+
   const totalNative = calculateTotalFeeNative({
     amount: total,
     feeInfo,
@@ -221,16 +257,17 @@ export function calculateFeeForSend({
     feeInfo,
     withoutBaseFee: feeRange.withoutBaseFee,
   });
+
   const totalFiat = new BigNumber(totalNative)
     .multipliedBy(nativeTokenPrice)
     .toFixed();
+
   const totalFiatForDisplay = new BigNumber(totalNativeForDisplay)
     .multipliedBy(nativeTokenPrice)
     .toFixed();
 
   return {
     total,
-    totalForDisplay,
     totalNative,
     totalFiat,
     totalNativeForDisplay,

@@ -33,7 +33,6 @@ export class DappScene extends BaseScene {
     dappDomain: string;
     action: 'ConnectWallet' | 'SendTxn';
     network?: string;
-    walletAddress?: string;
     failReason?: string;
   }) {
     return params;
@@ -50,6 +49,20 @@ export class DappScene extends BaseScene {
 
   @LogToLocal({ level: 'info' })
   public dappRequest(params: { request: IJsBridgeMessagePayload }) {
+    return params;
+  }
+
+  @LogToServer()
+  @LogToLocal()
+  public disconnect(params: {
+    dappDomain: string;
+    disconnectType: 'Injected' | 'WalletConnect';
+    disconnectFrom:
+      | 'Browser'
+      | 'SettingModal'
+      | 'ExtPanel'
+      | 'ExtFloatingTrigger';
+  }) {
     return params;
   }
 }

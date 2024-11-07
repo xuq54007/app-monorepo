@@ -3,8 +3,12 @@
 
 import { isEmpty, isNil, map, merge, uniq, uniqBy } from 'lodash';
 import natsort from 'natsort';
+import { InteractionManager } from 'react-native';
 
-import type { IBip39RevealableSeed } from '@onekeyhq/core/src/secret';
+import type {
+  IBip39RevealableSeed,
+  IBip39RevealableSeedEncryptHex,
+} from '@onekeyhq/core/src/secret';
 import {
   decryptImportedCredential,
   decryptRevealableSeed,
@@ -29,7 +33,10 @@ import {
   WALLET_TYPE_QR,
   WALLET_TYPE_WATCHING,
 } from '@onekeyhq/shared/src/consts/dbConsts';
-import { COINTYPE_DNX } from '@onekeyhq/shared/src/engine/engineConsts';
+import {
+  COINTYPE_DNX,
+  COINTYPE_ETH,
+} from '@onekeyhq/shared/src/engine/engineConsts';
 import {
   NotImplemented,
   OneKeyErrorAirGapStandardWalletRequiredWhenCreateHiddenWallet,
@@ -53,6 +60,9 @@ import deviceUtils from '@onekeyhq/shared/src/utils/deviceUtils';
 import type { IAvatarInfo } from '@onekeyhq/shared/src/utils/emojiUtils';
 import { generateUUID } from '@onekeyhq/shared/src/utils/miscUtils';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
+import perfUtils, {
+  EPerformanceTimerLogNames,
+} from '@onekeyhq/shared/src/utils/perfUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import type {
   INetworkAccount,
@@ -93,11 +103,31 @@ import type {
   IDBWalletIdSingleton,
   IDBWalletNextIdKeys,
   IDBWalletNextIds,
+  IDBWalletType,
   ILocalDBRecordUpdater,
   ILocalDBTransaction,
   ILocalDBTxGetRecordByIdResult,
 } from './types';
 import type { IDeviceType } from '@onekeyfe/hd-core';
+
+const getOrderByWalletType = (walletType: IDBWalletType): number => {
+  switch (walletType) {
+    case WALLET_TYPE_HW:
+      return 1;
+    case WALLET_TYPE_QR:
+      return 2;
+    case WALLET_TYPE_HD:
+      return 3;
+    case WALLET_TYPE_IMPORTED:
+      return 4;
+    case WALLET_TYPE_EXTERNAL:
+      return 5;
+    case WALLET_TYPE_WATCHING:
+      return 6;
+    default:
+      return 0;
+  }
+};
 
 export abstract class LocalDbBase extends LocalDbBaseContainer {
   tempWallets: {
@@ -317,15 +347,27 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
       name: ELocalDBStoreNames.Credential,
       updater: (credential) => {
         if (credential.id.startsWith('imported')) {
-          const importedCredential: ICoreImportedCredential =
-            decryptImportedCredential({
-              credential: credential.credential,
+          // Ton mnemonic credential
+          if (accountUtils.isTonMnemonicCredentialId(credential.id)) {
+            const revealableSeed: IBip39RevealableSeed = decryptRevealableSeed({
+              rs: credential.credential,
               password: oldPassword,
             });
-          credential.credential = encryptImportedCredential({
-            credential: importedCredential,
-            password: newPassword,
-          });
+            credential.credential = encryptRevealableSeed({
+              rs: revealableSeed,
+              password: newPassword,
+            });
+          } else {
+            const importedCredential: ICoreImportedCredential =
+              decryptImportedCredential({
+                credential: credential.credential,
+                password: oldPassword,
+              });
+            credential.credential = encryptImportedCredential({
+              credential: importedCredential,
+              password: newPassword,
+            });
+          }
         } else {
           const revealableSeed: IBip39RevealableSeed = decryptRevealableSeed({
             rs: credential.credential,
@@ -487,7 +529,25 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
     const nestedHiddenWallets = option?.nestedHiddenWallets;
     const ignoreEmptySingletonWalletAccounts =
       option?.ignoreEmptySingletonWalletAccounts;
+    const includingAccounts = option?.includingAccounts;
     const db = await this.readyDb;
+
+    const fillDbAccounts = async (newWallet: IDBWallet) => {
+      const isOthersWallet = accountUtils.isOthersWallet({
+        walletId: newWallet.id,
+      });
+      if (isOthersWallet) {
+        const { accounts } = await this.getSingletonAccountsOfWallet({
+          walletId: newWallet.id as IDBWalletIdSingleton,
+        });
+        newWallet.dbAccounts = accounts;
+      } else {
+        const { accounts } = await this.getIndexedAccounts({
+          walletId: newWallet.id,
+        });
+        newWallet.dbIndexedAccounts = accounts;
+      }
+    };
 
     // get all wallets for account selector
     let { wallets } = await this.getAllWallets();
@@ -519,16 +579,26 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
       return true;
     });
     wallets = await Promise.all(
-      wallets.map((w) =>
-        this.refillWalletInfo({
+      wallets.map(async (w) => {
+        const newWallet: IDBWallet = await this.refillWalletInfo({
           wallet: w,
           hiddenWallets: w.associatedDevice
             ? (hiddenWalletsMap[w.associatedDevice] || []).filter((hw) =>
                 hw.id.startsWith(w.id),
               )
             : undefined,
-        }),
-      ),
+        });
+        if (includingAccounts) {
+          await Promise.all([
+            fillDbAccounts(newWallet),
+            ...(newWallet?.hiddenWallets || []).map(async (hw) => {
+              await fillDbAccounts(hw);
+              return hw;
+            }),
+          ]);
+        }
+        return newWallet;
+      }),
     );
     wallets = wallets.sort(this.walletSortFn);
 
@@ -727,12 +797,29 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
   }
 
   async getIndexedAccount({ id }: { id: string }): Promise<IDBIndexedAccount> {
+    const perf = perfUtils.createPerf(
+      EPerformanceTimerLogNames.localDB__getIndexedAccount,
+    );
+
+    perf.markStart('readyDb');
     const db = await this.readyDb;
+    perf.markEnd('readyDb');
+
+    perf.markStart('getRecordById');
     const indexedAccount = await db.getRecordById({
       name: ELocalDBStoreNames.IndexedAccount,
       id,
     });
-    return this.refillIndexedAccount({ indexedAccount });
+    perf.markEnd('getRecordById');
+
+    perf.markStart('refillIndexedAccount');
+    const result: IDBIndexedAccount = this.refillIndexedAccount({
+      indexedAccount,
+    });
+    perf.markEnd('refillIndexedAccount');
+
+    perf.done();
+    return result;
   }
 
   refillIndexedAccount({
@@ -746,6 +833,11 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
   }
 
   async getIndexedAccountByAccount({ account }: { account: IDBAccount }) {
+    const perf = perfUtils.createPerf(
+      EPerformanceTimerLogNames.localDB__getIndexedAccountByAccount,
+    );
+
+    perf.markStart('checkAccountType');
     const accountId = account.id;
     if (
       accountUtils.isHdAccount({ accountId }) ||
@@ -754,16 +846,23 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
         accountId,
       })
     ) {
+      perf.markEnd('checkAccountType');
+
       const { indexedAccountId } = account;
       if (!indexedAccountId) {
         throw new Error(
           `indexedAccountId is missing from account: ${accountId}`,
         );
       }
+
+      perf.markStart('getIndexedAccount');
       // indexedAccount must be create before account, keep throw error here, do not try catch
       const indexedAccount = await this.getIndexedAccount({
         id: indexedAccountId,
       });
+      perf.markEnd('getIndexedAccount');
+
+      perf.done();
       return indexedAccount;
     }
     return undefined;
@@ -823,6 +922,32 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
     );
   }
 
+  buildIndexedAccountIdHash({
+    firstEvmAddress,
+    index,
+    indexedAccountId,
+  }: {
+    firstEvmAddress: string | undefined;
+    index: number | undefined;
+    indexedAccountId: string;
+    // dbDevice: IDBDevice | undefined;
+  }) {
+    // const hashContent = dbDevice
+    //   ? `${dbDevice?.connectId}.${dbDevice?.deviceId}.${dbDevice?.deviceType}.${
+    //       dbWallet?.passphraseState || ''
+    //     }.${index}`
+    //   : indexedAccountId;
+    const hashContent =
+      firstEvmAddress && !isNil(index)
+        ? `${firstEvmAddress}--${index.toString()}`
+        : indexedAccountId;
+    const hashBuffer = sha256(bufferUtils.toBuffer(hashContent, 'utf-8'));
+    let idHash = bufferUtils.bytesToHex(hashBuffer);
+    idHash = idHash.slice(-42);
+    checkIsDefined(idHash);
+    return idHash;
+  }
+
   async txAddIndexedAccount({
     tx,
     walletId,
@@ -847,13 +972,12 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
         message: `addIndexedAccount ERROR: only hd or hw wallet support "${walletId}"`,
       });
     }
+    const [dbWallet] = await this.txGetWallet({ tx, walletId });
     let dbDevice: IDBDevice | undefined;
-    let dbWallet: IDBWallet | undefined;
     if (
       accountUtils.isHwWallet({ walletId }) ||
       accountUtils.isQrWallet({ walletId })
     ) {
-      [dbWallet] = await this.txGetWallet({ tx, walletId });
       const deviceId = dbWallet.associatedDevice;
       if (deviceId) {
         const [device] = await this.txGetRecordById({
@@ -869,22 +993,14 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
         walletId,
         index,
       });
-      const hashBuffer = sha256(
-        bufferUtils.toBuffer(
-          dbDevice
-            ? `${dbDevice.connectId}.${dbDevice.deviceId}.${
-                dbDevice.deviceType
-              }.${dbWallet?.passphraseState || ''}.${index}`
-            : indexedAccountId,
-          'utf-8',
-        ),
-      );
-      let idHash = bufferUtils.bytesToHex(hashBuffer);
-      idHash = idHash.slice(-42);
-      checkIsDefined(idHash);
-      return {
+
+      const r: IDBIndexedAccount = {
         id: indexedAccountId,
-        idHash,
+        idHash: this.buildIndexedAccountIdHash({
+          firstEvmAddress: dbWallet?.firstEvmAddress,
+          indexedAccountId,
+          index,
+        }),
         walletId,
         index,
         name:
@@ -893,6 +1009,7 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
             pathIndex: index,
           }),
       };
+      return r;
     });
     console.log('txAddIndexedAccount txAddRecords', records);
     await this.txAddRecords({
@@ -1547,16 +1664,19 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
       defaultIsTemp,
     } = params;
     console.log('createHwWallet', features);
-    // TODO check features if exists
-    const { getDeviceType, getDeviceUUID } = await CoreSDKLoader();
     const { connectId } = device;
     if (!connectId) {
       throw new Error('createHwWallet ERROR: connectId is required');
     }
     const context = await this.getContext();
     // const serialNo = features.onekey_serial ?? features.serial_no ?? '';
-    const deviceType =
-      device.deviceType || deviceUtils.getDeviceTypeFromFeatures({ features });
+
+    // ble connected device type is inaccuracy
+    const deviceTypeFromFeatures = await deviceUtils.getDeviceTypeFromFeatures({
+      features,
+    });
+    const deviceType = deviceTypeFromFeatures || device.deviceType;
+
     const avatar: IAvatarInfo = {
       img: deviceType,
     };
@@ -1836,6 +1956,10 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
     });
 
     delete this.tempWallets[walletId];
+
+    appEventBus.emit(EAppEventBusNames.WalletRemove, {
+      walletId,
+    });
   }
 
   isTempWalletRemoved({ wallet }: { wallet: IDBWallet }): boolean {
@@ -2046,7 +2170,12 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
       ).filter(Boolean);
 
       if (!isEmpty(info)) {
-        const result = [];
+        const result: {
+          walletName: string;
+          accountName: string;
+          accountId: string;
+          order: number;
+        }[] = [];
         const wallets = map(info, 'wallets');
         const items = Object.entries(merge({}, wallets[0], wallets[1]));
         for (const item of items) {
@@ -2060,17 +2189,21 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
               account = await this.getAccount({ accountId });
             }
             if (wallet && account) {
+              const order = getOrderByWalletType(wallet.type);
               result.push({
                 walletName: wallet.name,
                 accountName: account.name,
                 accountId: account.id,
+                order,
               });
             }
           } catch (error) {
             errorUtils.autoPrintErrorIgnore(error);
           }
         }
-        return result;
+        const resultSorted = [...result].sort((a, b) => a.order - b.order);
+        console.log('getAccountNameFromAddress', { resultSorted, result });
+        return resultSorted;
       }
       return [];
     } catch (error) {
@@ -2197,6 +2330,38 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
     });
 
     await db.withTransaction(async (tx) => {
+      const firstAccount: IDBAccount | undefined = accounts?.[0];
+      if (
+        firstAccount &&
+        firstAccount?.pathIndex === 0 &&
+        firstAccount?.address &&
+        firstAccount?.coinType === COINTYPE_ETH &&
+        firstAccount?.indexedAccountId
+      ) {
+        const firstEvmAddress = firstAccount.address.toLowerCase();
+        await this.txUpdateWallet({
+          tx,
+          walletId,
+          updater: (w) => {
+            w.firstEvmAddress = firstEvmAddress;
+            return w;
+          },
+        });
+        await this.txUpdateRecords({
+          tx,
+          name: ELocalDBStoreNames.IndexedAccount,
+          ids: [firstAccount.indexedAccountId],
+          updater: (item) => {
+            item.idHash = this.buildIndexedAccountIdHash({
+              firstEvmAddress,
+              indexedAccountId: item.id,
+              index: firstAccount.pathIndex,
+            });
+            return item;
+          },
+        });
+      }
+
       const ids = accounts.map((item) => item.id);
       let { records: existsAccounts = [] } = await db.txGetAllRecords({
         tx,
@@ -2331,6 +2496,37 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
         }
       }
     }
+
+    appEventBus.emit(EAppEventBusNames.AddDBAccountsToWallet, {
+      walletId,
+      accounts,
+    });
+  }
+
+  async saveTonImportedAccountMnemonic({
+    accountId,
+    rs,
+  }: {
+    accountId: string;
+    rs: IBip39RevealableSeedEncryptHex;
+  }) {
+    if (!accountUtils.isImportedAccount({ accountId })) {
+      throw new Error('saveTonMnemonic ERROR: Not a imported account');
+    }
+    const db = await this.readyDb;
+    await db.withTransaction(async (tx) => {
+      await this.txAddRecords({
+        tx,
+        name: ELocalDBStoreNames.Credential,
+        records: [
+          {
+            id: accountUtils.buildTonMnemonicCredentialId({ accountId }),
+            credential: rs,
+          },
+        ],
+        skipIfExists: true,
+      });
+    });
   }
 
   // ---------------------------------------------- account
@@ -2358,7 +2554,11 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
             item && !accountUtils.isUrlAccountFn({ accountId: item.id }),
         )
         .map((account, walletAccountsIndex) =>
-          this.refillAccountInfo({ account, walletAccountsIndex }),
+          this.refillAccountInfo({
+            account,
+            walletAccountsIndex,
+            indexedAccount: undefined,
+          }),
         )
         .sort((a, b) =>
           natsort({ insensitive: true })(
@@ -2378,28 +2578,49 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
     const { records: accounts } = await db.getAllRecords({
       name: ELocalDBStoreNames.Account,
     });
+    const indexedAccount = await this.getIndexedAccount({
+      id: indexedAccountId,
+    });
     return accounts
       .filter(
         (account) =>
           account.indexedAccountId === indexedAccountId && indexedAccountId,
       )
-      .map((account) => this.refillAccountInfo({ account }));
+      .map((account) => this.refillAccountInfo({ account, indexedAccount }));
   }
 
   async getAccount({ accountId }: { accountId: string }): Promise<IDBAccount> {
+    const perf = perfUtils.createPerf(
+      EPerformanceTimerLogNames.localDB__getAccount,
+      { accountId },
+    );
+
+    perf.markStart('readyDb');
     const db = await this.readyDb;
+    perf.markEnd('readyDb');
+
+    perf.markStart('getRecordById');
     const account = await db.getRecordById({
       name: ELocalDBStoreNames.Account,
       id: accountId,
     });
+    perf.markEnd('getRecordById');
+
+    perf.markStart('getIndexedAccountByAccount');
     const indexedAccount = await this.getIndexedAccountByAccount({
       account,
     });
-    // fix account name by indexedAccount name
-    if (indexedAccount) {
-      account.name = indexedAccount.name;
-    }
-    return this.refillAccountInfo({ account });
+    perf.markEnd('getIndexedAccountByAccount');
+
+    perf.markStart('refillAccountInfo');
+    const result: IDBAccount = this.refillAccountInfo({
+      account,
+      indexedAccount,
+    });
+    perf.markEnd('refillAccountInfo');
+
+    perf.done();
+    return result;
   }
 
   async getAccountSafe({
@@ -2416,10 +2637,13 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
 
   refillAccountInfo({
     account,
+    indexedAccount,
     walletAccountsIndex,
   }: {
     account: IDBAccount;
-    walletAccountsIndex?: number;
+    // TODO update name here
+    indexedAccount: IDBIndexedAccount | undefined;
+    walletAccountsIndex?: number; // wallet.accounts array index
   }) {
     account.accountOrder = account?.accountOrderSaved;
     if (!isNil(walletAccountsIndex)) {
@@ -2431,6 +2655,10 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
       externalAccount.connectionInfo = JSON.parse(
         externalAccount.connectionInfoRaw,
       );
+    }
+    // fix account name by indexedAccount name
+    if (indexedAccount) {
+      account.name = indexedAccount.name;
     }
     return account;
   }
@@ -2458,9 +2686,10 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
     });
   }
 
-  async getAllAccounts() {
+  async getAllAccounts({ ids }: { ids?: string[] } = {}) {
     const { records: accounts } = await this.getAllRecords({
       name: ELocalDBStoreNames.Account,
+      ids,
     });
     return { accounts };
   }
@@ -2599,6 +2828,28 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
     }
   }
 
+  async emitRenameDBAccountsEvent(params: IDBSetAccountNameParams) {
+    await InteractionManager.runAfterInteractions(async () => {
+      let accounts: IDBAccount[] = [];
+
+      if (params.indexedAccountId) {
+        // TODO low performance
+        accounts = await this.getAccountsInSameIndexedAccountId({
+          indexedAccountId: params.indexedAccountId,
+        });
+      }
+      if (params.accountId) {
+        const account = await this.getAccountSafe({
+          accountId: params.accountId,
+        });
+        accounts = [...accounts, account].filter(Boolean);
+      }
+      appEventBus.emit(EAppEventBusNames.RenameDBAccounts, {
+        accounts,
+      });
+    });
+  }
+
   async setAccountName(params: IDBSetAccountNameParams): Promise<void> {
     const db = await this.readyDb;
 
@@ -2649,6 +2900,8 @@ export abstract class LocalDbBase extends LocalDbBaseContainer {
         });
       }
     });
+
+    void this.emitRenameDBAccountsEvent(params);
   }
 
   // ---------------------------------------------- device

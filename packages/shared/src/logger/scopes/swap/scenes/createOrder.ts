@@ -8,14 +8,13 @@ export class CreateOrderScene extends BaseScene {
     swapType,
     sourceChain,
     receivedChain,
-    fromAddress,
-    toAddress,
     sourceTokenSymbol,
     receivedTokenSymbol,
-    swapAmount,
-    swapValue,
     feeType,
     isFirstTime,
+    swapProvider,
+    swapProviderName,
+    createFrom,
     router,
     slippage,
   }: {
@@ -23,30 +22,28 @@ export class CreateOrderScene extends BaseScene {
     slippage: string;
     router?: string;
     sourceChain: string;
+    swapProvider: string;
+    swapProviderName: string;
     receivedChain: string;
-    fromAddress: string;
-    toAddress: string;
     sourceTokenSymbol: string;
     receivedTokenSymbol: string;
-    swapAmount: string;
-    swapValue: string;
     feeType: string;
     isFirstTime: boolean;
+    createFrom: string;
   }) {
     return {
       isFirstTime,
       swapType,
       sourceChain,
       receivedChain,
-      fromAddress,
-      toAddress,
       sourceTokenSymbol,
       receivedTokenSymbol,
-      swapAmount,
-      swapValue,
+      swapProvider,
+      swapProviderName,
       feeType,
       router,
       slippage,
+      createFrom,
     };
   }
 }

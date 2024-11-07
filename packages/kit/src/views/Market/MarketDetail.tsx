@@ -20,9 +20,11 @@ import type { IPageScreenProps } from '@onekeyhq/components';
 import { EJotaiContextStoreNames } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { EOneKeyDeepLinkPath } from '@onekeyhq/shared/src/consts/deeplinkConsts';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { EWatchlistFrom } from '@onekeyhq/shared/src/logger/scopes/market/scenes/token';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { ETabMarketRoutes } from '@onekeyhq/shared/src/routes';
 import type { ITabMarketParamList } from '@onekeyhq/shared/src/routes';
+import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import uriUtils from '@onekeyhq/shared/src/utils/uriUtils';
 import type { IMarketTokenDetail } from '@onekeyhq/shared/types/market';
 
@@ -30,6 +32,7 @@ import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
 import { OpenInAppButton } from '../../components/OpenInAppButton';
 import useAppNavigation from '../../hooks/useAppNavigation';
 import { useDeferredPromise } from '../../hooks/useDeferredPromise';
+import { usePromiseResult } from '../../hooks/usePromiseResult';
 
 import { MarketDetailOverview } from './components/MarketDetailOverview';
 import { MarketHomeHeaderSearchBar } from './components/MarketHomeHeaderSearchBar';
@@ -51,7 +54,15 @@ function TokenDetailHeader({
   token: IMarketTokenDetail;
 }) {
   const intl = useIntl();
-  const [token, setToken] = useState(responseToken);
+  const { gtMd } = useMedia();
+  const { result: token } = usePromiseResult(
+    () => backgroundApiProxy.serviceMarket.fetchMarketTokenDetail(coinGeckoId),
+    [coinGeckoId],
+    {
+      pollingInterval: timerUtils.getTimeDurationMs({ seconds: 45 }),
+      initResult: responseToken,
+    },
+  );
   const {
     name,
     symbol,
@@ -65,19 +76,6 @@ function TokenDetailHeader({
       lastUpdated,
     },
   } = token;
-  const { gtMd } = useMedia();
-  useEffect(() => {
-    const timerId = setInterval(async () => {
-      const response =
-        await backgroundApiProxy.serviceMarket.fetchMarketTokenDetail(
-          coinGeckoId,
-        );
-      setToken(response);
-    }, 45 * 1000);
-    return () => {
-      clearInterval(timerId);
-    };
-  }, [coinGeckoId]);
   return (
     <YStack px="$5" $md={{ minHeight: 150 }}>
       <YStack flex={1}>
@@ -92,9 +90,14 @@ function TokenDetailHeader({
             tokenSymbol={symbol}
             lastUpdated={lastUpdated}
           />
-          <MarketStar coingeckoId={coinGeckoId} mr="$-2" size="medium" />
+          <MarketStar
+            coingeckoId={coinGeckoId}
+            mr="$-2"
+            size="medium"
+            from={EWatchlistFrom.details}
+          />
         </XStack>
-        <PriceChangePercentage pt="$0.5">
+        <PriceChangePercentage pt="$0.5" width="100%">
           {performance.priceChangePercentage24h}
         </PriceChangePercentage>
       </YStack>
@@ -306,8 +309,14 @@ function MarketDetail({
   const defer = useDeferredPromise();
 
   const tokenPriceChart = useMemo(
-    () => <TokenPriceChart coinGeckoId={coinGeckoId} defer={defer} />,
-    [coinGeckoId, defer],
+    () => (
+      <TokenPriceChart
+        coinGeckoId={coinGeckoId}
+        defer={defer}
+        symbol={tokenDetail?.symbol}
+      />
+    ),
+    [coinGeckoId, defer, tokenDetail?.symbol],
   );
 
   return (

@@ -4,7 +4,7 @@ import { CommonActions } from '@react-navigation/native';
 import { MotiView } from 'moti';
 import { useIntl } from 'react-intl';
 import { StyleSheet } from 'react-native';
-import { getTokens, useTheme } from 'tamagui';
+import { getTokens, useMedia, useTheme } from 'tamagui';
 
 import { type IActionListSection } from '@onekeyhq/components/src/actions';
 import {
@@ -27,6 +27,7 @@ import {
 import { DOWNLOAD_URL } from '@onekeyhq/shared/src/config/appConfig';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import type { EShortcutEvents } from '@onekeyhq/shared/src/shortcuts/shortcuts.enum';
 import { openUrlExternal } from '@onekeyhq/shared/src/utils/openUrlUtils';
 
 import { DesktopDragZoneAbsoluteBar } from '../../../DesktopDragZoneBox';
@@ -51,6 +52,7 @@ function TabItemView({
   onPress: () => void;
   options: BottomTabNavigationOptions & {
     actionList?: IActionListSection[];
+    shortcutKey?: EShortcutEvents;
   };
   isCollapse?: boolean;
 }) {
@@ -68,6 +70,7 @@ function TabItemView({
         onPress={onPress}
         aria-current={isActive ? 'page' : undefined}
         selected={isActive}
+        shortcutKey={options.shortcutKey}
         tabBarStyle={options.tabBarStyle}
         // @ts-expect-error
         icon={options?.tabBarIcon?.(isActive) as IKeyOfIcons}
@@ -147,6 +150,9 @@ export function DesktopLeftSideBar({
 
   const sidebarWidth = getSizeTokens.sideBarWidth.val;
 
+  const { gtMd } = useMedia();
+  const isShowWebTabBar =
+    platformEnv.isDesktop || (platformEnv.isNative && gtMd);
   const tabs = useMemo(
     () =>
       routes.map((route, index) => {
@@ -170,7 +176,7 @@ export function DesktopLeftSideBar({
           }
         };
 
-        if (platformEnv.isDesktop && route.name === extraConfig?.name) {
+        if (isShowWebTabBar && route.name === extraConfig?.name) {
           return (
             <YStack flex={1} key={route.key}>
               <Portal.Container name={Portal.Constant.WEB_TAB_BAR} />
@@ -194,6 +200,7 @@ export function DesktopLeftSideBar({
       state.index,
       state.key,
       descriptors,
+      isShowWebTabBar,
       extraConfig?.name,
       isCollapse,
       navigation,

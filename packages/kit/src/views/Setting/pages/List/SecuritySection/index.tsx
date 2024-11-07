@@ -1,7 +1,5 @@
-import type { ComponentProps } from 'react';
 import { Suspense, useCallback, useMemo } from 'react';
 
-import { AuthenticationType } from 'expo-local-authentication';
 import { useIntl } from 'react-intl';
 
 import { Dialog } from '@onekeyhq/components';
@@ -10,7 +8,9 @@ import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/background
 import { UniversalContainerWithSuspense } from '@onekeyhq/kit/src/components/BiologyAuthComponent/container/UniversalContainer';
 import { ListItem } from '@onekeyhq/kit/src/components/ListItem';
 import PasswordUpdateContainer from '@onekeyhq/kit/src/components/Password/container/PasswordUpdateContainer';
+import { Section } from '@onekeyhq/kit/src/components/Section';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
+import { useBiometricAuthInfo } from '@onekeyhq/kit/src/hooks/useBiometricAuthInfo';
 import {
   usePasswordBiologyAuthInfoAtom,
   usePasswordPersistAtom,
@@ -27,7 +27,6 @@ import {
 import { EReasonForNeedPassword } from '@onekeyhq/shared/types/setting';
 
 import { useOptions } from '../../AppAutoLock/useOptions';
-import { Section } from '../Section';
 
 import { CleanDataItem } from './CleanDataItem';
 
@@ -62,6 +61,7 @@ const SetPasswordItem = () => {
   const intl = useIntl();
   return (
     <ListItem
+      testID="setting-set-password"
       onPress={() => {
         void backgroundApiProxy.servicePassword.promptPasswordVerify();
       }}
@@ -110,29 +110,11 @@ const PasswordItem = () => {
 };
 
 const FaceIdItem = () => {
-  const intl = useIntl();
   const [{ isPasswordSet }] = usePasswordPersistAtom();
   const [{ isSupport: biologyAuthIsSupport, authType }] =
     usePasswordBiologyAuthInfoAtom();
   const [{ isSupport: webAuthIsSupport }] = usePasswordWebAuthInfoAtom();
-
-  let title = intl.formatMessage({ id: ETranslations.global_touch_id });
-  let icon: ComponentProps<typeof ListItem>['icon'] = 'TouchIdSolid';
-
-  if (biologyAuthIsSupport) {
-    if (
-      authType.includes(AuthenticationType.FACIAL_RECOGNITION) ||
-      authType.includes(AuthenticationType.IRIS)
-    ) {
-      title = intl.formatMessage({
-        id:
-          authType.length > 1
-            ? ETranslations.global_biometric
-            : ETranslations.global_face_id,
-      });
-      icon = 'FaceIdSolid';
-    }
-  }
+  const { title, icon } = useBiometricAuthInfo();
 
   return isPasswordSet && (biologyAuthIsSupport || webAuthIsSupport) ? (
     <ListItem icon={icon} title={title}>

@@ -12,6 +12,7 @@ import {
   backgroundMethod,
   toastIfError,
 } from '@onekeyhq/shared/src/background/backgroundDecorators';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import bufferUtils from '@onekeyhq/shared/src/utils/bufferUtils';
 import { generateUUID } from '@onekeyhq/shared/src/utils/miscUtils';
@@ -109,11 +110,10 @@ class ServiceAddressBook extends ServiceBase {
 
   @backgroundMethod()
   @toastIfError()
-  async getSafeItems({
-    networkId,
-  }: {
+  async getSafeItems(params?: {
     networkId?: string;
   }): Promise<{ isSafe: boolean; items: IAddressNetworkItem[] }> {
+    const { networkId } = params ?? {};
     // throw new Error('address book failed to verify hash');
     const isSafe: boolean = await this.verifyHash(true);
     if (!isSafe) {
@@ -199,6 +199,7 @@ class ServiceAddressBook extends ServiceBase {
     items.push(newObj);
     const { password } = await servicePassword.promptPasswordVerify();
     await this.setItems(items, password);
+    defaultLogger.setting.page.addAddressBook({ network: newObj.networkId });
   }
 
   @backgroundMethod()
@@ -231,6 +232,12 @@ class ServiceAddressBook extends ServiceBase {
     const items = await this.getItems();
     const data = items.filter((i) => i.id !== id);
     await this.setItems(data, password);
+    const remove = items.filter((i) => i.id === id);
+    if (remove.length > 0) {
+      remove.forEach((o) => {
+        defaultLogger.setting.page.removeAddressBook({ network: o.networkId });
+      });
+    }
   }
 
   @backgroundMethod()

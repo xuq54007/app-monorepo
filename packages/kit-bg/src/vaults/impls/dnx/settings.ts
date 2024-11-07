@@ -58,6 +58,8 @@ const settings: IVaultSettings = {
 
   hideTxUtxoListWhenPending: true,
 
+  customRpcEnabled: true,
+
   accountDeriveInfo,
   networkInfo: {
     default: {
@@ -65,6 +67,7 @@ const settings: IVaultSettings = {
       addressPrefix: '',
     },
   },
+  isNativeTokenContractAddressEmpty: true,
 };
 
 export default Object.freeze(settings);

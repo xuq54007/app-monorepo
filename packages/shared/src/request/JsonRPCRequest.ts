@@ -5,13 +5,19 @@ import type { IJsonRpcResponsePro } from '@onekeyhq/shared/types/request';
 
 import {
   AxiosResponseError,
-  JsonPRCResponseError,
+  JsonRPCResponseError,
   ResponseError,
 } from '../errors';
 
 import type { IJsonRpcRequest } from '@onekeyfe/cross-inpage-provider-types';
 
-type IJsonRpcParams = undefined | { [p: string]: any } | Array<any>;
+export type IBatchResponse<T> = T extends any[] ? T : T[];
+// export type IBatchResponse<T> = T extends any[]
+//   ? { [K in keyof T]: IJsonRpcResponsePro<T[K]> }
+//   : IJsonRpcResponsePro<T>[];
+
+export type IJsonRpcParams = undefined | { [p: string]: any } | Array<any>;
+export type IJsonRpcBatchParams = Array<[string, IJsonRpcParams]>;
 
 function normalizePayload(
   method: string,
@@ -54,12 +60,12 @@ class JsonRPCRequest {
         response,
       );
     } else if (response.error) {
-      let message = 'Error JSON PRC response';
+      let message = 'Error JSON RPC response';
       const error = response.error as { message?: string };
       if (error?.message && typeof error?.message === 'string') {
-        message = `Error JSON PRC response: ${error?.message}`;
+        message = `Error JSON RPC response: ${error?.message}`;
       }
-      throw new JsonPRCResponseError(message, response);
+      throw new JsonRPCResponseError(message, response);
     } else if (!('result' in response)) {
       throw new ResponseError(
         'Invalid JSON RPC response, result not found',
@@ -167,7 +173,7 @@ class JsonRPCRequest {
         .map((resp) =>
           // @ts-ignore
           JsonRPCRequest.parseRPCResponse(resp).catch((e) => {
-            if (e instanceof JsonPRCResponseError && ignoreSoloError) {
+            if (e instanceof JsonRPCResponseError && ignoreSoloError) {
               return undefined;
             }
             throw e;
@@ -180,6 +186,43 @@ class JsonRPCRequest {
     headers: Record<string, string> = {},
   ): Record<string, string> {
     return { ...this.headers, ...headers };
+  }
+
+  async batchChunkCall<T>(
+    payloads: Array<Array<[string, IJsonRpcParams]>>,
+    headers?: { [p: string]: string },
+    timeout?: number,
+    ignoreSoloError = true,
+  ): Promise<IBatchResponse<T>[]> {
+    const flattenedCalls = payloads.flat();
+    const flattenedResults = await this.batchCall<T[]>(
+      flattenedCalls,
+      headers,
+      timeout,
+      ignoreSoloError,
+      false,
+    );
+
+    if (!Array.isArray(flattenedResults)) {
+      throw new Error(
+        'Invalid JSON Batch RPC response, response should be an array',
+      );
+    }
+
+    const results: IBatchResponse<T>[] = [];
+    let startIndex = 0;
+    for (const chunk of payloads) {
+      const chunkSize = chunk.length;
+      results.push(
+        flattenedResults.slice(
+          startIndex,
+          startIndex + chunkSize,
+        ) as unknown as IBatchResponse<T>,
+      );
+      startIndex += chunkSize;
+    }
+
+    return results;
   }
 }
 

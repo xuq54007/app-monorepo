@@ -16,6 +16,7 @@ import Animated, {
 
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 
 import { useKeyboardEvent, useSafeAreaInsets } from '../../hooks';
 import { Button, XStack } from '../../primitives';
@@ -24,7 +25,6 @@ import { DialogContext } from './context';
 import { useDialogInstance } from './hooks';
 
 import type { IDialogFooterProps } from './type';
-import type { IButtonProps } from '../../primitives';
 
 const useConfirmButtonDisabled = (
   props: IDialogFooterProps['confirmButtonProps'],
@@ -70,7 +70,7 @@ const useDialogFooterProps = (props: IDialogFooterProps) => {
     }
 
     const result = onConfirm
-      ? await new Promise<boolean>((resolve) => {
+      ? await new Promise<boolean>((resolve, reject) => {
           void Promise.resolve(
             onConfirm?.({
               close: (extra) => {
@@ -82,9 +82,13 @@ const useDialogFooterProps = (props: IDialogFooterProps) => {
               },
               getForm: () => dialogInstance.ref.current,
             }),
-          ).then(() => {
-            resolve(true);
-          });
+          )
+            .catch((error) => {
+              reject(error);
+            })
+            .then(() => {
+              resolve(true);
+            });
         })
       : true;
     if (result) {
@@ -98,6 +102,7 @@ const useDialogFooterProps = (props: IDialogFooterProps) => {
   };
 };
 
+const DEFAULT_KEYBOARD_HEIGHT = 330;
 const useSafeKeyboardAnimationStyle = () => {
   const { bottom } = useSafeAreaInsets();
   const keyboardHeightValue = useSharedValue(0);
@@ -107,7 +112,8 @@ const useSafeKeyboardAnimationStyle = () => {
 
   useKeyboardEvent({
     keyboardWillShow: (e) => {
-      const keyboardHeight = e.endCoordinates.height;
+      const height = e.endCoordinates.height;
+      const keyboardHeight = height < 0 ? DEFAULT_KEYBOARD_HEIGHT : height;
       keyboardHeightValue.value = keyboardHeight - bottom;
     },
     keyboardWillHide: () => {
@@ -126,7 +132,17 @@ const DialogFooterContainer = ({ children }: PropsWithChildren) => {
 
 export function Footer(props: IDialogFooterProps) {
   const intl = useIntl();
+  const [confirmLoading, setConfirmLoading] = useState(false);
   const { props: restProps, onConfirm } = useDialogFooterProps(props);
+  const onConfirmWithLoading = useCallback(async () => {
+    try {
+      setConfirmLoading(true);
+      await onConfirm();
+    } finally {
+      await timerUtils.wait(300); // wait for animation done
+      setConfirmLoading(false);
+    }
+  }, [onConfirm]);
   const {
     showFooter,
     showCancelButton,
@@ -170,6 +186,7 @@ export function Footer(props: IDialogFooterProps) {
               variant={tone === 'destructive' ? 'destructive' : 'primary'}
               flexGrow={1}
               flexBasis={0}
+              loading={confirmLoading}
               disabled={confirmButtonDisabled}
               $md={
                 {
@@ -177,7 +194,7 @@ export function Footer(props: IDialogFooterProps) {
                 } as any
               }
               {...restConfirmButtonProps}
-              onPress={onConfirm}
+              onPress={onConfirmWithLoading}
             >
               {onConfirmText ||
                 intl.formatMessage({ id: ETranslations.global_confirm })}

@@ -1,5 +1,6 @@
-import { useCallback, useContext, useMemo } from 'react';
+import { useCallback, useContext, useEffect, useMemo } from 'react';
 
+import { noop } from 'lodash';
 import { useIntl } from 'react-intl';
 
 import type { ISelectItem } from '@onekeyhq/components';
@@ -7,6 +8,7 @@ import { Select, XStack } from '@onekeyhq/components';
 import type { IPageNavigationProp } from '@onekeyhq/components/src/layouts/Navigation';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { ListItem } from '@onekeyhq/kit/src/components/ListItem';
+import { Section } from '@onekeyhq/kit/src/components/Section';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import { TabFreezeOnBlurContext } from '@onekeyhq/kit/src/provider/Container/TabFreezeOnBlurContainer';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
@@ -16,7 +18,6 @@ import type { IModalSettingParamList } from '@onekeyhq/shared/src/routes';
 import { EModalSettingRoutes } from '@onekeyhq/shared/src/routes';
 
 import { useLocaleOptions } from '../../../hooks';
-import { Section } from '../Section';
 
 type IThemeValue = 'light' | 'dark' | 'system';
 
@@ -84,16 +85,17 @@ const ThemeListItem = () => {
 const LanguageListItem = () => {
   const locales = useLocaleOptions();
   const intl = useIntl();
-  const [{ locale }] = useSettingsPersistAtom();
+  const [{ locale, currencyInfo }] = useSettingsPersistAtom();
   const onChange = useCallback(async (text: string) => {
     await backgroundApiProxy.serviceSetting.setLocale(text as ILocaleSymbol);
     setTimeout(() => {
       if (platformEnv.isDesktop) {
-        window.desktopApi.changeLanguage(text);
+        globalThis.desktopApi.changeLanguage(text);
       }
       backgroundApiProxy.serviceApp.restartApp();
     }, 0);
   }, []);
+
   return (
     <Select
       offset={{ mainAxis: -4, crossAxis: -10 }}
@@ -107,7 +109,7 @@ const LanguageListItem = () => {
       renderTrigger={({ label }) => (
         <ListItem
           userSelect="none"
-          icon="GlobusOutline"
+          icon="TranslateOutline"
           title={intl.formatMessage({ id: ETranslations.global_language })}
         >
           <XStack>
@@ -144,6 +146,28 @@ const CurrencyListItem = () => {
   );
 };
 
+const NotificationsListItem = () => {
+  const navigation =
+    useAppNavigation<IPageNavigationProp<IModalSettingParamList>>();
+  const intl = useIntl();
+  const handleOnPress = useCallback(() => {
+    navigation.push(EModalSettingRoutes.SettingNotifications);
+  }, [navigation]);
+
+  if (platformEnv.isWeb) {
+    return null;
+  }
+
+  return (
+    <ListItem
+      icon="BellOutline"
+      title={intl.formatMessage({ id: ETranslations.global_notifications })}
+      drillIn
+      onPress={handleOnPress}
+    />
+  );
+};
+
 export const PreferenceSection = () => {
   const intl = useIntl();
   return (
@@ -153,6 +177,7 @@ export const PreferenceSection = () => {
       <CurrencyListItem />
       <LanguageListItem />
       <ThemeListItem />
+      <NotificationsListItem />
     </Section>
   );
 };

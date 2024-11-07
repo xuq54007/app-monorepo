@@ -95,7 +95,7 @@ function TokenDetails() {
             label: intl.formatMessage({
               id: ETranslations.global_copy_token_contract,
             }),
-            icon: 'Copy1Outline',
+            icon: 'Copy3Outline',
             onPress: () => copyText(tokenInfo.address),
           },
         ],
@@ -106,7 +106,7 @@ function TokenDetails() {
           label: intl.formatMessage({
             id: ETranslations.global_view_in_blockchain_explorer,
           }),
-          icon: 'ShareOutline',
+          icon: 'OpenOutline',
           onPress: () =>
             openTokenDetailsUrl({
               networkId: network.id,
@@ -229,6 +229,7 @@ function TokenDetails() {
         deriveType={deriveType}
         tokenInfo={tokenInfo}
         isAllNetworks={isAllNetworks}
+        indexedAccountId={account?.indexedAccountId}
         listViewContentContainerStyle={{ pt: '$5' }}
       />
     );
@@ -243,10 +244,11 @@ function TokenDetails() {
     tokenInfo,
     vaultSettings?.mergeDeriveAssetsEnabled,
     walletId,
+    account,
   ]);
 
   return (
-    <Page safeAreaEnabled={false}>
+    <Page scrollEnabled safeAreaEnabled={false}>
       <Page.Header
         headerTitle={tokenInfo.name}
         headerTitleStyle={headerTitleStyle}

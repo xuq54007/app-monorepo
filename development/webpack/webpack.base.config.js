@@ -29,7 +29,9 @@ class BuildDoneNotifyPlugin {
         }, 300);
         try {
           notifier.notify(msg);
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
     });
   }
@@ -74,10 +76,14 @@ module.exports = ({ platform, basePath, configName }) => ({
   output: {
     publicPath: PUBLIC_URL || '/',
     path: path.join(basePath, 'web-build'),
-    assetModuleFilename: 'static/media/[name].[hash][ext]',
+    assetModuleFilename: isDev
+      ? 'static/media/[name].[ext]'
+      : 'static/media/[name].[hash][ext]',
     uniqueName: 'web',
-    filename: '[name].[chunkhash:10].bundle.js',
-    chunkFilename: 'static/js/[name].[chunkhash:10].chunk.js',
+    filename: isDev ? '[name].bundle.js' : '[name].[chunkhash:10].bundle.js',
+    chunkFilename: isDev
+      ? 'static/js/[name].chunk.js'
+      : 'static/js/[name].[chunkhash:10].chunk.js',
   },
   plugins: [
     new HtmlWebpackPlugin({
@@ -212,7 +218,7 @@ module.exports = ({ platform, basePath, configName }) => ({
                   ),
                   components: ['tamagui'],
                   importsWhitelist: [],
-                  logTimings: true,
+                  logTimings: false,
                   disableExtraction: isDev,
                 },
               },
@@ -349,7 +355,7 @@ module.exports = ({ platform, basePath, configName }) => ({
   experiments: {
     asyncWebAssembly: true,
   },
-  performance: { maxAssetSize: 600000, maxEntrypointSize: 600000 },
+  performance: { maxAssetSize: 600_000, maxEntrypointSize: 600_000 },
 });
 
 module.exports.basePlugins = basePlugins;

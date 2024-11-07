@@ -30,8 +30,9 @@ import { ESendPreCheckTimingEnum } from '@onekeyhq/shared/types/send';
 
 import SendConfirmActionsContainer from './SendConfirmActionsContainer';
 import TxActionsContainer from './TxActionsContainer';
-import { TxExtraInfoContainer } from './TxExtraInfoContainer';
+import { TxAdvancedSettingsContainer } from './TxAdvancedSettingsContainer';
 import { TxSourceInfoContainer } from './TxSourceInfoContainer';
+import { TxSpecialInfoContainer } from './TxSpecialInfoContainer';
 
 import type { RouteProp } from '@react-navigation/core';
 
@@ -62,6 +63,7 @@ function SendConfirmContainer() {
     transferPayload,
     feeInfoEditable,
   } = route.params;
+
   const dappApprove = useDappApproveAction({
     id: sourceInfo?.id ?? '',
     closeWindowAfterResolved: true,
@@ -193,9 +195,15 @@ function SendConfirmContainer() {
             networkId={networkId}
             transferPayload={transferPayload}
           />
-          {/* <TxSwapInfoContainer /> */}
-          {/* <TxSimulationContainer /> */}
-          <TxExtraInfoContainer />
+          <TxSpecialInfoContainer
+            accountId={accountId}
+            networkId={networkId}
+            unsignedTxs={unsignedTxs}
+          />
+          <TxAdvancedSettingsContainer
+            accountId={accountId}
+            networkId={networkId}
+          />
         </Page.Body>
         <SendConfirmActionsContainer
           sourceInfo={sourceInfo}
@@ -222,6 +230,7 @@ function SendConfirmContainer() {
       accountId,
       networkId,
       transferPayload,
+      unsignedTxs,
       signOnly,
       onSuccess,
       onFail,

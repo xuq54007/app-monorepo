@@ -21,6 +21,9 @@ import {
   ControlledNetworkSelectorTrigger,
 } from '@onekeyhq/kit/src/components/AccountSelector';
 import { AccountSelectorCreateAddressButton } from '@onekeyhq/kit/src/components/AccountSelector/AccountSelectorCreateAddressButton';
+import useDappApproveAction from '@onekeyhq/kit/src/hooks/useDappApproveAction';
+import useDappQuery from '@onekeyhq/kit/src/hooks/useDappQuery';
+import { OneKeyError } from '@onekeyhq/shared/src/errors';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type {
   EModalAssetListRoutes,
@@ -28,9 +31,12 @@ import type {
 } from '@onekeyhq/shared/src/routes';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
+import type { IAddCustomTokenRouteParams } from '@onekeyhq/shared/types/token';
 
 import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
 import { NetworkAvatar } from '../../../components/NetworkAvatar/NetworkAvatar';
+import { usePromiseResult } from '../../../hooks/usePromiseResult';
+import { useDappCloseHandler } from '../../DAppConnection/pages/DappOpenModalPage';
 import {
   useAddToken,
   useAddTokenForm,
@@ -68,15 +74,40 @@ function AddCustomTokenModal() {
       >
     >();
   const {
-    walletId,
-    networkId,
-    indexedAccountId,
-    accountId,
-    isOthersWallet,
-    deriveType,
-    token,
-    onSuccess,
+    walletId: routeWalletId,
+    networkId: routeNetworkId,
+    indexedAccountId: routeIndexedAccountId,
+    accountId: routeAccountId,
+    isOthersWallet: routeIsOthersWallet,
+    deriveType: routeDeriveType,
+    token: routeToken,
+    onSuccess: routeOnSuccess,
   } = route.params;
+
+  const {
+    $sourceInfo,
+    walletId: dappWalletId,
+    networkId: dappNetworkId,
+    indexedAccountId: dappIndexedAccountId,
+    accountId: dappAccountId,
+    isOthersWallet: dappIsOthersWallet,
+    deriveType: dappDeriveType,
+    token: dappToken,
+    onSuccess: dappOnSuccess,
+  } = useDappQuery<IAddCustomTokenRouteParams>();
+  const dappApprove = useDappApproveAction({
+    id: $sourceInfo?.id ?? '',
+    closeWindowAfterResolved: true,
+  });
+
+  const walletId = dappWalletId ?? routeWalletId;
+  const networkId = dappNetworkId ?? routeNetworkId;
+  const indexedAccountId = dappIndexedAccountId ?? routeIndexedAccountId;
+  const accountId = dappAccountId ?? routeAccountId;
+  const isOthersWallet = dappIsOthersWallet ?? routeIsOthersWallet;
+  const deriveType = dappDeriveType ?? routeDeriveType;
+  const token = dappToken ?? routeToken;
+  const onSuccess = dappOnSuccess ?? routeOnSuccess;
 
   const isAllNetwork = networkUtils.isAllNetwork({ networkId });
 
@@ -114,6 +145,14 @@ function AddCustomTokenModal() {
     checkAccountIsExist,
   });
 
+  const { result: vaultSettings } = usePromiseResult(
+    () =>
+      backgroundApiProxy.serviceNetwork.getVaultSettings({
+        networkId: selectedNetworkIdValue,
+      }),
+    [selectedNetworkIdValue],
+  );
+
   const [isLoading, setIsLoading] = useState(false);
   const disabled = useMemo(() => {
     if (!hasExistAccount) {
@@ -139,6 +178,7 @@ function AddCustomTokenModal() {
         await checkAccountIsExist();
       if (!hasExistAccountFlag) {
         Toast.error({ title: 'Account not exist' });
+        dappApprove.reject();
         return;
       }
       const values = form.getValues();
@@ -150,6 +190,11 @@ function AddCustomTokenModal() {
             id: ETranslations.manger_token_custom_token_address_required,
           }),
         });
+        dappApprove.reject({
+          error: new OneKeyError({
+            key: ETranslations.manger_token_custom_token_address_required,
+          }),
+        });
         return;
       }
       if (!symbol || !new BigNumber(decimals).isInteger()) {
@@ -157,6 +202,11 @@ function AddCustomTokenModal() {
         Toast.error({
           title: intl.formatMessage({
             id: ETranslations.send_engine_incorrect_address,
+          }),
+        });
+        dappApprove.reject({
+          error: new OneKeyError({
+            key: ETranslations.send_engine_incorrect_address,
           }),
         });
         return;
@@ -191,6 +241,7 @@ function AddCustomTokenModal() {
         }),
       });
       setTimeout(() => {
+        void dappApprove.resolve();
         onSuccess?.();
         close?.();
       }, 300);
@@ -205,6 +256,7 @@ function AddCustomTokenModal() {
       isAllNetwork,
       accountId,
       searchedTokenRef,
+      dappApprove,
     ],
   );
 
@@ -243,7 +295,12 @@ function AddCustomTokenModal() {
           testID="network-selector-input"
         >
           <NetworkAvatar networkId={networkId} size="$6" />
-          <SizableText px={14} flex={1} size="$bodyLg">
+          <SizableText
+            testID="network-selector-input-text"
+            px={14}
+            flex={1}
+            size="$bodyLg"
+          >
             {availableNetworks?.network.name ?? ''}
           </SizableText>
         </Stack>
@@ -251,8 +308,10 @@ function AddCustomTokenModal() {
     );
   }, [availableNetworks, intl, isAllNetwork, networkId]);
 
+  const handleOnClose = useDappCloseHandler(dappApprove);
+
   return (
-    <Page>
+    <Page onClose={handleOnClose}>
       <Page.Header
         title={intl.formatMessage({
           id: ETranslations.manage_token_custom_token_title,
@@ -261,29 +320,31 @@ function AddCustomTokenModal() {
       <Page.Body px="$5">
         <Form form={form}>
           {renderNetworkSelectorFormItem()}
-          <Form.Field
-            label={intl.formatMessage({
-              id: ETranslations.manage_token_custom_token_contract_address,
-            })}
-            rules={{
-              validate: () => {
-                if (isEmptyContract) {
-                  return intl.formatMessage({
-                    id: ETranslations.Token_manage_custom_token_address_faild,
-                  });
-                }
-              },
-            }}
-            name="contractAddress"
-          >
-            <Input
-              size="large"
-              $gtMd={{
-                size: 'medium',
+          {vaultSettings?.isNativeTokenContractAddressEmpty ? null : (
+            <Form.Field
+              label={intl.formatMessage({
+                id: ETranslations.manage_token_custom_token_contract_address,
+              })}
+              rules={{
+                validate: () => {
+                  if (isEmptyContract) {
+                    return intl.formatMessage({
+                      id: ETranslations.Token_manage_custom_token_address_faild,
+                    });
+                  }
+                },
               }}
-              editable={!token?.isNative}
-            />
-          </Form.Field>
+              name="contractAddress"
+            >
+              <Input
+                size="large"
+                $gtMd={{
+                  size: 'medium',
+                }}
+                editable={!token?.isNative}
+              />
+            </Form.Field>
+          )}
           <Form.Field
             label={intl.formatMessage({
               id: ETranslations.manage_token_custom_token_symbol,
@@ -326,19 +387,22 @@ function AddCustomTokenModal() {
       >
         {hasExistAccount ? undefined : (
           <Stack
+            testID="add-custom-token-modal-footer"
             p="$5"
-            $gtMd={{
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
             bg="$bgApp"
+            $md={{ height: 130 }}
           >
-            <XStack
-              gap="$2.5"
+            <Stack
+              flex={1}
               $gtMd={{
-                ml: 'auto',
+                gap: '$2.5',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
-              justifyContent="space-between"
+              $md={{
+                gap: '$5',
+              }}
             >
               <XStack alignItems="center" gap="$2">
                 <SizableText size="$bodyMdMedium" color="$text">
@@ -368,7 +432,7 @@ function AddCustomTokenModal() {
                   });
                 }}
               />
-            </XStack>
+            </Stack>
           </Stack>
         )}
       </Page.Footer>

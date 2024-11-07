@@ -21,6 +21,7 @@ import type {
 import type { IDappSourceInfo } from '@onekeyhq/shared/types';
 import type { IDBCustomRpc } from '@onekeyhq/shared/types/customRpc';
 import type { IDeviceSharedCallParams } from '@onekeyhq/shared/types/device';
+import type { IStakingConfig } from '@onekeyhq/shared/types/earn';
 import type {
   IFeeInfoUnit,
   ISendSelectedFeeInfo,
@@ -51,7 +52,8 @@ import type {
 import type { IBackgroundApi } from '../apis/IBackgroundApi';
 import type { EDBAccountType } from '../dbs/local/consts';
 import type { IDBAccount, IDBWalletId } from '../dbs/local/types';
-import type { IDeviceType } from '@onekeyfe/hd-core';
+import type { AllNetworkAddressParams, IDeviceType } from '@onekeyfe/hd-core';
+import type { HDNodeType } from '@onekeyfe/hd-transport';
 import type { SignClientTypes } from '@walletconnect/types';
 import type { MessageDescriptor } from 'react-intl';
 
@@ -160,6 +162,7 @@ export type IVaultSettings = {
   estimatedFeePollingInterval: number;
 
   minTransferAmount?: string;
+  nativeMinTransferAmount?: string;
   utxoDustAmount?: string;
 
   accountType: EDBAccountType;
@@ -198,6 +201,9 @@ export type IVaultSettings = {
 
   hasFrozenBalance?: boolean;
 
+  hasResource?: boolean;
+  resourceKey?: MessageDescriptor['id'];
+
   withL1BaseFee?: boolean;
 
   hideBlockExplorer?: boolean;
@@ -218,6 +224,8 @@ export type IVaultSettings = {
     [networkId: string]: number;
   };
 
+  maxSendCanNotSentFullAmount?: boolean;
+
   preCheckDappTxFeeInfoRequired?: boolean;
 
   activateTokenRequired?: boolean;
@@ -225,7 +233,13 @@ export type IVaultSettings = {
   mergeDeriveAssetsEnabled?: boolean;
   sendZeroWithZeroTokenBalanceDisabled?: boolean;
 
+  stakingConfig?: IStakingConfig;
   editApproveAmountEnabled?: boolean;
+  useRemoteTxId?: boolean;
+  isNativeTokenContractAddressEmpty?: boolean;
+
+  canEditNonce?: boolean;
+  canEditData?: boolean;
 };
 
 export type IVaultFactoryOptions = {
@@ -302,6 +316,7 @@ export type IPrepareHdAccountsOptions = {
 };
 export type IPrepareHardwareAccountsParams = IPrepareHdAccountsParamsBase & {
   deviceParams: IDeviceSharedCallParams;
+  hwAllNetworkPrepareAccountsResponse?: IHwAllNetworkPrepareAccountsResponse;
 };
 export type IPrepareAccountsParams =
   | IPrepareWatchingAccountsParams
@@ -324,6 +339,52 @@ export type IExportAccountSecretKeysParams = {
   keyType: ECoreApiExportedSecretKeyType;
   relPaths?: string[]; // used for get privateKey of other utxo address
 };
+
+export type IBuildHwAllNetworkPrepareAccountsParams = {
+  path: string; // full path
+  template: string;
+  index: number;
+};
+
+export type IBuildPrepareAccountsPrefixedPathParams = {
+  template: string;
+  index: number;
+};
+
+export type IHwSdkNetwork = AllNetworkAddressParams['network'];
+
+export type IHwAllNetworkPrepareAccountsItem = {
+  success: boolean;
+  error?: string;
+  errorCode?: string; // TODO return error code from hw sdk
+
+  path: string;
+  network: IHwSdkNetwork;
+  chainName?: string;
+  prefix?: string;
+
+  payload?: {
+    address?: string;
+
+    pub?: string;
+    publicKey?: string; // cosmos, sui, aptos 缺
+    publickey?: string; // nostr
+
+    npub?: string; // nostr
+
+    xpub?: string;
+    xpubSegwit?: string;
+
+    node?: HDNodeType; // btc
+
+    serializedPath?: string; // ada
+    stakeAddress?: string; // ada
+
+    derivedPath?: string; // alph
+  };
+};
+export type IHwAllNetworkPrepareAccountsResponse =
+  IHwAllNetworkPrepareAccountsItem[];
 
 export type IExportAccountSecretKeysResult = string;
 // GetAddress ----------------------------------------------
@@ -388,6 +449,7 @@ export type ITransferPayload = {
   amountToSend: string;
   isMaxSend: boolean;
   isNFT: boolean;
+  originalRecipient: string;
 };
 
 export enum EWrappedType {
@@ -451,6 +513,8 @@ export interface IBuildUnsignedTxParams {
   swapInfo?: ISwapTxInfo;
   stakingInfo?: IStakingInfo;
   specifiedFeeRate?: string;
+  prevNonce?: number;
+  feeInfo?: IFeeInfoUnit;
 }
 
 export type ITokenApproveInfo = { allowance: string; isUnlimited: boolean };
@@ -460,6 +524,7 @@ export interface IUpdateUnsignedTxParams {
   nonceInfo?: { nonce: number };
   tokenApproveInfo?: ITokenApproveInfo;
   nativeAmountInfo?: INativeAmountInfo;
+  dataInfo?: { data: string };
 }
 export interface IBroadcastTransactionParams {
   accountId: string;
@@ -496,12 +561,13 @@ export type ISignTransactionParams = ISignTransactionParamsBase & {
 
 export interface IBatchSignTransactionParamsBase {
   unsignedTxs: IUnsignedTxPro[];
-  feeInfo?: ISendSelectedFeeInfo;
+  feeInfos?: ISendSelectedFeeInfo[];
   nativeAmountInfo?: INativeAmountInfo;
   signOnly?: boolean;
   sourceInfo?: IDappSourceInfo;
   replaceTxInfo?: IReplaceTxInfo;
   transferPayload: ITransferPayload | undefined;
+  successfullySentTxs?: string[];
 }
 
 export interface ISignMessageParams {

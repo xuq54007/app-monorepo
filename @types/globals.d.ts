@@ -7,6 +7,7 @@ import type { LocalDbBase } from '@onekeyhq/kit-bg/src/dbs/local/LocalDbBase';
 import type { IOffscreenApi } from '@onekeyhq/kit-bg/src/offscreens/instance/IOffscreenApi';
 import type { JotaiBgSync } from '@onekeyhq/kit-bg/src/states/jotai/jotaiBgSync';
 import type { IWebembedApi } from '@onekeyhq/kit-bg/src/webembeds/instance/IWebembedApi';
+import type { Analytics } from '@onekeyhq/shared/src/analytics';
 import type {
   ETranslations,
   ETranslationsMock,
@@ -38,6 +39,7 @@ declare global {
   var $backgroundApiProxy: BackgroundApiProxy;
   var $$backgroundApi: BackgroundApi; // not available for ext ui
   var $jotaiBgSync: JotaiBgSync;
+  var $analytics: Analytics;
 
   var $$Toast: any;
   var $$navigationShortcuts: any;
@@ -100,6 +102,22 @@ declare global {
     extJsBridgeOffscreenToBg: JsBridgeBase;
     ONEKEY_DESKTOP_DEEP_LINKS: any[];
   }
+
+  // All website
+  var ethereum: any;
+  var web3: any;
+  var $onekey: IWindowOneKeyHub;
+
+  // Native App webview content
+  var ReactNativeWebView: WebView;
+
+  // Desktop internal (main,renderer)
+  var ONEKEY_DESKTOP_GLOBALS: Record<any, any>;
+
+  // Ext internal (ui,background,contentScript)
+  var extJsBridgeUiToBg: JsBridgeBase;
+  var extJsBridgeOffscreenToBg: JsBridgeBase;
+  var ONEKEY_DESKTOP_DEEP_LINKS: any[];
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
   interface Error extends Error {

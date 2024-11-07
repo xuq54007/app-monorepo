@@ -1,13 +1,10 @@
+import type { IEncodedTxCkb } from '@onekeyhq/core/src/chains/ckb/types';
 import type { IEncodedTx } from '@onekeyhq/core/src/types';
 import {
   backgroundClass,
   backgroundMethod,
 } from '@onekeyhq/shared/src/background/backgroundDecorators';
-import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
-import type {
-  IEstimateGasParams,
-  IEstimateGasResp,
-} from '@onekeyhq/shared/types/fee';
+import type { IEstimateGasParams } from '@onekeyhq/shared/types/fee';
 
 import { vaultFactory } from '../vaults/factory';
 
@@ -31,22 +28,14 @@ class ServiceGas extends ServiceBase {
 
   @backgroundMethod()
   async estimateFee(params: IEstimateGasParams) {
-    const { accountId, ...rest } = params;
-    const client = await this.getClient(EServiceEndpointEnum.Wallet);
-
     const controller = new AbortController();
     this._estimateFeeController = controller;
 
-    const resp = await client.post<{ data: IEstimateGasResp }>(
-      '/wallet/v1/account/estimate-fee',
-      rest,
-      {
-        headers:
-          await this.backgroundApi.serviceAccountProfile._getWalletTypeHeader({
-            accountId,
-          }),
-      },
-    );
+    const vault = await vaultFactory.getVault({
+      networkId: params.networkId,
+      accountId: params.accountId,
+    });
+    const resp = await vault.estimateFee(params);
 
     this._estimateFeeController = null;
 
@@ -71,6 +60,12 @@ class ServiceGas extends ServiceBase {
               computeUnitPrice: feeInfo.computeUnitPrice,
             },
           ]
+        : undefined,
+      feeCkb: feeInfo.feeCkb
+        ? feeInfo.feeCkb.map((item) => ({
+            ...item,
+            feeRate: (params.encodedTx as IEncodedTxCkb).feeInfo.feeRate,
+          }))
         : undefined,
     };
   }

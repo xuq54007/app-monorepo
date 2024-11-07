@@ -22,7 +22,7 @@ import {
   openExplorerAddressUrl,
   openTransactionDetailsUrl,
 } from '@onekeyhq/kit/src/utils/explorerUtils';
-import { useEarnLabelFn } from '@onekeyhq/kit/src/views/Staking/hooks/useLabelFn';
+import { useEarnTxLabel } from '@onekeyhq/kit/src/views/Staking/hooks/useEarnTxLabel';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import utils from '@onekeyhq/shared/src/utils/accountUtils';
 import { formatTime } from '@onekeyhq/shared/src/utils/dateUtils';
@@ -158,7 +158,7 @@ const SwapTransactionItem = ({ data }: { data: ISwapTransactionData }) => {
 };
 
 const EarnLidoTransactionItem = ({ data }: { data: IEarnTransactionData }) => {
-  const labelFn = useEarnLabelFn();
+  const labelFn = useEarnTxLabel();
   let primary = data.receive ? { data: data.receive, symbol: '+' } : undefined;
   let secondary = data.send ? { data: data.send, symbol: '-' } : undefined;
   if (!primary && secondary) {

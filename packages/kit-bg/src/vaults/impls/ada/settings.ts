@@ -36,6 +36,7 @@ const settings: IVaultSettings = {
 
   minTransferAmount: '1',
   defaultFeePresetIndex: 0,
+  customRpcEnabled: true,
 
   isUtxo: true,
   isSingleToken: false,
@@ -45,6 +46,7 @@ const settings: IVaultSettings = {
   editFeeEnabled: false,
   replaceTxEnabled: false,
   estimatedFeePollingInterval: 600,
+  maxSendCanNotSentFullAmount: true,
 
   accountDeriveInfo,
   networkInfo: {

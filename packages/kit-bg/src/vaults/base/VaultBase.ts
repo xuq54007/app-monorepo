@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
 /* eslint max-classes-per-file: "off" */
 
+import qs from 'querystring';
+
 import BigNumber from 'bignumber.js';
-import { isEmpty } from 'lodash';
+import { isEmpty, isNil, omit, omitBy } from 'lodash';
 
 import type { CoreChainApiBase } from '@onekeyhq/core/src/base/CoreChainApiBase';
 import {
@@ -25,12 +27,17 @@ import {
   getOnChainHistoryTxStatus,
 } from '@onekeyhq/shared/src/utils/historyUtils';
 import { generateUUID } from '@onekeyhq/shared/src/utils/miscUtils';
-import { buildTxActionDirection } from '@onekeyhq/shared/src/utils/txActionUtils';
+import {
+  buildTxActionDirection,
+  getStakingActionLabel,
+} from '@onekeyhq/shared/src/utils/txActionUtils';
 import { addressIsEnsFormat } from '@onekeyhq/shared/src/utils/uriUtils';
 import type { INetworkAccount } from '@onekeyhq/shared/types/account';
 import type {
   IAddressValidation,
   IFetchAccountDetailsResp,
+  IFetchServerAccountDetailsParams,
+  IFetchServerAccountDetailsResponse,
   IGeneralInputValidation,
   INetworkAccountAddressDetail,
   IPrivateKeyValidation,
@@ -41,24 +48,42 @@ import type {
   IMeasureRpcStatusParams,
   IMeasureRpcStatusResult,
 } from '@onekeyhq/shared/types/customRpc';
+import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
 import type {
   IEstimateFeeParams,
+  IEstimateGasParams,
+  IEstimateGasResp,
   IFeeInfoUnit,
+  IServerEstimateFeeResponse,
 } from '@onekeyhq/shared/types/fee';
 import type {
   IAccountHistoryTx,
+  IFetchHistoryTxDetailsResp,
   IOnChainHistoryTx,
   IOnChainHistoryTxApprove,
   IOnChainHistoryTxNFT,
   IOnChainHistoryTxToken,
   IOnChainHistoryTxTransfer,
+  IServerFetchAccountHistoryDetailParams,
+  IServerFetchAccountHistoryDetailResp,
 } from '@onekeyhq/shared/types/history';
 import { EOnChainHistoryTxType } from '@onekeyhq/shared/types/history';
 import type { IResolveNameResp } from '@onekeyhq/shared/types/name';
 import type { ESendPreCheckTimingEnum } from '@onekeyhq/shared/types/send';
+import type {
+  IFetchServerTokenDetailParams,
+  IFetchServerTokenDetailResponse,
+  IFetchServerTokenListParams,
+  IFetchServerTokenListResponse,
+} from '@onekeyhq/shared/types/serverToken';
+import type {
+  IStakeTxResponse,
+  IStakingInfo,
+} from '@onekeyhq/shared/types/staking';
 import type { ISwapTxInfo } from '@onekeyhq/shared/types/swap/types';
 import type {
   IAccountToken,
+  IFetchAccountTokensResp,
   IFetchTokenDetailItem,
 } from '@onekeyhq/shared/types/token';
 import type {
@@ -276,6 +301,52 @@ export abstract class VaultBaseChainOnly extends VaultContext {
   ): Promise<IMeasureRpcStatusResult> {
     throw new NotImplemented();
   }
+
+  async checkFeeSupportInfo(params: IMeasureRpcStatusParams): Promise<{
+    isEIP1559FeeEnabled: boolean;
+  }> {
+    throw new NotImplemented();
+  }
+
+  async fetchTokenDetails(
+    params: IFetchServerTokenDetailParams,
+  ): Promise<IFetchServerTokenDetailResponse> {
+    const isCustomNetwork =
+      await this.backgroundApi.serviceNetwork.isCustomNetwork({
+        networkId: this.networkId,
+      });
+    if (isCustomNetwork) {
+      return this.fetchTokenDetailsByRpc(params);
+    }
+    return this.fetchTokenDetailsByApi(params);
+  }
+
+  async fetchTokenDetailsByApi(
+    params: IFetchServerTokenDetailParams,
+  ): Promise<IFetchServerTokenDetailResponse> {
+    const client = await this.backgroundApi.serviceToken.getClient(
+      EServiceEndpointEnum.Wallet,
+    );
+    const resp = await client.post<{ data: IFetchTokenDetailItem[] }>(
+      '/wallet/v1/account/token/search',
+      omit(params, ['walletId', 'accountId', 'signal']),
+      {
+        headers:
+          await this.backgroundApi.serviceAccountProfile._getWalletTypeHeader({
+            accountId: params.accountId,
+            walletId: params.walletId,
+          }),
+        signal: params.signal ?? undefined,
+      },
+    );
+    return resp;
+  }
+
+  async fetchTokenDetailsByRpc(
+    params: IFetchServerTokenDetailParams,
+  ): Promise<IFetchServerTokenDetailResponse> {
+    throw new NotImplemented();
+  }
 }
 
 // **** more VaultBase: VaultBaseEvmLike, VaultBaseUtxo, VaultBaseVariant
@@ -380,19 +451,21 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     return Promise.resolve({});
   }
 
-  async buildHistoryTx({
-    historyTxToMerge,
-    decodedTx,
-    signedTx,
-    isSigner,
-    isLocalCreated,
-  }: {
+  async buildHistoryTx(params: {
     historyTxToMerge?: IAccountHistoryTx;
     decodedTx: IDecodedTx;
     signedTx?: ISignedTxPro;
     isSigner?: boolean;
     isLocalCreated?: boolean;
+    accountAddress?: string;
+    xpub?: string;
   }): Promise<IAccountHistoryTx> {
+    const { historyTxToMerge, decodedTx, signedTx, isSigner, isLocalCreated } =
+      params;
+
+    let accountAddress = params.accountAddress || '';
+    let xpub = params.xpub;
+
     const txid: string = signedTx?.txid || decodedTx?.txid || '';
     if (!txid) {
       throw new Error('buildHistoryTx txid not found');
@@ -400,16 +473,22 @@ export abstract class VaultBase extends VaultBaseChainOnly {
 
     const { accountId, networkId } = decodedTx;
 
-    const [accountAddress, xpub] = await Promise.all([
-      this.backgroundApi.serviceAccount.getAccountAddressForApi({
-        accountId,
-        networkId,
-      }),
-      this.backgroundApi.serviceAccount.getAccountXpub({
-        accountId,
-        networkId,
-      }),
-    ]);
+    try {
+      const [a, x] = await Promise.all([
+        this.backgroundApi.serviceAccount.getAccountAddressForApi({
+          accountId,
+          networkId,
+        }),
+        this.backgroundApi.serviceAccount.getAccountXpub({
+          accountId,
+          networkId,
+        }),
+      ]);
+      accountAddress = a;
+      xpub = x;
+    } catch (e) {
+      // pass
+    }
 
     decodedTx.txid = txid || decodedTx.txid;
     decodedTx.owner = accountAddress;
@@ -514,6 +593,8 @@ export abstract class VaultBase extends VaultBaseChainOnly {
 
       return await this.buildHistoryTx({
         decodedTx,
+        accountAddress,
+        xpub,
       });
     } catch (e) {
       console.log(e);
@@ -693,7 +774,9 @@ export abstract class VaultBase extends VaultBaseChainOnly {
       name: string;
       icon: string;
     };
+    internalStakingLabel?: string;
     isInternalSwap?: boolean;
+    isInternalStaking?: boolean;
     swapReceivedAddress?: string;
     swapReceivedNetworkId?: string;
   }): Promise<IDecodedTxAction> {
@@ -704,6 +787,8 @@ export abstract class VaultBase extends VaultBaseChainOnly {
       data,
       application,
       isInternalSwap,
+      isInternalStaking,
+      internalStakingLabel,
       swapReceivedAddress,
       swapReceivedNetworkId,
     } = params;
@@ -721,6 +806,8 @@ export abstract class VaultBase extends VaultBaseChainOnly {
       receives: [],
       application,
       isInternalSwap,
+      isInternalStaking,
+      internalStakingLabel,
       swapReceivedAddress,
       swapReceivedNetworkId,
     };
@@ -807,6 +894,56 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     return action;
   }
 
+  async buildInternalStakingAction(params: {
+    accountAddress: string;
+    stakingToAddress?: string;
+    stakingInfo: IStakingInfo;
+    stakingData?: string;
+  }) {
+    const { stakingInfo, stakingData, accountAddress, stakingToAddress } =
+      params;
+    const { protocol, protocolLogoURI, send, receive } = stakingInfo;
+
+    const transfers: IDecodedTxTransferInfo[] = [
+      send && {
+        from: accountAddress,
+        to: '',
+        tokenIdOnNetwork: send.token.address,
+        icon: send.token.logoURI ?? '',
+        name: send.token.name ?? '',
+        symbol: send.token.symbol,
+        amount: send.amount,
+        isNFT: false,
+        isNative: send.token.isNative,
+      },
+      receive && {
+        from: '',
+        to: accountAddress,
+        tokenIdOnNetwork: receive.token.address,
+        icon: receive.token.logoURI ?? '',
+        name: receive.token.name ?? '',
+        symbol: receive.token.symbol,
+        amount: receive.amount,
+        isNFT: false,
+        isNative: receive.token.isNative,
+      },
+    ].filter(Boolean);
+
+    const action = await this.buildTxTransferAssetAction({
+      from: accountAddress,
+      to: stakingToAddress ?? '',
+      data: stakingData,
+      application: {
+        name: protocol,
+        icon: protocolLogoURI ?? '',
+      },
+      isInternalStaking: true,
+      internalStakingLabel: getStakingActionLabel({ stakingInfo }),
+      transfers,
+    });
+    return action;
+  }
+
   // DO NOT override this method
   async signTransaction(params: ISignTransactionParams): Promise<ISignedTxPro> {
     const { unsignedTx } = params;
@@ -820,11 +957,17 @@ export abstract class VaultBase extends VaultBaseChainOnly {
 
   // TODO resetCache after dbAccount and network DB updated
   // TODO add memo
-  async getAccount(): Promise<INetworkAccount> {
-    const account: IDBAccount =
-      await this.backgroundApi.serviceAccount.getDBAccount({
+  async getAccount({
+    dbAccount,
+  }: {
+    dbAccount?: IDBAccount;
+  } = {}): Promise<INetworkAccount> {
+    let account: IDBAccount | undefined = dbAccount;
+    if (!account || account?.id !== this.accountId) {
+      account = await this.backgroundApi.serviceAccount.getDBAccount({
         accountId: this.accountId,
       });
+    }
 
     if (
       !accountUtils.isAccountCompatibleWithNetwork({
@@ -866,8 +1009,10 @@ export abstract class VaultBase extends VaultBaseChainOnly {
         key: this.networkId,
         fallbackIndex: -1,
       });
+
       if (!externalAccountAddress) {
         const impl = await this.getNetworkImpl();
+
         externalAccountAddress = buildExternalAccountAddress({
           key: impl,
           fallbackIndex: 0,
@@ -897,6 +1042,7 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     ) {
       throw new Error('VaultBase.getAccount ERROR: address is invalid');
     }
+
     return {
       ...account,
       addressDetail,
@@ -912,8 +1058,12 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     return (await this.getAccount()).path;
   }
 
-  async getAccountXpub(): Promise<string | undefined> {
-    const networkAccount = await this.getAccount();
+  async getAccountXpub({
+    dbAccount,
+  }: {
+    dbAccount?: IDBAccount;
+  } = {}): Promise<string | undefined> {
+    const networkAccount = await this.getAccount({ dbAccount });
     return this.getXpubFromAccount(networkAccount);
   }
 
@@ -967,5 +1117,178 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     type?: string;
   }> {
     return Promise.resolve({});
+  }
+
+  // Staking
+  buildStakeEncodedTx(params: IStakeTxResponse): Promise<IEncodedTx> {
+    return Promise.resolve(params as IEncodedTx);
+  }
+
+  // Api Request
+  async fetchAccountDetails(
+    params: IFetchServerAccountDetailsParams,
+  ): Promise<IFetchServerAccountDetailsResponse> {
+    const isCustomNetwork =
+      await this.backgroundApi.serviceNetwork.isCustomNetwork({
+        networkId: this.networkId,
+      });
+    if (isCustomNetwork) {
+      return this.fetchAccountDetailsByRpc(params);
+    }
+    return this.fetchAccountDetailsByApi(params);
+  }
+
+  async fetchAccountDetailsByApi(
+    params: IFetchServerAccountDetailsParams,
+  ): Promise<IFetchServerAccountDetailsResponse> {
+    const queryParams = {
+      ...omit(params, ['accountId', 'signal']),
+    };
+
+    const client = await this.backgroundApi.serviceAccountProfile.getClient(
+      EServiceEndpointEnum.Wallet,
+    );
+    const resp = await client.get<{
+      data: IFetchAccountDetailsResp;
+    }>(
+      `/wallet/v1/account/get-account?${qs.stringify(
+        omitBy(queryParams, isNil),
+      )}`,
+      {
+        headers:
+          await this.backgroundApi.serviceAccountProfile._getWalletTypeHeader({
+            accountId: params.accountId,
+          }),
+        signal: params.signal,
+      },
+    );
+
+    return resp;
+  }
+
+  async fetchAccountDetailsByRpc(
+    params: IFetchServerAccountDetailsParams,
+  ): Promise<IFetchServerAccountDetailsResponse> {
+    throw new NotImplemented();
+  }
+
+  async fetchTokenList(
+    params: IFetchServerTokenListParams,
+  ): Promise<IFetchServerTokenListResponse> {
+    const isCustomNetwork =
+      await this.backgroundApi.serviceNetwork.isCustomNetwork({
+        networkId: this.networkId,
+      });
+    if (isCustomNetwork) {
+      return this.fetchTokenListByRpc(params);
+    }
+    return this.fetchTokenListByApi(params);
+  }
+
+  async fetchTokenListByApi(
+    params: IFetchServerTokenListParams,
+  ): Promise<IFetchServerTokenListResponse> {
+    const { serviceToken, serviceAccountProfile } = this.backgroundApi;
+    const { requestApiParams, flag, signal, accountId } = params;
+    if (requestApiParams.contractList) {
+      requestApiParams.contractList = requestApiParams.contractList.filter(
+        (contract): contract is string =>
+          contract !== null && typeof contract === 'string',
+      );
+    }
+    const client = await serviceToken.getClient(EServiceEndpointEnum.Wallet);
+    const resp = await client.post<{
+      data: IFetchAccountTokensResp;
+    }>(`/wallet/v1/account/token/list?flag=${flag || ''}`, requestApiParams, {
+      signal,
+      headers: await serviceAccountProfile._getWalletTypeHeader({
+        accountId,
+      }),
+    });
+    return resp;
+  }
+
+  async fetchTokenListByRpc(
+    params: IFetchServerTokenListParams,
+  ): Promise<IFetchServerTokenListResponse> {
+    throw new NotImplemented();
+  }
+
+  async estimateFee(
+    params: IEstimateGasParams,
+  ): Promise<IServerEstimateFeeResponse> {
+    const isCustomNetwork =
+      await this.backgroundApi.serviceNetwork.isCustomNetwork({
+        networkId: this.networkId,
+      });
+    if (isCustomNetwork) {
+      return this.estimateFeeByRpc(params);
+    }
+    return this.estimateFeeByApi(params);
+  }
+
+  async estimateFeeByApi(
+    params: IEstimateGasParams,
+  ): Promise<IServerEstimateFeeResponse> {
+    const { accountId, ...rest } = params;
+    const client = await this.backgroundApi.serviceGas.getClient(
+      EServiceEndpointEnum.Wallet,
+    );
+    const resp = await client.post<{ data: IEstimateGasResp }>(
+      '/wallet/v1/account/estimate-fee',
+      rest,
+      {
+        headers:
+          await this.backgroundApi.serviceAccountProfile._getWalletTypeHeader({
+            accountId,
+          }),
+      },
+    );
+    return resp;
+  }
+
+  async estimateFeeByRpc(
+    params: IEstimateGasParams,
+  ): Promise<IServerEstimateFeeResponse> {
+    throw new NotImplemented();
+  }
+
+  async fetchAccountHistoryDetail(
+    params: IServerFetchAccountHistoryDetailParams,
+  ): Promise<IServerFetchAccountHistoryDetailResp> {
+    const isCustomNetwork =
+      await this.backgroundApi.serviceNetwork.isCustomNetwork({
+        networkId: this.networkId,
+      });
+    if (isCustomNetwork) {
+      return this.fetchAccountHistoryDetailByRpc(params);
+    }
+    return this.fetchAccountHistoryDetailByApi(params);
+  }
+
+  async fetchAccountHistoryDetailByApi(
+    params: IServerFetchAccountHistoryDetailParams,
+  ): Promise<IServerFetchAccountHistoryDetailResp> {
+    const { accountId, ...rest } = params;
+    const client = await this.backgroundApi.serviceGas.getClient(
+      EServiceEndpointEnum.Wallet,
+    );
+    const resp = await client.get<{ data: IFetchHistoryTxDetailsResp }>(
+      '/wallet/v1/account/history/detail',
+      {
+        params: rest,
+        headers:
+          await this.backgroundApi.serviceAccountProfile._getWalletTypeHeader({
+            accountId,
+          }),
+      },
+    );
+    return resp;
+  }
+
+  async fetchAccountHistoryDetailByRpc(
+    params: IServerFetchAccountHistoryDetailParams,
+  ): Promise<IServerFetchAccountHistoryDetailResp> {
+    throw new NotImplemented();
   }
 }

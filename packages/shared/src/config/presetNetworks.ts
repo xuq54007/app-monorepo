@@ -91,7 +91,7 @@ const polygon: IServerNetwork = {
   'chainId': '137',
   'id': 'evm--137',
   'name': 'Polygon',
-  'symbol': 'MATIC',
+  'symbol': 'POL',
   'code': 'polygon',
   'shortcode': 'polygon',
   'shortname': 'Polygon',
@@ -1534,7 +1534,7 @@ const holesky: IServerNetwork = {
   'impl': 'evm',
   'chainId': '17000',
   'id': 'evm--17000',
-  'name': 'Garnet Holesky',
+  'name': 'Ethereum Holesky Testnet',
   'symbol': 'ETH',
   'code': 'holesky',
   'shortcode': 'holesky',
@@ -1583,7 +1583,67 @@ const zircuit: IServerNetwork = {
     'isNFTEnabled': false,
   },
   'logoURI': 'https://uni.onekey-asset.com/static/chain/zircuit.png',
-  'defaultEnabled': false,
+  'defaultEnabled': true,
+  'backendIndex': false,
+};
+
+const neox: IServerNetwork = {
+  'impl': 'evm',
+  'chainId': '47763',
+  'id': 'evm--47763',
+  'name': 'Neo X Mainnet',
+  'symbol': 'GAS',
+  'code': 'neox',
+  'shortcode': 'neox',
+  'shortname': 'neox',
+  'decimals': 18,
+  'feeMeta': {
+    'code': 'gas',
+    'decimals': 9,
+    'symbol': 'Gwei',
+    'isEIP1559FeeEnabled': false,
+    'isWithL1BaseFee': false,
+  },
+  'status': ENetworkStatus.LISTED,
+  'isTestnet': false,
+  'extensions': {
+    'position': 999,
+    'isTokenSupported': true,
+    'isNFTEnabled': false,
+  },
+  'logoURI':
+    'https://uni.onekey-asset.com/dashboard/logo/upload_1729561119021.0.635920670130657.0.png',
+  'defaultEnabled': true,
+  'backendIndex': false,
+};
+
+const azero: IServerNetwork = {
+  'impl': 'evm',
+  'chainId': '41455',
+  'id': 'evm--41455',
+  'name': 'Aleph Zero EVM',
+  'symbol': 'AZERO',
+  'code': 'alephazero',
+  'shortcode': 'alephazero',
+  'shortname': 'azero',
+  'decimals': 18,
+  'feeMeta': {
+    'code': 'azero',
+    'decimals': 9,
+    'symbol': 'Gwei',
+    'isEIP1559FeeEnabled': false,
+    'isWithL1BaseFee': false,
+  },
+  'status': ENetworkStatus.LISTED,
+  'isTestnet': false,
+  'extensions': {
+    'position': 9999,
+    'isTokenSupported': true,
+    'isNFTEnabled': false,
+  },
+  'logoURI':
+    'https://uni.onekey-asset.com/dashboard/logo/upload_1729837141734.0.5402483107018017.0.png',
+  'defaultEnabled': true,
   'backendIndex': false,
 };
 
@@ -2436,7 +2496,7 @@ const scdo: IServerNetwork = {
   'logoURI': 'https://uni.onekey-asset.com/static/chain/scdo.png',
   'name': 'SCDO',
   'shortcode': 'scdo',
-  'shortname': 'scdo',
+  'shortname': 'SCDO',
   'symbol': 'SCDO',
   'feeMeta': {
     'code': 'scdo',
@@ -2540,6 +2600,8 @@ export const presetNetworksMap = {
   aurora,
   holesky,
   zircuit,
+  neox,
+  azero,
 
   // cosmos
   celestia,
@@ -2575,9 +2637,9 @@ export const presetNetworksMap = {
   sui,
   ckb,
   tatom,
-  scdo,
   alph,
   ton,
+  scdo,
 };
 
 export const getPresetNetworks = memoFn((): IServerNetwork[] => [
@@ -2648,6 +2710,8 @@ export const getPresetNetworks = memoFn((): IServerNetwork[] => [
   aurora,
   holesky,
   zircuit,
+  neox,
+  azero,
   // cosmos
   celestia,
   secret,
@@ -2681,8 +2745,8 @@ export const getPresetNetworks = memoFn((): IServerNetwork[] => [
   algo,
   sui,
   ckb,
-  scdo,
   alph,
   ton,
+  scdo,
   ...(platformEnv.isDev ? chainsOnlyEnabledInDev : []),
 ]);

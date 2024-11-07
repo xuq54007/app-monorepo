@@ -2,7 +2,7 @@ import { assign, isEmpty, isNil, merge, uniqBy } from 'lodash';
 
 import { backgroundMethod } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import { OneKeyInternalError } from '@onekeyhq/shared/src/errors';
-import { buildLocalHistoryKey } from '@onekeyhq/shared/src/utils/historyUtils';
+import { buildAccountLocalAssetsKey } from '@onekeyhq/shared/src/utils/accountUtils';
 import type { IAccountHistoryTx } from '@onekeyhq/shared/types/history';
 import type { IDecodedTxAction } from '@onekeyhq/shared/types/tx';
 import { EDecodedTxStatus } from '@onekeyhq/shared/types/tx';
@@ -35,7 +35,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
       throw new OneKeyInternalError('accountAddress or xpub is required');
     }
 
-    const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+    const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
 
     const rawData = await this.getRawData();
 
@@ -107,7 +107,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
 
     const rawData = await this.getRawData();
 
-    const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+    const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
 
     let finalConfirmedTxs = rawData?.confirmedTxs?.[key] || [];
 
@@ -123,7 +123,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
     }
 
     const mergedConfirmedTxs = assign({}, rawData?.confirmedTxs, {
-      [key]: finalConfirmedTxs,
+      [key]: finalConfirmedTxs.slice(0, 50),
     });
 
     const pendingTxs = rawData?.pendingTxs || {};
@@ -153,7 +153,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
       throw new OneKeyInternalError('accountAddress or xpub is required');
     }
 
-    const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+    const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
 
     if (isEmpty(pendingTxs) && isEmpty(confirmedTxs)) return;
     const now = Date.now();
@@ -190,7 +190,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
       ...(rawData ?? {}),
       pendingTxs: assign({}, rawData?.pendingTxs, { [key]: finalPendingTxs }),
       confirmedTxs: assign({}, rawData?.confirmedTxs, {
-        [key]: finalConfirmedTxs,
+        [key]: finalConfirmedTxs.slice(0, 50),
       }),
     });
   }
@@ -215,7 +215,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
       throw new OneKeyInternalError('accountAddress or xpub is required');
     }
 
-    const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+    const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
 
     const rawData = await this.getRawData();
 
@@ -239,16 +239,21 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
     if (!pendingTxs || !pendingTxs.length) return;
 
     const newPendingTxs: IAccountHistoryTx[] = [];
-
-    for (const tx of pendingTxs) {
+    for (const pendingTx of pendingTxs) {
       const onChainHistoryTx = onChainHistoryTxs?.find(
-        (item) => item.id === tx.id,
+        (item) =>
+          item.id === pendingTx.id ||
+          (item.originalId && item.originalId === pendingTx.id),
       );
 
-      const confirmedTx = confirmedTxs?.find((item) => item.id === tx.id);
+      const confirmedTx = confirmedTxs?.find(
+        (item) =>
+          item.id === pendingTx.id ||
+          (item.originalId && item.originalId === pendingTx.id),
+      );
 
       if (!onChainHistoryTx && !confirmedTx) {
-        newPendingTxs.push(tx);
+        newPendingTxs.push(pendingTx);
       }
     }
 
@@ -278,7 +283,11 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
 
     let accountsPendingTxs = params.flatMap(
       ({ networkId, accountAddress, xpub }) => {
-        const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+        const key = buildAccountLocalAssetsKey({
+          networkId,
+          accountAddress,
+          xpub,
+        });
         return pendingTxs?.[key] ?? [];
       },
     );
@@ -303,7 +312,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
       throw new OneKeyInternalError('accountAddress or xpub is required');
     }
 
-    const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+    const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
 
     let accountPendingTxs = (await this.getRawData())?.pendingTxs[key] ?? [];
 
@@ -328,7 +337,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
       throw new OneKeyInternalError('accountAddress or xpub is required');
     }
 
-    const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+    const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
 
     let accountConfirmedTxs =
       (await this.getRawData())?.confirmedTxs[key] || [];
@@ -360,7 +369,11 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
 
     let accountsConfirmedTxs = params.flatMap(
       ({ networkId, accountAddress, xpub }) => {
-        const key = buildLocalHistoryKey({ networkId, accountAddress, xpub });
+        const key = buildAccountLocalAssetsKey({
+          networkId,
+          accountAddress,
+          xpub,
+        });
         return confirmedTxs?.[key] ?? [];
       },
     );

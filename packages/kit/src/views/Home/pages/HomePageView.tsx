@@ -3,13 +3,15 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { Animated, Easing } from 'react-native';
 
-import { Page, Stack, Tab, YStack } from '@onekeyhq/components';
+import { Alert, Icon, Page, Stack, Tab, YStack } from '@onekeyhq/components';
+import { useDebounce } from '@onekeyhq/kit/src/hooks/useDebounce';
 import { getEnabledNFTNetworkIds } from '@onekeyhq/shared/src/engine/engineConsts';
 import {
   EAppEventBusNames,
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { useNetInfo } from '@onekeyhq/shared/src/modules3rdParty/@react-native-community/netinfo';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
@@ -89,6 +91,8 @@ export function HomePageView({
     [network],
   ).result;
 
+  const { isInternetReachable } = useNetInfo();
+
   const isNFTEnabled =
     vaultSettings?.NFTEnabled &&
     getEnabledNFTNetworkIds().includes(network?.id ?? '');
@@ -140,6 +144,7 @@ export function HomePageView({
         data={tabs}
         ListHeaderComponent={<HomeHeaderContainer />}
         initialScrollIndex={0}
+        initialHeaderHeight={220}
         contentItemWidth={CONTENT_ITEM_WIDTH}
         contentWidth={screenWidth}
         showsVerticalScrollIndicator={false}
@@ -148,6 +153,10 @@ export function HomePageView({
     ),
     [tabs, screenWidth, onRefresh],
   );
+
+  useEffect(() => {
+    void Icon.prefetch('CloudOffOutline');
+  }, []);
 
   const renderHomePageContent = useCallback(() => {
     if (
@@ -232,11 +241,21 @@ export function HomePageView({
       content = renderHomePageContent();
       // This is a temporary hack solution, need to fix the layout of headerLeft and headerRight
     }
-
     return (
       <>
         <TabPageHeader showHeaderRight sceneName={sceneName} />
         <Page.Body>
+          {isInternetReachable ? null : (
+            <Alert
+              type="critical"
+              icon="CloudOffOutline"
+              title={intl.formatMessage({
+                id: ETranslations.feedback_you_are_offline,
+              })}
+              closable={false}
+              fullBleed
+            />
+          )}
           {
             // The upgrade reminder does not need to be displayed on the Url Account page
             sceneName === EAccountSelectorSceneName.home ? (
@@ -250,7 +269,14 @@ export function HomePageView({
         </Page.Body>
       </>
     );
-  }, [ready, wallet, sceneName, renderHomePageContent]);
+  }, [
+    ready,
+    wallet,
+    sceneName,
+    isInternetReachable,
+    intl,
+    renderHomePageContent,
+  ]);
 
   return useMemo(
     () => <Page fullPage>{renderHomePage()}</Page>,

@@ -14,14 +14,23 @@ export const base64Decode = function (base64: string): ArrayBuffer {
 };
 
 const isContextSupportWebAuth = Boolean(
-  platformEnv.isExtChrome && global?.navigator?.credentials,
+  platformEnv.isExtChrome && globalThis?.navigator?.credentials,
 );
 
 const isUserVerifyingPlatformAuthenticatorAvailable = async () => {
   let isAvailable = false;
-  if (global?.PublicKeyCredential) {
+  if (globalThis?.PublicKeyCredential) {
     isAvailable =
-      await global?.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      await globalThis?.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  }
+  return isAvailable;
+};
+
+const isCMA = async () => {
+  let isAvailable = false;
+  if (globalThis?.PublicKeyCredential) {
+    isAvailable =
+      await globalThis?.PublicKeyCredential.isConditionalMediationAvailable();
   }
   return isAvailable;
 };
@@ -29,16 +38,18 @@ const isUserVerifyingPlatformAuthenticatorAvailable = async () => {
 export const isSupportWebAuth = async () => {
   let isSupport = false;
   if (!platformEnv.isE2E && isContextSupportWebAuth) {
-    isSupport = await isUserVerifyingPlatformAuthenticatorAvailable();
+    isSupport =
+      (await isUserVerifyingPlatformAuthenticatorAvailable()) &&
+      (await isCMA());
   }
-  return isSupport;
+  return isSupport && !!navigator?.credentials;
 };
 
 export const verifiedWebAuth = async (credId: string) => {
   if (!(await isSupportWebAuth())) {
     throw new Error('Not support web auth');
   }
-  const challenge = global.crypto.getRandomValues(new Uint8Array(32));
+  const challenge = globalThis.crypto.getRandomValues(new Uint8Array(32));
   const getCredentialOptions: CredentialRequestOptions = {
     publicKey: {
       allowCredentials: [
@@ -73,7 +84,7 @@ export const registerWebAuth = async (credId?: string) => {
       }
       return undefined;
     }
-    const challenge = global.crypto.getRandomValues(new Uint8Array(32));
+    const challenge = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const createCredentialOptions: CredentialCreationOptions = {
       publicKey: {
         rp: {

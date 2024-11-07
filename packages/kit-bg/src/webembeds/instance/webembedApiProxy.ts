@@ -9,6 +9,7 @@ import { RemoteApiProxyBase } from '../../apis/RemoteApiProxyBase';
 import type { IWebembedApi, IWebembedApiKeys } from './IWebembedApi';
 import type { IBackgroundApiWebembedCallMessage } from '../../apis/IBackgroundApi';
 import type WebEmbedApiChainAdaLegacy from '../WebEmbedApiChainAdaLegacy';
+import type WebEmbedApiImageUtils from '../WebEmbedApiImageUtils';
 import type WebEmbedApiSecret from '../WebEmbedApiSecret';
 import type WebEmbedApiTest from '../WebEmbedApiTest';
 
@@ -51,12 +52,14 @@ class WebembedApiProxy extends RemoteApiProxyBase implements IWebembedApi {
       method,
       params,
     };
-    return global.$backgroundApiProxy.serviceDApp.callWebEmbedApiProxy(message);
+    return globalThis.$backgroundApiProxy.serviceDApp.callWebEmbedApiProxy(
+      message,
+    );
   }
 
   async isSDKReady(): Promise<boolean> {
     const isWebEmbedApiReady =
-      await global.$backgroundApiProxy.serviceDApp.isWebEmbedApiReady();
+      await globalThis.$backgroundApiProxy.serviceDApp.isWebEmbedApiReady();
     return Promise.resolve(!!isWebEmbedApiReady);
   }
 
@@ -69,8 +72,11 @@ class WebembedApiProxy extends RemoteApiProxyBase implements IWebembedApi {
 
   secret: WebEmbedApiSecret =
     this._createProxyModule<IWebembedApiKeys>('secret');
+
+  imageUtils: WebEmbedApiImageUtils =
+    this._createProxyModule<IWebembedApiKeys>('imageUtils');
 }
 
 const webembedApiProxy = new WebembedApiProxy();
 export default webembedApiProxy;
-global.$webembedApiProxy = webembedApiProxy;
+globalThis.$webembedApiProxy = webembedApiProxy;

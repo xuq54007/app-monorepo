@@ -92,7 +92,11 @@ function BasicImageCrop({
 
   return (
     <>
-      <Stack onLayout={onStackLayout} $gtMd={{ height: 'calc(100vh - 180px)' }}>
+      <Stack
+        onLayout={onStackLayout}
+        $gtMd={{ height: 'calc(100vh - 180px)' }}
+        height="calc(100vh - 172px)"
+      >
         <Cropper
           src={src}
           onChange={onChange}
@@ -100,7 +104,7 @@ function BasicImageCrop({
           stencilProps={{
             aspectRatio: defaultSize.width / defaultSize.height,
           }}
-          className="cropper"
+          className="onekey-img-cropper"
         />
       </Stack>
       <Dialog.Footer

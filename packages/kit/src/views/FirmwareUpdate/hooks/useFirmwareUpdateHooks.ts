@@ -21,9 +21,11 @@ let isNavExitConfirmShow = false;
 export function useModalExitPrevent({
   title,
   message,
+  shouldPreventRemove = true,
 }: {
   title: string;
   message: string;
+  shouldPreventRemove?: boolean;
 }) {
   const intl = useIntl();
   const navigation = useAppNavigation();
@@ -59,15 +61,17 @@ export function useModalExitPrevent({
     },
     [message, navigation, title, intl],
   );
-  usePreventRemove(true, navPreventRemoveCallback);
+  usePreventRemove(shouldPreventRemove, navPreventRemoveCallback);
 }
 
 export function useAppExitPrevent({
   message,
   title,
+  shouldPreventExitOnAndroid = true,
 }: {
   message: string;
   title: string;
+  shouldPreventExitOnAndroid?: boolean;
 }) {
   const intl = useIntl();
   // Prevents web page refresh/exit
@@ -88,6 +92,9 @@ export function useAppExitPrevent({
   // Prevent Android exit
   // https://reactnavigation.org/docs/7.x/preventing-going-back
   useEffect(() => {
+    if (!shouldPreventExitOnAndroid) {
+      return;
+    }
     const onBackPress = () => {
       Alert.alert(
         title,
@@ -117,7 +124,7 @@ export function useAppExitPrevent({
     );
 
     return () => backHandler.remove();
-  }, [message, title, intl]);
+  }, [message, title, intl, shouldPreventExitOnAndroid]);
 
   // Prevent Desktop exit
   // TODO

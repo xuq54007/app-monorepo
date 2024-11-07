@@ -1,11 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { BCS, TxnBuilderTypes } from 'aptos';
+import { AptosClient as AptosRpcClient, BCS, TxnBuilderTypes } from 'aptos';
 import BigNumber from 'bignumber.js';
 import { isEmpty, isNil } from 'lodash';
 
 import type { IEncodedTxAptos } from '@onekeyhq/core/src/chains/aptos/types';
 import coreChainApi from '@onekeyhq/core/src/instance/coreChainApi';
-import type { IEncodedTx, IUnsignedTxPro } from '@onekeyhq/core/src/types';
+import type {
+  IEncodedTx,
+  ISignedTxPro,
+  IUnsignedTxPro,
+} from '@onekeyhq/core/src/types';
 import {
   InvalidAccount,
   ManageTokenInsufficientBalanceError,
@@ -21,6 +25,10 @@ import type {
   IXprvtValidation,
   IXpubValidation,
 } from '@onekeyhq/shared/types/address';
+import type {
+  IMeasureRpcStatusParams,
+  IMeasureRpcStatusResult,
+} from '@onekeyhq/shared/types/customRpc';
 import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
 import type { IAccountToken } from '@onekeyhq/shared/types/token';
 import {
@@ -55,6 +63,7 @@ import {
 import type { IDBWalletType } from '../../../dbs/local/types';
 import type { KeyringBase } from '../../base/KeyringBase';
 import type {
+  IBroadcastTransactionByCustomRpcParams,
   IBuildAccountAddressDetailParams,
   IBuildDecodedTxParams,
   IBuildEncodedTxParams,
@@ -180,80 +189,97 @@ export default class VaultAptos extends VaultBase {
     const network = await this.getNetwork();
     const { unsignedTx } = params;
     const encodedTx = unsignedTx.encodedTx as IEncodedTxAptos;
+    const { swapInfo, stakingInfo } = unsignedTx;
     const { type, function: fun } = encodedTx;
     const account = await this.getAccount();
     if (!encodedTx?.sender) {
       encodedTx.sender = account.address;
     }
     let action: IDecodedTxAction | null = null;
-    const actionType = getTransactionTypeByPayload({
-      type: type ?? 'entry_function_payload',
-      function_name: fun,
-    });
+    const [toAddress] = encodedTx.arguments || [];
 
-    if (actionType === EDecodedTxActionType.ASSET_TRANSFER) {
-      const { sender } = encodedTx;
-      const [coinType] = encodedTx.type_arguments || [];
-      const [to, amountValue] = encodedTx.arguments || [];
-      const tokenInfo = await this.backgroundApi.serviceToken.getToken({
-        networkId: network.id,
-        accountId: this.accountId,
-        tokenIdOnNetwork: coinType ?? APTOS_NATIVE_COIN,
+    if (swapInfo) {
+      action = await this.buildInternalSwapAction({
+        swapInfo,
+        swapToAddress: toAddress,
       });
-      if (tokenInfo) {
-        const amount = new BigNumber(amountValue)
-          .shiftedBy(-tokenInfo.decimals)
-          .toFixed();
+    } else if (stakingInfo) {
+      const accountAddress = await this.getAccountAddress();
+      action = await this.buildInternalStakingAction({
+        accountAddress,
+        stakingInfo,
+        stakingToAddress: toAddress,
+      });
+    } else {
+      const actionType = getTransactionTypeByPayload({
+        type: type ?? 'entry_function_payload',
+        function_name: fun,
+      });
 
-        action = await this.buildTxTransferAssetAction({
-          from: sender,
-          to,
-          transfers: [
-            {
-              from: sender,
-              to,
-              amount,
-              icon: tokenInfo.logoURI ?? '',
-              name: tokenInfo.symbol,
-              symbol: tokenInfo.symbol,
-              tokenIdOnNetwork: coinType ?? APTOS_NATIVE_COIN,
-              isNative: !coinType || coinType === APTOS_NATIVE_COIN,
-            },
-          ],
+      if (actionType === EDecodedTxActionType.ASSET_TRANSFER) {
+        const { sender } = encodedTx;
+        const [coinType] = encodedTx.type_arguments || [];
+        const [to, amountValue] = encodedTx.arguments || [];
+        const tokenInfo = await this.backgroundApi.serviceToken.getToken({
+          networkId: network.id,
+          accountId: this.accountId,
+          tokenIdOnNetwork: coinType ?? APTOS_NATIVE_COIN,
         });
-      }
-    } else if (actionType === EDecodedTxActionType.FUNCTION_CALL) {
-      action = {
-        type: EDecodedTxActionType.FUNCTION_CALL,
-        direction: EDecodedTxDirection.OTHER,
-        functionCall: {
-          from: encodedTx.sender,
-          to: '',
-          functionName: fun ?? '',
-          args:
-            encodedTx.arguments?.map((a) => {
-              if (
-                typeof a === 'string' ||
-                typeof a === 'number' ||
-                typeof a === 'boolean' ||
-                typeof a === 'bigint'
-              ) {
-                return a.toString();
-              }
-              if (a instanceof Array) {
-                try {
-                  return bufferUtils.bytesToHex(a as unknown as Uint8Array);
-                } catch (e) {
-                  return JSON.stringify(a);
+        if (tokenInfo) {
+          const amount = new BigNumber(amountValue)
+            .shiftedBy(-tokenInfo.decimals)
+            .toFixed();
+
+          action = await this.buildTxTransferAssetAction({
+            from: sender,
+            to,
+            transfers: [
+              {
+                from: sender,
+                to,
+                amount,
+                icon: tokenInfo.logoURI ?? '',
+                name: tokenInfo.symbol,
+                symbol: tokenInfo.symbol,
+                tokenIdOnNetwork: coinType ?? APTOS_NATIVE_COIN,
+                isNative: !coinType || coinType === APTOS_NATIVE_COIN,
+              },
+            ],
+          });
+        }
+      } else if (actionType === EDecodedTxActionType.FUNCTION_CALL) {
+        action = {
+          type: EDecodedTxActionType.FUNCTION_CALL,
+          direction: EDecodedTxDirection.OTHER,
+          functionCall: {
+            from: encodedTx.sender,
+            to: '',
+            functionName: fun ?? '',
+            args:
+              encodedTx.arguments?.map((a) => {
+                if (
+                  typeof a === 'string' ||
+                  typeof a === 'number' ||
+                  typeof a === 'boolean' ||
+                  typeof a === 'bigint'
+                ) {
+                  return a.toString();
                 }
-              }
-              if (!a) {
-                return '';
-              }
-              return JSON.stringify(a);
-            }) ?? [],
-        },
-      };
+                if (a instanceof Array) {
+                  try {
+                    return bufferUtils.bytesToHex(a as unknown as Uint8Array);
+                  } catch (e) {
+                    return JSON.stringify(a);
+                  }
+                }
+                if (!a) {
+                  return '';
+                }
+                return JSON.stringify(a);
+              }) ?? [],
+          },
+        };
+      }
     }
 
     if (!action) {
@@ -496,9 +522,14 @@ export default class VaultAptos extends VaultBase {
 
     const account = await this.getAccount();
     const invalidSigBytes = new Uint8Array(64);
+    let pubkey = account.pub;
+    if (!pubkey) {
+      const accountOnChain = await this.client.getAccount(account.address);
+      pubkey = accountOnChain.authentication_key;
+    }
     const { rawTx: rawSignTx } = await buildSignedTx(
       newRawTx,
-      account.pub ?? '',
+      pubkey,
       bufferUtils.bytesToHex(invalidSigBytes),
     );
 
@@ -548,5 +579,40 @@ export default class VaultAptos extends VaultBase {
         transferPayload: undefined,
       });
     return !!signedTx.signedTx.txid;
+  }
+
+  override async getCustomRpcEndpointStatus(
+    params: IMeasureRpcStatusParams,
+  ): Promise<IMeasureRpcStatusResult> {
+    const client = new AptosRpcClient(params.rpcUrl);
+    const start = performance.now();
+    const { block_height: blockNumber } = await client.getLedgerInfo();
+    const bestBlockNumber = parseInt(blockNumber, 10);
+    return {
+      responseTime: Math.floor(performance.now() - start),
+      bestBlockNumber,
+    };
+  }
+
+  override async broadcastTransactionFromCustomRpc(
+    params: IBroadcastTransactionByCustomRpcParams,
+  ): Promise<ISignedTxPro> {
+    const { customRpcInfo, signedTx } = params;
+    const rpcUrl = customRpcInfo.rpc;
+    if (!rpcUrl) {
+      throw new OneKeyInternalError('Invalid rpc url');
+    }
+    const client = new AptosRpcClient(rpcUrl);
+    const { hash: txId } = await client.submitSignedBCSTransaction(
+      bufferUtils.hexToBytes(signedTx.rawTx),
+    );
+    console.log('broadcastTransaction END:', {
+      txid: txId,
+      rawTx: signedTx.rawTx,
+    });
+    return {
+      ...params.signedTx,
+      txid: txId,
+    };
   }
 }

@@ -12,11 +12,13 @@ import type { IModalFiatCryptoParamList } from './fiatCrypto';
 import type { IModalFirmwareUpdateParamList } from './firmwareUpdate';
 import type { IModalKeyTagParamList } from './keyTag';
 import type { ILiteCardParamList } from './liteCard';
+import type { IModalNotificationsParamList } from './notifications';
 import type { IOnboardingParamList } from './onboarding';
 import type { IModalReceiveParamList } from './receive';
 import type { IScanQrCodeModalParamList } from './scanQrCode';
 import type { IModalSendParamList } from './send';
 import type { IModalSettingParamList } from './setting';
+import type { IModalShortcutsParamList } from './shortcuts';
 import type { IModalStakingParamList } from './staking';
 import type { IModalSwapParamList } from './swap';
 import type { ITestModalPagesParam } from './testModal';
@@ -49,6 +51,8 @@ export enum EModalRoutes {
   UniversalSearchModal = 'UniversalSearchModal',
   StakingModal = 'StakingModal',
   WalletAddress = 'WalletAddress',
+  NotificationsModal = 'NotificationsModal',
+  ShortcutsModal = 'ShortcutsModal',
 }
 
 export type IModalParamList = {
@@ -77,4 +81,6 @@ export type IModalParamList = {
   [EModalRoutes.UniversalSearchModal]: IUniversalSearchParamList;
   [EModalRoutes.StakingModal]: IModalStakingParamList;
   [EModalRoutes.WalletAddress]: IModalWalletAddressParamList;
+  [EModalRoutes.NotificationsModal]: IModalNotificationsParamList;
+  [EModalRoutes.ShortcutsModal]: IModalShortcutsParamList;
 };

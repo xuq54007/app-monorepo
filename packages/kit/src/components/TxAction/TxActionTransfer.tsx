@@ -8,7 +8,6 @@ import { useIntl } from 'react-intl';
 import {
   Divider,
   Image,
-  NumberSizeableText,
   SizableText,
   Stack,
   XStack,
@@ -33,6 +32,8 @@ import {
 } from '../../views/AssetDetails/pages/HistoryDetails/components/TxDetailsInfoItem';
 import { AddressInfo } from '../AddressInfo';
 import { ListItem } from '../ListItem';
+import { NetworkAvatar } from '../NetworkAvatar';
+import NumberSizeableTextWrapper from '../NumberSizeableTextWrapper';
 import { Token } from '../Token';
 
 import { TxActionCommonListView } from './TxActionCommon';
@@ -51,8 +52,16 @@ function getTxActionTransferInfo(
 ) {
   const { action, decodedTx, isUTXO, intl } = props;
 
-  const { from, to, sends, receives, label, application } =
-    action.assetTransfer as IDecodedTxActionAssetTransfer;
+  const {
+    from,
+    to,
+    sends,
+    receives,
+    label,
+    application,
+    isInternalStaking,
+    internalStakingLabel,
+  } = action.assetTransfer as IDecodedTxActionAssetTransfer;
 
   const { type } = decodedTx.payload ?? {};
 
@@ -124,6 +133,8 @@ function getTxActionTransferInfo(
     sendTokenIcon: sendsWithToken[0]?.icon,
     receiveTokenIcon: receivesWithToken[0]?.icon,
     application,
+    isInternalStaking,
+    internalStakingLabel,
   };
 }
 
@@ -249,8 +260,14 @@ function buildTransferChangeInfo({
 }
 
 function TxActionTransferListView(props: ITxActionProps) {
-  const { tableLayout, decodedTx, componentProps, showIcon, replaceType } =
-    props;
+  const {
+    tableLayout,
+    decodedTx,
+    componentProps,
+    showIcon,
+    replaceType,
+    hideValue,
+  } = props;
   const { networkId, payload, nativeAmount, actions, networkLogoURI } =
     decodedTx;
   const { type } = payload ?? {};
@@ -370,7 +387,8 @@ function TxActionTransferListView(props: ITxActionProps) {
   }
 
   change = change ? (
-    <NumberSizeableText
+    <NumberSizeableTextWrapper
+      hideValue={hideValue}
       formatter="balance"
       formatterOptions={{
         tokenSymbol: changeSymbol,
@@ -386,12 +404,19 @@ function TxActionTransferListView(props: ITxActionProps) {
       })}
     >
       {change as string}
-    </NumberSizeableText>
+    </NumberSizeableTextWrapper>
   ) : (
-    <SizableText size="$bodyLgMedium">-</SizableText>
+    <NumberSizeableTextWrapper
+      size="$bodyLgMedium"
+      formatter="value"
+      hideValue={hideValue}
+    >
+      -
+    </NumberSizeableTextWrapper>
   );
   changeDescription = changeDescription ? (
-    <NumberSizeableText
+    <NumberSizeableTextWrapper
+      hideValue={hideValue}
       formatter={changeDescriptionSymbol ? 'balance' : 'value'}
       formatterOptions={{
         tokenSymbol: changeDescriptionSymbol,
@@ -404,11 +429,16 @@ function TxActionTransferListView(props: ITxActionProps) {
       maxWidth="$40"
     >
       {changeDescription as string}
-    </NumberSizeableText>
+    </NumberSizeableTextWrapper>
   ) : (
-    <SizableText size="$bodyMd" color="$textSubdued">
+    <NumberSizeableTextWrapper
+      hideValue={hideValue}
+      size="$bodyMd"
+      color="$textSubdued"
+      formatter="value"
+    >
       -
-    </SizableText>
+    </NumberSizeableTextWrapper>
   );
 
   if (!isPending && label) {
@@ -480,7 +510,17 @@ function TxActionTransferDetailView(props: ITxActionProps) {
     swapInfo,
   } = props;
 
-  const { sends, receives, from, to, application } = getTxActionTransferInfo({
+  const { networkId } = decodedTx;
+
+  const {
+    sends,
+    receives,
+    from,
+    to,
+    application,
+    isInternalStaking,
+    internalStakingLabel,
+  } = getTxActionTransferInfo({
     ...props,
     intl,
   });
@@ -488,6 +528,10 @@ function TxActionTransferDetailView(props: ITxActionProps) {
   const { network: swapReceiveNetwork } = useAccountData({
     networkId: swapInfo?.receiver?.token?.networkId,
   });
+
+  const { vaultSettings } = useAccountData({ networkId });
+
+  const isUTXO = vaultSettings?.isUtxo;
 
   const sendsBlock = buildTransfersBlock(
     groupBy(sends, 'to'),
@@ -504,7 +548,7 @@ function TxActionTransferDetailView(props: ITxActionProps) {
 
   const renderTransferBlock = useCallback(
     (transfersBlock: ITransferBlock[]) => {
-      if (isEmpty(transfersBlock)) return null;
+      if (isEmpty(transfersBlock) && !isInternalStaking) return null;
 
       const transferOverviewElements: React.ReactElement[] = [];
 
@@ -512,6 +556,42 @@ function TxActionTransferDetailView(props: ITxActionProps) {
 
       const transferExtraElements: React.ReactElement[] = [];
 
+      if (swapInfo?.swapRequiredApproves) {
+        swapInfo.swapRequiredApproves.forEach((approve) => {
+          let approveContent = '';
+          if (new BigNumber(approve.amount).eq(0)) {
+            approveContent = intl.formatMessage(
+              {
+                id: ETranslations.global_revoke_approve,
+              },
+              {
+                symbol: approve.symbol,
+              },
+            );
+          } else {
+            approveContent = intl.formatMessage(
+              { id: ETranslations.form__approve_str },
+              {
+                amount: approve.isInfiniteAmount
+                  ? intl.formatMessage({
+                      id: ETranslations.swap_page_provider_approve_amount_un_limit,
+                    })
+                  : approve.amount,
+                symbol: approve.symbol,
+              },
+            );
+          }
+
+          transferChangeElements.push(
+            <ListItem key={`${approve.tokenIdOnNetwork}-approve`}>
+              <Token isNFT={false} tokenImageUri={approve.icon} />
+              <Stack flex={1}>
+                <SizableText size="$bodyLgMedium">{approveContent}</SizableText>
+              </Stack>
+            </ListItem>,
+          );
+        });
+      }
       transfersBlock.forEach((block) => {
         const { transfersInfo } = block;
         transfersInfo.forEach((transfer) =>
@@ -543,16 +623,31 @@ function TxActionTransferDetailView(props: ITxActionProps) {
       const transfersContent = (
         <YStack py="$2.5">
           <XStack px="$5" pb="$2">
-            <SizableText size="$bodyMdMedium">
-              {intl.formatMessage({ id: ETranslations.send_amount })}
-            </SizableText>
+            {isInternalStaking && isEmpty(transfersBlock) ? null : (
+              <SizableText size="$bodyMdMedium">
+                {intl.formatMessage({
+                  id: ETranslations.global_estimated_results,
+                })}
+              </SizableText>
+            )}
             {swapInfo ? (
               <SizableText size="$bodyMd" color="$textSubdued" pl="$1.5">
                 ({intl.formatMessage({ id: ETranslations.for_reference_only })})
               </SizableText>
             ) : null}
           </XStack>
-          {transferChangeElements}
+          {isInternalStaking && isEmpty(transfersBlock) ? (
+            <ListItem>
+              <Token isNFT={false} fallbackIcon="Document2Outline" />
+              <Stack flex={1}>
+                <SizableText size="$bodyLgMedium">
+                  {internalStakingLabel}
+                </SizableText>
+              </Stack>
+            </ListItem>
+          ) : (
+            transferChangeElements
+          )}
         </YStack>
       );
       transferOverviewElements.push(transfersContent);
@@ -621,29 +716,31 @@ function TxActionTransferDetailView(props: ITxActionProps) {
                 />
               }
             />,
-            <InfoItem
-              key="target"
-              label={
-                application
-                  ? intl.formatMessage({
-                      id: ETranslations.interact_with_contract,
-                    })
-                  : intl.formatMessage({
-                      id: ETranslations.global_to,
-                    })
-              }
-              renderContent={
-                to || intl.formatMessage({ id: ETranslations.global_unknown })
-              }
-              description={
-                <AddressInfo
-                  address={to}
-                  networkId={decodedTx.networkId}
-                  accountId={decodedTx.accountId}
-                />
-              }
-            />,
-          ],
+            to ? (
+              <InfoItem
+                key="target"
+                label={
+                  application
+                    ? intl.formatMessage({
+                        id: ETranslations.interact_with_contract,
+                      })
+                    : intl.formatMessage({
+                        id: ETranslations.global_to,
+                      })
+                }
+                renderContent={
+                  to || intl.formatMessage({ id: ETranslations.global_unknown })
+                }
+                description={
+                  <AddressInfo
+                    address={to}
+                    networkId={decodedTx.networkId}
+                    accountId={decodedTx.accountId}
+                  />
+                }
+              />
+            ) : null,
+          ].filter(Boolean),
         );
       }
 
@@ -661,7 +758,8 @@ function TxActionTransferDetailView(props: ITxActionProps) {
             renderContent={
               <XStack alignItems="center" gap="$2">
                 <XStack alignItems="center">
-                  <Image w="$5" h="$5" source={{ uri: network?.logoURI }} />
+                  <NetworkAvatar networkId={network?.id} size="$5" />
+
                   <Stack
                     p="$0.5"
                     m="$-0.5"
@@ -669,10 +767,9 @@ function TxActionTransferDetailView(props: ITxActionProps) {
                     borderRadius="$full"
                     bg="$bgApp"
                   >
-                    <Image
-                      w="$5"
-                      h="$5"
-                      source={{ uri: swapReceiveNetwork?.logoURI }}
+                    <NetworkAvatar
+                      networkId={swapReceiveNetwork?.id}
+                      size="$5"
                     />
                   </Stack>
                 </XStack>
@@ -690,7 +787,7 @@ function TxActionTransferDetailView(props: ITxActionProps) {
             label={intl.formatMessage({ id: ETranslations.network__network })}
             renderContent={
               <XStack alignItems="center" gap="$2">
-                <Image w="$5" h="$5" source={{ uri: network?.logoURI }} />
+                <NetworkAvatar networkId={network?.id} size="$5" />
                 <SizableText size="$bodyMd" color="$textSubdued">
                   {network?.name}
                 </SizableText>
@@ -717,7 +814,11 @@ function TxActionTransferDetailView(props: ITxActionProps) {
                   h="$5"
                   source={{ uri: application.icon }}
                 />
-                <SizableText size="$bodyMd" color="$textSubdued">
+                <SizableText
+                  size="$bodyMd"
+                  color="$textSubdued"
+                  textTransform="capitalize"
+                >
                   {application.name}
                 </SizableText>
               </XStack>
@@ -741,15 +842,15 @@ function TxActionTransferDetailView(props: ITxActionProps) {
       decodedTx.accountId,
       decodedTx.networkId,
       from,
+      internalStakingLabel,
       intl,
+      isInternalStaking,
       isSendNativeToken,
       nativeTokenTransferAmountToUpdate,
       network?.id,
-      network?.logoURI,
       network?.name,
       swapInfo,
       swapReceiveNetwork?.id,
-      swapReceiveNetwork?.logoURI,
       swapReceiveNetwork?.name,
       to,
     ],

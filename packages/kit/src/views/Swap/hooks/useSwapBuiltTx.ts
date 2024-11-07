@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 
 import BigNumber from 'bignumber.js';
 
+import { EPageType, usePageType } from '@onekeyhq/components';
 import type { IEncodedTx } from '@onekeyhq/core/src/types';
 import {
   useInAppNotificationAtom,
@@ -14,7 +15,10 @@ import type {
   IWrappedInfo,
 } from '@onekeyhq/kit-bg/src/vaults/types';
 import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
+import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 import { toBigIntHex } from '@onekeyhq/shared/src/utils/numberUtils';
+import { swapApproveResetValue } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
+import type { ISwapToken } from '@onekeyhq/shared/types/swap/types';
 import {
   EProtocolOfExchange,
   ESwapApproveTransactionStatus,
@@ -28,6 +32,8 @@ import {
   useSwapBuildTxFetchingAtom,
   useSwapFromTokenAmountAtom,
   useSwapQuoteCurrentSelectAtom,
+  useSwapQuoteEventTotalCountAtom,
+  useSwapQuoteListAtom,
   useSwapSelectFromTokenAtom,
   useSwapSelectToTokenAtom,
   useSwapShouldRefreshQuoteAtom,
@@ -42,8 +48,12 @@ export function useSwapBuildTx() {
   const [toToken] = useSwapSelectToTokenAtom();
   const [{ slippageItem }] = useSwapSlippagePercentageAtom();
   const [selectQuote] = useSwapQuoteCurrentSelectAtom();
+  const [, setSwapQuoteResultList] = useSwapQuoteListAtom();
+  const [, setSwapQuoteEventTotalCount] = useSwapQuoteEventTotalCountAtom();
   const [, setSwapBuildTxFetching] = useSwapBuildTxFetchingAtom();
-  const [, setInAppNotificationAtom] = useInAppNotificationAtom();
+  const [inAppNotificationAtom, setInAppNotificationAtom] =
+    useInAppNotificationAtom();
+  const [settingsPersistAtom] = useSettingsPersistAtom();
   const [, setSwapFromTokenAmount] = useSwapFromTokenAmountAtom();
   const [, setSwapShouldRefreshQuote] = useSwapShouldRefreshQuoteAtom();
   const swapFromAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
@@ -54,15 +64,35 @@ export function useSwapBuildTx() {
     accountId: swapFromAddressInfo.accountInfo?.account?.id ?? '',
     networkId: swapFromAddressInfo.networkId ?? '',
   });
+  const pageType = usePageType();
+  const syncRecentTokenPairs = useCallback(
+    async ({
+      swapFromToken,
+      swapToToken,
+    }: {
+      swapFromToken: ISwapToken;
+      swapToToken: ISwapToken;
+    }) => {
+      await backgroundApiProxy.serviceSwap.swapRecentTokenPairsUpdate({
+        fromToken: swapFromToken,
+        toToken: swapToToken,
+      });
+    },
+    [],
+  );
+
   const handleBuildTxSuccess = useCallback(
     async (data: ISendTxOnSuccessData[]) => {
       if (data?.[0]) {
         setSwapFromTokenAmount(''); // send success, clear from token amount
+        setSwapQuoteResultList([]);
+        setSwapQuoteEventTotalCount(0);
         const transactionSignedInfo = data[0].signedTx;
         const transactionDecodedInfo = data[0].decodedTx;
         const txId = transactionSignedInfo.txid;
         const { swapInfo } = transactionSignedInfo;
-        const { totalFeeInNative, totalFeeFiatValue } = transactionDecodedInfo;
+        const { totalFeeInNative, totalFeeFiatValue, networkId } =
+          transactionDecodedInfo;
         if (swapInfo) {
           await generateSwapHistoryItem({
             txId,
@@ -70,11 +100,28 @@ export function useSwapBuildTx() {
             gasFeeInNative: totalFeeInNative,
             swapTxInfo: swapInfo,
           });
+          if (
+            swapInfo.sender.token.networkId ===
+            swapInfo.receiver.token.networkId
+          ) {
+            void backgroundApiProxy.serviceNotification.blockNotificationForTxId(
+              {
+                networkId,
+                tx: txId,
+              },
+            );
+          }
         }
       }
       setSwapBuildTxFetching(false);
     },
-    [generateSwapHistoryItem, setSwapBuildTxFetching, setSwapFromTokenAmount],
+    [
+      generateSwapHistoryItem,
+      setSwapBuildTxFetching,
+      setSwapFromTokenAmount,
+      setSwapQuoteResultList,
+      setSwapQuoteEventTotalCount,
+    ],
   );
 
   const handleApproveTxSuccess = useCallback(
@@ -82,6 +129,17 @@ export function useSwapBuildTx() {
       if (data?.[0]) {
         const transactionSignedInfo = data[0].signedTx;
         const txId = transactionSignedInfo.txid;
+        if (
+          inAppNotificationAtom.swapApprovingTransaction &&
+          !inAppNotificationAtom.swapApprovingTransaction.resetApproveValue
+        ) {
+          void backgroundApiProxy.serviceNotification.blockNotificationForTxId({
+            networkId:
+              inAppNotificationAtom.swapApprovingTransaction.fromToken
+                .networkId,
+            tx: txId,
+          });
+        }
         setInAppNotificationAtom((prev) => {
           if (prev.swapApprovingTransaction) {
             return {
@@ -96,7 +154,7 @@ export function useSwapBuildTx() {
         });
       }
     },
-    [setInAppNotificationAtom],
+    [inAppNotificationAtom.swapApprovingTransaction, setInAppNotificationAtom],
   );
 
   const handleTxFail = useCallback(() => {
@@ -166,6 +224,10 @@ export function useSwapBuildTx() {
         onSuccess: handleBuildTxSuccess,
         onCancel: handleTxFail,
       });
+      void syncRecentTokenPairs({
+        swapFromToken: fromToken,
+        swapToToken: toToken,
+      });
     }
   }, [
     fromToken,
@@ -178,74 +240,10 @@ export function useSwapBuildTx() {
     navigationToSendConfirm,
     handleBuildTxSuccess,
     handleTxFail,
+    syncRecentTokenPairs,
   ]);
 
-  const approveTx = useCallback(
-    async (amount: string, isMax?: boolean, resetApproveValue?: string) => {
-      const allowanceInfo = selectQuote?.allowanceResult;
-      if (
-        allowanceInfo &&
-        fromToken &&
-        toToken &&
-        swapFromAddressInfo.networkId &&
-        swapFromAddressInfo.accountInfo?.account?.id &&
-        swapFromAddressInfo.address
-      ) {
-        try {
-          setSwapBuildTxFetching(true);
-          const approveInfo: IApproveInfo = {
-            owner: swapFromAddressInfo.address,
-            spender: allowanceInfo.allowanceTarget,
-            amount,
-            isMax: resetApproveValue ? false : isMax,
-            tokenInfo: {
-              ...fromToken,
-              isNative: !!fromToken.isNative,
-              address: fromToken.contractAddress,
-              name: fromToken.name ?? fromToken.symbol,
-            },
-          };
-          setInAppNotificationAtom((pre) => ({
-            ...pre,
-            swapApprovingTransaction: {
-              provider: selectQuote?.info.provider,
-              fromToken,
-              toToken,
-              amount,
-              useAddress: swapFromAddressInfo.address ?? '',
-              spenderAddress: allowanceInfo.allowanceTarget,
-              status: ESwapApproveTransactionStatus.PENDING,
-              resetApproveValue,
-              resetApproveIsMax: isMax,
-            },
-          }));
-          await navigationToSendConfirm({
-            approveInfo,
-            onSuccess: handleApproveTxSuccess,
-            onCancel: cancelApproveTx,
-          });
-        } catch (e) {
-          setSwapBuildTxFetching(false);
-        }
-      }
-    },
-    [
-      selectQuote?.allowanceResult,
-      selectQuote?.info.provider,
-      fromToken,
-      toToken,
-      swapFromAddressInfo.networkId,
-      swapFromAddressInfo.accountInfo?.account?.id,
-      swapFromAddressInfo.address,
-      setSwapBuildTxFetching,
-      setInAppNotificationAtom,
-      navigationToSendConfirm,
-      handleApproveTxSuccess,
-      cancelApproveTx,
-    ],
-  );
-
-  const buildTx = useCallback(async () => {
+  const createBuildTx = useCallback(async () => {
     if (
       fromToken &&
       toToken &&
@@ -257,7 +255,6 @@ export function useSwapBuildTx() {
       swapFromAddressInfo.networkId
     ) {
       try {
-        setSwapBuildTxFetching(true);
         const res = await backgroundApiProxy.serviceSwap.fetchBuildTx({
           fromToken,
           toToken,
@@ -288,6 +285,7 @@ export function useSwapBuildTx() {
               },
               to: res.swftOrder.platformAddr,
               amount: res.swftOrder.depositCoinAmt,
+              memo: res.swftOrder.memo,
             };
           } else if (res?.changellyOrder) {
             encodedTx = undefined;
@@ -339,6 +337,24 @@ export function useSwapBuildTx() {
               encodedTx = res.tx as string;
             }
           }
+          // check gasLimit
+          const buildGasLimitBN = new BigNumber(res.result?.gasLimit ?? 0);
+          const quoteGasLimitBN = new BigNumber(selectQuote?.gasLimit ?? 0);
+          if (
+            (buildGasLimitBN.isNaN() || buildGasLimitBN.isZero()) &&
+            !quoteGasLimitBN.isNaN() &&
+            !quoteGasLimitBN.isZero()
+          ) {
+            res.result.gasLimit = quoteGasLimitBN.toNumber();
+          }
+          // check routes
+          if (
+            !res.result?.routesData?.length &&
+            selectQuote?.routesData?.length
+          ) {
+            res.result.routesData = selectQuote.routesData;
+          }
+
           const swapInfo = {
             sender: {
               amount: selectQuote.fromAmount,
@@ -352,28 +368,271 @@ export function useSwapBuildTx() {
             receivingAddress: swapToAddressInfo.address,
             swapBuildResData: res,
           };
+          return { swapInfo, transferInfo, encodedTx };
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      return null;
+    }
+  }, [
+    fromToken,
+    selectQuote?.fromAmount,
+    selectQuote?.gasLimit,
+    selectQuote?.info.provider,
+    selectQuote?.quoteResultCtx,
+    selectQuote?.routesData,
+    selectQuote?.toAmount,
+    slippageItem,
+    swapFromAddressInfo.accountInfo?.account?.id,
+    swapFromAddressInfo.address,
+    swapFromAddressInfo.networkId,
+    swapToAddressInfo.address,
+    toToken,
+  ]);
 
+  const approveTx = useCallback(
+    async (amount: string, isMax?: boolean, resetApproveValue?: string) => {
+      const allowanceInfo = selectQuote?.allowanceResult;
+      if (
+        allowanceInfo &&
+        fromToken &&
+        toToken &&
+        swapFromAddressInfo.networkId &&
+        swapFromAddressInfo.accountInfo?.account?.id &&
+        swapFromAddressInfo.address
+      ) {
+        if (settingsPersistAtom.swapBatchApproveAndSwap) {
+          try {
+            setSwapBuildTxFetching(true);
+            let approvesInfo: IApproveInfo[] = [];
+            const approveInfo: IApproveInfo = {
+              owner: swapFromAddressInfo.address,
+              spender: allowanceInfo.allowanceTarget,
+              amount,
+              isMax: resetApproveValue ? false : isMax,
+              tokenInfo: {
+                ...fromToken,
+                isNative: !!fromToken.isNative,
+                address: fromToken.contractAddress,
+                name: fromToken.name ?? fromToken.symbol,
+              },
+            };
+            approvesInfo = [approveInfo];
+            if (resetApproveValue && amount === swapApproveResetValue) {
+              const approveResetInfo: IApproveInfo = {
+                owner: swapFromAddressInfo.address,
+                spender: allowanceInfo.allowanceTarget,
+                amount: resetApproveValue,
+                isMax,
+                tokenInfo: {
+                  ...fromToken,
+                  isNative: !!fromToken.isNative,
+                  address: fromToken.contractAddress,
+                  name: fromToken.name ?? fromToken.symbol,
+                },
+              };
+              approvesInfo = [...approvesInfo, approveResetInfo];
+            }
+            const createBuildTxRes = await createBuildTx();
+            if (createBuildTxRes) {
+              if (
+                accountUtils.isHwAccount({
+                  accountId: swapFromAddressInfo.accountInfo.account.id,
+                }) ||
+                accountUtils.isOthersAccount({
+                  accountId: swapFromAddressInfo.accountInfo.account.id,
+                })
+              ) {
+                await navigationToSendConfirm({
+                  approvesInfo: [approvesInfo[0]],
+                  onSuccess: async (data: ISendTxOnSuccessData[]) => {
+                    if (approvesInfo.length > 1) {
+                      await navigationToSendConfirm({
+                        approvesInfo: [approvesInfo[1]],
+                        feeInfo: data?.[0]?.feeInfo,
+                        onSuccess: async (dataRes: ISendTxOnSuccessData[]) => {
+                          await navigationToSendConfirm({
+                            transfersInfo: createBuildTxRes.transferInfo
+                              ? [createBuildTxRes.transferInfo]
+                              : undefined,
+                            encodedTx: createBuildTxRes.encodedTx,
+                            feeInfo: dataRes?.[0]?.feeInfo,
+                            swapInfo: createBuildTxRes.swapInfo,
+                            onSuccess: handleBuildTxSuccess,
+                            onCancel: cancelBuildTx,
+                          });
+                        },
+                        onCancel: cancelBuildTx,
+                      });
+                    } else {
+                      await navigationToSendConfirm({
+                        transfersInfo: createBuildTxRes.transferInfo
+                          ? [createBuildTxRes.transferInfo]
+                          : undefined,
+                        encodedTx: createBuildTxRes.encodedTx,
+                        swapInfo: createBuildTxRes.swapInfo,
+                        feeInfo: data?.[0]?.feeInfo,
+                        onSuccess: handleBuildTxSuccess,
+                        onCancel: cancelBuildTx,
+                      });
+                    }
+                  },
+                  onCancel: cancelBuildTx,
+                });
+              } else {
+                await navigationToSendConfirm({
+                  transfersInfo: createBuildTxRes.transferInfo
+                    ? [createBuildTxRes.transferInfo]
+                    : undefined,
+                  encodedTx: createBuildTxRes.encodedTx,
+                  swapInfo: createBuildTxRes.swapInfo,
+                  approvesInfo,
+                  onSuccess: handleBuildTxSuccess,
+                  onCancel: cancelBuildTx,
+                });
+              }
+              void syncRecentTokenPairs({
+                swapFromToken: fromToken,
+                swapToToken: toToken,
+              });
+              defaultLogger.swap.createSwapOrder.swapCreateOrder({
+                swapProvider: selectQuote?.info.provider,
+                swapProviderName: selectQuote?.info.providerName,
+                swapType: EProtocolOfExchange.SWAP,
+                slippage: slippageItem.value.toString(),
+                sourceChain: fromToken.networkId,
+                receivedChain: toToken.networkId,
+                sourceTokenSymbol: fromToken.symbol,
+                receivedTokenSymbol: toToken.symbol,
+                feeType: selectQuote?.fee?.percentageFee?.toString() ?? '0',
+                router: JSON.stringify(selectQuote?.routesData ?? ''),
+                isFirstTime: isFirstTimeSwap,
+                createFrom: pageType === EPageType.modal ? 'modal' : 'swapPage',
+              });
+              setSettings((prev) => ({
+                ...prev,
+                isFirstTimeSwap: false,
+              }));
+            } else {
+              setSwapBuildTxFetching(false);
+              setSwapShouldRefreshQuote(true);
+            }
+          } catch (e) {
+            console.error(e);
+            setSwapBuildTxFetching(false);
+            setSwapShouldRefreshQuote(true);
+          }
+        } else {
+          try {
+            setSwapBuildTxFetching(true);
+            const approveInfo: IApproveInfo = {
+              owner: swapFromAddressInfo.address,
+              spender: allowanceInfo.allowanceTarget,
+              amount,
+              isMax: resetApproveValue ? false : isMax,
+              tokenInfo: {
+                ...fromToken,
+                isNative: !!fromToken.isNative,
+                address: fromToken.contractAddress,
+                name: fromToken.name ?? fromToken.symbol,
+              },
+            };
+            setInAppNotificationAtom((pre) => ({
+              ...pre,
+              swapApprovingTransaction: {
+                provider: selectQuote?.info.provider,
+                fromToken,
+                toToken,
+                amount,
+                useAddress: swapFromAddressInfo.address ?? '',
+                spenderAddress: allowanceInfo.allowanceTarget,
+                status: ESwapApproveTransactionStatus.PENDING,
+                resetApproveValue,
+                resetApproveIsMax: isMax,
+              },
+            }));
+            await navigationToSendConfirm({
+              approvesInfo: [approveInfo],
+              onSuccess: handleApproveTxSuccess,
+              onCancel: cancelApproveTx,
+            });
+          } catch (e) {
+            setSwapBuildTxFetching(false);
+          }
+        }
+      }
+    },
+    [
+      selectQuote?.allowanceResult,
+      selectQuote?.info.provider,
+      selectQuote?.info.providerName,
+      selectQuote?.fee?.percentageFee,
+      selectQuote?.routesData,
+      fromToken,
+      toToken,
+      swapFromAddressInfo.networkId,
+      swapFromAddressInfo.accountInfo?.account?.id,
+      swapFromAddressInfo.address,
+      settingsPersistAtom.swapBatchApproveAndSwap,
+      setSwapBuildTxFetching,
+      createBuildTx,
+      navigationToSendConfirm,
+      handleBuildTxSuccess,
+      cancelBuildTx,
+      syncRecentTokenPairs,
+      slippageItem.value,
+      isFirstTimeSwap,
+      pageType,
+      setSettings,
+      setSwapShouldRefreshQuote,
+      setInAppNotificationAtom,
+      handleApproveTxSuccess,
+      cancelApproveTx,
+    ],
+  );
+
+  const buildTx = useCallback(async () => {
+    if (
+      fromToken &&
+      toToken &&
+      selectQuote?.fromAmount &&
+      slippageItem &&
+      selectQuote?.toAmount &&
+      swapFromAddressInfo.address &&
+      swapToAddressInfo.address &&
+      swapFromAddressInfo.networkId
+    ) {
+      setSwapBuildTxFetching(true);
+      const createBuildTxRes = await createBuildTx();
+      try {
+        if (createBuildTxRes) {
           await navigationToSendConfirm({
-            transfersInfo: transferInfo ? [transferInfo] : undefined,
-            encodedTx,
-            swapInfo,
+            transfersInfo: createBuildTxRes.transferInfo
+              ? [createBuildTxRes.transferInfo]
+              : undefined,
+            encodedTx: createBuildTxRes.encodedTx,
+            swapInfo: createBuildTxRes.swapInfo,
             onSuccess: handleBuildTxSuccess,
             onCancel: cancelBuildTx,
           });
+          void syncRecentTokenPairs({
+            swapFromToken: fromToken,
+            swapToToken: toToken,
+          });
           defaultLogger.swap.createSwapOrder.swapCreateOrder({
+            swapProvider: selectQuote?.info.provider,
+            swapProviderName: selectQuote?.info.providerName,
             swapType: EProtocolOfExchange.SWAP,
             slippage: slippageItem.value.toString(),
             sourceChain: fromToken.networkId,
             receivedChain: toToken.networkId,
-            fromAddress: swapFromAddressInfo.address,
-            toAddress: swapToAddressInfo.address,
             sourceTokenSymbol: fromToken.symbol,
             receivedTokenSymbol: toToken.symbol,
-            swapAmount: selectQuote?.fromAmount,
-            swapValue: selectQuote?.toAmount,
             feeType: selectQuote?.fee?.percentageFee?.toString() ?? '0',
             router: JSON.stringify(selectQuote?.routesData ?? ''),
             isFirstTime: isFirstTimeSwap,
+            createFrom: pageType === EPageType.modal ? 'modal' : 'swapPage',
           });
           setSettings((prev) => ({
             ...prev,
@@ -389,25 +648,27 @@ export function useSwapBuildTx() {
       }
     }
   }, [
-    setSettings,
     fromToken,
     toToken,
     selectQuote?.fromAmount,
     selectQuote?.toAmount,
     selectQuote?.info.provider,
-    selectQuote?.quoteResultCtx,
+    selectQuote?.info.providerName,
     selectQuote?.fee?.percentageFee,
     selectQuote?.routesData,
     slippageItem,
     swapFromAddressInfo.address,
     swapFromAddressInfo.networkId,
-    swapFromAddressInfo.accountInfo?.account?.id,
     swapToAddressInfo.address,
     setSwapBuildTxFetching,
+    createBuildTx,
     navigationToSendConfirm,
     handleBuildTxSuccess,
     cancelBuildTx,
+    syncRecentTokenPairs,
     isFirstTimeSwap,
+    pageType,
+    setSettings,
     setSwapShouldRefreshQuote,
   ]);
 

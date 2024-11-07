@@ -1,4 +1,9 @@
-import type { CompositionEventHandler, ForwardedRef, RefObject } from 'react';
+import type {
+  ComponentType,
+  CompositionEventHandler,
+  ForwardedRef,
+  RefObject,
+} from 'react';
 import {
   forwardRef,
   useCallback,
@@ -9,24 +14,30 @@ import {
   useState,
 } from 'react';
 
+import { EPasteEventPayloadItemType } from '@onekeyfe/react-native-text-input/src/enum';
 import { InteractionManager } from 'react-native';
-import {
-  Group,
-  Input as TMInput,
-  getFontSize,
-  useProps,
-  useThemeName,
-} from 'tamagui';
+import { Group, getFontSize, useProps, useThemeName } from 'tamagui';
 
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
 import { useSelectionColor } from '../../hooks';
+import { useScrollToLocation } from '../../layouts/ScrollView';
 import { Icon } from '../../primitives';
 
+import { Input as TMInput } from './Input';
 import { type IInputAddOnProps, InputAddOnItem } from './InputAddOnItem';
 import { getSharedInputStyles } from './sharedStyles';
 
-import type { IGroupProps, IKeyOfIcons } from '../../primitives';
+import type {
+  IGroupProps,
+  IKeyOfIcons,
+  IStackProps,
+  IStackStyle,
+} from '../../primitives';
+import type {
+  IPasteEventParams,
+  IPasteEventPayload,
+} from '@onekeyfe/react-native-text-input';
 import type {
   HostComponent,
   MeasureLayoutOnSuccessCallback,
@@ -39,7 +50,19 @@ import type { GetProps } from 'tamagui';
 
 type ITMInputProps = GetProps<typeof TMInput>;
 
+export { EPasteEventPayloadItemType } from '@onekeyfe/react-native-text-input/src/enum';
+
+export type {
+  IPasteEventPayloadItem,
+  IPasteEventPayload,
+  IPasteEventParams,
+} from '@onekeyfe/react-native-text-input';
+
 export type IInputProps = {
+  InputComponent?: ComponentType;
+  InputComponentStyle?: IStackStyle;
+  addOnsContainerProps?: IStackProps;
+  addOnsItemProps?: IStackProps;
   displayAsMaskWhenEmptyValue?: boolean;
   readonly?: boolean;
   size?: 'small' | 'medium' | 'large';
@@ -49,14 +72,9 @@ export type IInputProps = {
   addOns?: IInputAddOnProps[];
   allowClear?: boolean; // add clear button when controlled value is not empty
   containerProps?: IGroupProps;
-  // not support on Native
-  // https://github.com/facebook/react-native/pull/45425
-  // About to add to React-Native.
-  //
-  // https://github.com/Expensify/App/pull/47203/files#diff-9bdb475c2552cf81e4b3cdf2496ef5f779fd501613ac89c1252538b008722abc
-  onPaste?: () => void;
+  onPaste?: (event: IPasteEventParams) => void;
   onChangeText?: ((text: string) => string | void) | undefined;
-} & Omit<ITMInputProps, 'size' | 'onChangeText'> & {
+} & Omit<ITMInputProps, 'size' | 'onChangeText' | 'onPaste'> & {
     /** Web only */
     onCompositionStart?: CompositionEventHandler<any>;
     /** Web only */
@@ -120,8 +138,12 @@ const useAutoFocus = (inputRef: RefObject<TextInput>, autoFocus?: boolean) => {
   return shouldReloadAutoFocus ? false : autoFocus;
 };
 
-function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
+function BaseInput(
+  inputProps: IInputProps,
+  forwardedRef: ForwardedRef<IInputRef>,
+) {
   const {
+    InputComponent = TMInput,
     size = 'medium',
     leftAddOnProps,
     leftIconName,
@@ -131,6 +153,8 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
     editable,
     error,
     containerProps,
+    addOnsContainerProps,
+    addOnsItemProps,
     readonly,
     autoFocus,
     selectTextOnFocus,
@@ -138,6 +162,9 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
     value,
     displayAsMaskWhenEmptyValue,
     onPaste,
+    onChangeText,
+    keyboardType,
+    InputComponentStyle,
     ...props
   } = useProps(inputProps);
   const { paddingLeftWithIcon, height, iconLeftPosition } = SIZE_MAPPINGS[size];
@@ -161,25 +188,61 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
           iconName: 'XCircleOutline',
           onPress: () => {
             inputRef?.current?.clear();
-            inputProps?.onChangeText?.('');
+            onChangeText?.('');
           },
         },
       ];
     }
     return addOnsInProps;
-  }, [allowClear, addOnsInProps, inputProps]);
+  }, [allowClear, inputProps?.value, addOnsInProps, onChangeText]);
 
   useEffect(() => {
     if (!platformEnv.isNative && inputRef.current && onPaste) {
+      const handleWebPaste = (event: {
+        type: 'paste';
+        clipboardData: {
+          items: DataTransferItem[];
+        };
+      }) => {
+        if (event.type === 'paste') {
+          const clipboardData = event.clipboardData;
+          if (clipboardData && clipboardData.items.length > 0) {
+            const items: IPasteEventPayload = [];
+            const promises: Promise<void>[] = [];
+
+            for (let i = 0; i < clipboardData.items.length; i += 1) {
+              const item = clipboardData.items[i];
+              if (item.kind === 'string') {
+                promises.push(
+                  new Promise<void>((resolve) => {
+                    item.getAsString((pastedText) => {
+                      items.push({
+                        data: pastedText,
+                        type: EPasteEventPayloadItemType.TextPlain,
+                      });
+                      resolve();
+                    });
+                  }),
+                );
+              }
+            }
+
+            void Promise.all(promises).then(() => {
+              onPaste({ nativeEvent: { items } });
+            });
+          }
+        }
+      };
       const inputElement = inputRef.current as unknown as HTMLInputElement;
-      inputElement.addEventListener('paste', onPaste);
+      inputElement.addEventListener('paste', handleWebPaste as any);
       return () => {
-        inputElement.removeEventListener('paste', onPaste);
+        inputElement.removeEventListener('paste', handleWebPaste as any);
       };
     }
   }, [onPaste]);
 
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle(forwardedRef, () => ({
+    ...inputRef.current,
     focus: () => {
       inputRef.current?.focus();
     },
@@ -206,6 +269,7 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
     valueRef.current = value;
   }
 
+  const { scrollToView } = useScrollToLocation(inputRef);
   // workaround for selectTextOnFocus={true} not working on Native App
   const handleFocus = useCallback(
     async (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
@@ -218,8 +282,16 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
           });
         });
       }
+      scrollToView();
     },
-    [onFocus, selectTextOnFocus],
+    [onFocus, selectTextOnFocus, scrollToView],
+  );
+
+  const onNumberPadChangeText = useCallback(
+    (text: string) => {
+      onChangeText?.(text.replace(',', '.'));
+    },
+    [onChangeText],
   );
 
   return (
@@ -252,9 +324,10 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
 
       {/* input */}
       <Group.Item>
-        <TMInput
+        <InputComponent
           unstyled
           ref={inputRef}
+          keyboardType={keyboardType}
           flex={1}
           // @ts-expect-error
           pointerEvents={readonly ? 'none' : 'auto'}
@@ -285,7 +358,14 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
           selectTextOnFocus={selectTextOnFocus}
           editable={editable}
           {...readOnlyStyle}
+          {...InputComponentStyle}
           {...props}
+          onPaste={platformEnv.isNative ? (onPaste as any) : undefined}
+          onChangeText={
+            platformEnv.isNativeIOS && keyboardType === 'decimal-pad'
+              ? onNumberPadChangeText
+              : onChangeText
+          }
         />
       </Group.Item>
 
@@ -311,6 +391,7 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
             orientation="horizontal"
             disabled={disabled}
             disablePassBorderRadius="start"
+            {...addOnsContainerProps}
           >
             {addOns.map(
               (
@@ -322,6 +403,7 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
                   loading,
                   testID = '',
                   renderContent,
+                  tooltipProps,
                 },
                 index,
               ) => {
@@ -336,11 +418,11 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
                 };
 
                 return (
-                  <Group.Item key={`${iconName || index}-${label || index}`}>
+                  <Group.Item key={`${iconName || index}-${index}`}>
                     {renderContent ?? (
                       <InputAddOnItem
                         testID={testID}
-                        key={`${iconName || ''}-${label || ''}`}
+                        key={`${iconName || ''}-${index}`}
                         label={label}
                         loading={loading}
                         size={size}
@@ -348,6 +430,8 @@ function BaseInput(inputProps: IInputProps, ref: ForwardedRef<IInputRef>) {
                         iconColor={getIconColor()}
                         error={error}
                         onPress={onPress}
+                        tooltipProps={tooltipProps}
+                        {...addOnsItemProps}
                       />
                     )}
                   </Group.Item>
@@ -391,7 +475,7 @@ function BaseInputUnControlled(
   return (
     <Input
       ref={inputRef}
-      {...inputProps}
+      {...(inputProps as any)}
       value={internalValue}
       onChangeText={handleChange}
     />

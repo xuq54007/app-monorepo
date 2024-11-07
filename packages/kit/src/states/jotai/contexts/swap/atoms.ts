@@ -7,10 +7,6 @@ import {
   ESwapProviderSort,
   swapSlippageAutoValue,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
-import {
-  ESwapReceiveAddressType,
-  ESwapSlippageSegmentKey,
-} from '@onekeyhq/shared/types/swap/types';
 import type {
   ESwapDirectionType,
   ESwapRateDifferenceUnit,
@@ -21,6 +17,12 @@ import type {
   ISwapSlippageSegmentItem,
   ISwapToken,
   ISwapTokenCatch,
+  ISwapTokenMetadata,
+} from '@onekeyhq/shared/types/swap/types';
+import {
+  ESwapReceiveAddressType,
+  ESwapSlippageSegmentKey,
+  ESwapTabSwitchType,
 } from '@onekeyhq/shared/types/swap/types';
 
 import { createJotaiContext } from '../../utils/createJotaiContext';
@@ -35,6 +37,10 @@ const {
 } = createJotaiContext();
 export { ProviderJotaiContextSwap, contextAtomMethod };
 
+// swap bridge limit switch
+export const { atom: swapTypeSwitchAtom, use: useSwapTypeSwitchAtom } =
+  contextAtom<ESwapTabSwitchType>(ESwapTabSwitchType.SWAP);
+
 // swap networks & tokens
 export const { atom: swapNetworks, use: useSwapNetworksAtom } = contextAtom<
   ISwapNetwork[]
@@ -44,13 +50,20 @@ export const {
   atom: swapNetworksIncludeAllNetworkAtom,
   use: useSwapNetworksIncludeAllNetworkAtom,
 } = contextAtomComputed<ISwapNetwork[]>((get) => {
-  const networks = get(swapNetworks());
+  let networks = get(swapNetworks());
+  const swapType = get(swapTypeSwitchAtom());
+  networks = networks.filter((net) =>
+    swapType === ESwapTabSwitchType.BRIDGE
+      ? net.supportCrossChainSwap
+      : net.supportSingleSwap,
+  );
   const allNetwork = {
     networkId: getNetworkIdsMap().onekeyall,
     name: dangerAllNetworkRepresent.name,
     symbol: dangerAllNetworkRepresent.symbol,
     logoURI: dangerAllNetworkRepresent.logoURI,
     shortcode: dangerAllNetworkRepresent.shortcode,
+    isAllNetworks: true,
   };
   return [allNetwork, ...networks];
 });
@@ -111,9 +124,9 @@ export const {
 } = contextAtom('');
 
 export const {
-  atom: swapAllNetworkTokenListAtom,
-  use: useSwapAllNetworkTokenListAtom,
-} = contextAtom<ISwapToken[] | undefined>(undefined);
+  atom: swapAllNetworkTokenListMapAtom,
+  use: useSwapAllNetworkTokenListMapAtom,
+} = contextAtom<Record<string, ISwapToken[]>>({});
 
 export const {
   atom: swapAllNetworkActionLockAtom,
@@ -256,7 +269,6 @@ export const {
 } = contextAtomComputed((get) => {
   const list = get(swapSortedQuoteListAtom());
   const manualSelectQuoteProviders = get(swapManualSelectQuoteProvidersAtom());
-  const totalQuoteCount = get(swapQuoteEventTotalCountAtom());
   const manualSelectQuoteResult = list.find(
     (item) =>
       item.info.provider === manualSelectQuoteProviders?.info.provider &&
@@ -269,15 +281,24 @@ export const {
         item.info.providerName === manualSelectQuoteProviders.info.providerName,
     );
   }
-  if (
-    list?.length > 0 &&
-    (list.some((item) => item.toAmount) ||
-      (totalQuoteCount <= list.length && list.every((item) => !item.toAmount)))
-  ) {
+  if (list?.length > 0) {
     return list[0];
   }
   return undefined;
 });
+
+export const { atom: swapTokenMetadataAtom, use: useSwapTokenMetadataAtom } =
+  contextAtomComputed<{
+    swapTokenMetadata?: ISwapTokenMetadata;
+  }>((get) => {
+    const quoteList = get(swapQuoteListAtom());
+    const swapTokenMetadata = quoteList.find(
+      (item) => item.tokenMetadata,
+    )?.tokenMetadata;
+    return {
+      swapTokenMetadata,
+    };
+  });
 
 export const { atom: swapQuoteFetchingAtom, use: useSwapQuoteFetchingAtom } =
   contextAtom<boolean>(false);

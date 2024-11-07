@@ -19,6 +19,8 @@ import numberUtils, {
 import { mergeAssetTransferActions } from '@onekeyhq/shared/src/utils/txActionUtils';
 import type {
   IAddressValidation,
+  IFetchServerAccountDetailsParams,
+  IFetchServerAccountDetailsResponse,
   IGeneralInputValidation,
   INetworkAccountAddressDetail,
   IPrivateKeyValidation,
@@ -29,8 +31,22 @@ import type {
   IMeasureRpcStatusParams,
   IMeasureRpcStatusResult,
 } from '@onekeyhq/shared/types/customRpc';
-import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
+import type {
+  IEstimateGasParams,
+  IFeeInfoUnit,
+  IServerEstimateFeeResponse,
+} from '@onekeyhq/shared/types/fee';
+import type {
+  IServerFetchAccountHistoryDetailParams,
+  IServerFetchAccountHistoryDetailResp,
+} from '@onekeyhq/shared/types/history';
 import { ENFTType } from '@onekeyhq/shared/types/nft';
+import type {
+  IFetchServerTokenDetailParams,
+  IFetchServerTokenDetailResponse,
+  IFetchServerTokenListParams,
+  IFetchServerTokenListResponse,
+} from '@onekeyhq/shared/types/serverToken';
 import type { IToken } from '@onekeyhq/shared/types/token';
 import type {
   IDecodedTx,
@@ -57,6 +73,7 @@ import {
   type INativeAmountInfo,
   type ITokenApproveInfo,
   type ITransferInfo,
+  type ITransferPayload,
   type IUpdateUnsignedTxParams,
   type IValidateGeneralInputParams,
   type IWrappedInfo,
@@ -85,9 +102,11 @@ import { KeyringImported } from './KeyringImported';
 import { KeyringQr } from './KeyringQr';
 import { KeyringWatching } from './KeyringWatching';
 import { ClientEvm } from './sdkEvm/ClientEvm';
+import { EvmApiProvider } from './sdkEvm/EvmApiProvider';
 
 import type { IDBWalletType } from '../../../dbs/local/types';
 import type { KeyringBase } from '../../base/KeyringBase';
+import type { IJsonRpcRequest } from '@onekeyfe/cross-inpage-provider-types';
 
 // evm vault
 export default class Vault extends VaultBase {
@@ -201,10 +220,10 @@ export default class Vault extends VaultBase {
   override async buildDecodedTx(
     params: IBuildDecodedTxParams,
   ): Promise<IDecodedTx> {
-    const { unsignedTx } = params;
+    const { unsignedTx, transferPayload } = params;
 
     const encodedTx = unsignedTx.encodedTx as IEncodedTxEvm;
-    const { swapInfo } = unsignedTx;
+    const { swapInfo, stakingInfo } = unsignedTx;
 
     const [network, accountAddress, nativeTx] = await Promise.all([
       this.getNetwork(),
@@ -227,6 +246,13 @@ export default class Vault extends VaultBase {
         swapInfo,
         swapData: encodedTx.data,
         swapToAddress: encodedTx.to,
+      });
+    } else if (stakingInfo) {
+      action = await this.buildInternalStakingAction({
+        stakingInfo,
+        accountAddress,
+        stakingData: encodedTx.data,
+        stakingToAddress: encodedTx.to,
       });
     } else {
       if (encodedTx.value) {
@@ -251,6 +277,7 @@ export default class Vault extends VaultBase {
       } else {
         const actionFromContract = await this._buildTxActionFromContract({
           encodedTx,
+          transferPayload,
         });
         if (actionFromContract) {
           action = actionFromContract;
@@ -259,15 +286,18 @@ export default class Vault extends VaultBase {
     }
 
     return this._buildDecodedTx({
-      encodedTx,
+      unsignedTx,
       action,
       extraNativeTransferAction,
     });
   }
 
-  async _buildTxActionFromContract(params: { encodedTx: IEncodedTxEvm }) {
+  async _buildTxActionFromContract(params: {
+    encodedTx: IEncodedTxEvm;
+    transferPayload?: ITransferPayload;
+  }) {
     let action: IDecodedTxAction | undefined;
-    const { encodedTx } = params;
+    const { encodedTx, transferPayload } = params;
     const nativeTx = await parseToNativeTx({
       encodedTx,
     });
@@ -277,6 +307,7 @@ export default class Vault extends VaultBase {
       action = await this._buildTxTokenAction({
         encodedTx,
         txDesc: erc20TxDesc,
+        transferPayload,
       });
       if (action) return action;
     }
@@ -286,6 +317,7 @@ export default class Vault extends VaultBase {
       action = await this._buildTxTransferNFTAction({
         encodedTx,
         txDesc: erc721TxDesc,
+        transferPayload,
       });
       if (action) return action;
     }
@@ -295,6 +327,7 @@ export default class Vault extends VaultBase {
       action = await this._buildTxTransferNFTAction({
         encodedTx,
         txDesc: erc1155TxDesc,
+        transferPayload,
       });
       if (action) return action;
     }
@@ -316,7 +349,19 @@ export default class Vault extends VaultBase {
   ): Promise<IUnsignedTxPro> {
     const encodedTx = params.encodedTx ?? (await this.buildEncodedTx(params));
     if (encodedTx) {
-      return this._buildUnsignedTxFromEncodedTx(encodedTx as IEncodedTxEvm);
+      const unsignedTx = await this._buildUnsignedTxFromEncodedTx(
+        encodedTx as IEncodedTxEvm,
+      );
+
+      if (params.prevNonce && isNumber(params.prevNonce)) {
+        return this.updateUnsignedTx({
+          unsignedTx,
+          nonceInfo: {
+            nonce: new BigNumber(params.prevNonce).plus(1).toNumber(),
+          },
+        });
+      }
+      return unsignedTx;
     }
     throw new OneKeyInternalError();
   }
@@ -330,6 +375,7 @@ export default class Vault extends VaultBase {
       nonceInfo,
       nativeAmountInfo,
       tokenApproveInfo,
+      dataInfo,
     } = params;
     let encodedTxNew = unsignedTx.encodedTx as IEncodedTxEvm;
 
@@ -338,6 +384,14 @@ export default class Vault extends VaultBase {
         encodedTx: encodedTxNew,
         tokenApproveInfo,
       });
+
+      if (unsignedTx.approveInfo) {
+        unsignedTx.approveInfo = {
+          ...unsignedTx.approveInfo,
+          amount: tokenApproveInfo.allowance,
+          isMax: tokenApproveInfo.isUnlimited,
+        };
+      }
     }
 
     if (feeInfo) {
@@ -362,6 +416,13 @@ export default class Vault extends VaultBase {
       });
     }
 
+    if (dataInfo) {
+      encodedTxNew = await this._attachDataInfoToEncodedTx({
+        encodedTx: encodedTxNew,
+        dataInfo,
+      });
+    }
+
     unsignedTx.encodedTx = encodedTxNew;
     return unsignedTx;
   }
@@ -377,11 +438,12 @@ export default class Vault extends VaultBase {
   }
 
   async _buildDecodedTx(params: {
-    encodedTx: IEncodedTxEvm;
+    unsignedTx: IUnsignedTxPro;
     action: IDecodedTxAction | undefined;
     extraNativeTransferAction: IDecodedTxAction | undefined;
   }): Promise<IDecodedTx> {
-    const { encodedTx, action, extraNativeTransferAction } = params;
+    const { unsignedTx, action, extraNativeTransferAction } = params;
+    const encodedTx = unsignedTx.encodedTx as IEncodedTxEvm;
     const accountAddress = await this.getAccountAddress();
     const finalActions = mergeAssetTransferActions(
       [action, extraNativeTransferAction].filter(Boolean),
@@ -399,6 +461,7 @@ export default class Vault extends VaultBase {
       accountId: this.accountId,
       encodedTx,
       extraInfo: null,
+      approveInfo: unsignedTx.approveInfo,
     };
     return decodedTx;
   }
@@ -575,8 +638,8 @@ export default class Vault extends VaultBase {
     const encodedTxWithFee = { ...encodedTx };
 
     if (!isNil(gasInfo?.gasLimit)) {
-      encodedTxWithFee.gas = gasInfo.gasLimit;
-      encodedTxWithFee.gasLimit = gasInfo.gasLimit;
+      encodedTxWithFee.gas = toBigIntHex(new BigNumber(gasInfo.gasLimit));
+      encodedTxWithFee.gasLimit = toBigIntHex(new BigNumber(gasInfo.gasLimit));
     }
 
     if (feeInfo.gasEIP1559) {
@@ -609,6 +672,19 @@ export default class Vault extends VaultBase {
     const tx = {
       ...encodedTx,
       nonce: nonceInfo.nonce,
+    };
+
+    return Promise.resolve(tx);
+  }
+
+  async _attachDataInfoToEncodedTx(params: {
+    encodedTx: IEncodedTxEvm;
+    dataInfo: { data: string };
+  }): Promise<IEncodedTxEvm> {
+    const { encodedTx, dataInfo } = params;
+    const tx = {
+      ...encodedTx,
+      data: dataInfo.data,
     };
 
     return Promise.resolve(tx);
@@ -721,8 +797,9 @@ export default class Vault extends VaultBase {
   async _buildTxTokenAction(params: {
     encodedTx: IEncodedTxEvm;
     txDesc: ethers.utils.TransactionDescription;
+    transferPayload?: ITransferPayload;
   }) {
-    const { encodedTx, txDesc } = params;
+    const { encodedTx, txDesc, transferPayload } = params;
 
     const token = await this.backgroundApi.serviceToken.getToken({
       accountId: this.accountId,
@@ -740,6 +817,7 @@ export default class Vault extends VaultBase {
         encodedTx,
         txDesc,
         token,
+        transferPayload,
       });
     }
 
@@ -756,8 +834,9 @@ export default class Vault extends VaultBase {
     encodedTx: IEncodedTxEvm;
     txDesc: ethers.utils.TransactionDescription;
     token: IToken;
+    transferPayload?: ITransferPayload;
   }) {
-    const { encodedTx, token, txDesc } = params;
+    const { encodedTx, token, txDesc, transferPayload } = params;
 
     let from = encodedTx.from;
     let recipient = encodedTx.to;
@@ -781,6 +860,14 @@ export default class Vault extends VaultBase {
       value: value.toString(),
       token,
     });
+
+    if (
+      transferPayload?.originalRecipient &&
+      transferPayload.originalRecipient.toLowerCase() ===
+        recipient.toLowerCase()
+    ) {
+      recipient = transferPayload.originalRecipient;
+    }
 
     const transfer: IDecodedTxTransferInfo = {
       from,
@@ -871,8 +958,9 @@ export default class Vault extends VaultBase {
   async _buildTxTransferNFTAction(params: {
     encodedTx: IEncodedTxEvm;
     txDesc: ethers.utils.TransactionDescription;
+    transferPayload?: ITransferPayload;
   }) {
-    const { encodedTx, txDesc } = params;
+    const { encodedTx, txDesc, transferPayload } = params;
     const accountAddress = await this.getAccountAddress();
 
     if (
@@ -900,9 +988,18 @@ export default class Vault extends VaultBase {
       nftAmount = isNil(amount) ? '1' : amount;
     }
 
+    let recipient = to;
+    if (
+      transferPayload?.originalRecipient &&
+      transferPayload.originalRecipient.toLowerCase() ===
+        recipient.toLowerCase()
+    ) {
+      recipient = transferPayload.originalRecipient;
+    }
+
     const transfer: IDecodedTxTransferInfo = {
       from,
-      to,
+      to: recipient,
       tokenIdOnNetwork: nftId,
       amount: nftAmount,
       name: nft.metadata?.name ?? '',
@@ -913,7 +1010,7 @@ export default class Vault extends VaultBase {
 
     return this.buildTxTransferAssetAction({
       from: encodedTx.from ?? accountAddress,
-      to,
+      to: recipient,
       transfers: [transfer],
     });
   }
@@ -1059,12 +1156,16 @@ export default class Vault extends VaultBase {
   ): Promise<IMeasureRpcStatusResult> {
     const client = new ClientEvm(params.rpcUrl);
     const { chainId } = await client.getChainId();
-    if (Number(chainId) !== Number(await this.getNetworkChainId())) {
+    if (
+      params.validateChainId &&
+      Number(chainId) !== Number(await this.getNetworkChainId())
+    ) {
       throw new OneKeyError('Invalid chainId');
     }
     const start = performance.now();
     const result = await client.getInfo();
     return {
+      chainId: Number(chainId),
       responseTime: Math.floor(performance.now() - start),
       bestBlockNumber: result.bestBlockNumber,
     };
@@ -1085,5 +1186,73 @@ export default class Vault extends VaultBase {
       txid,
       encodedTx: signedTx.encodedTx,
     };
+  }
+
+  // RPC Client
+  async getRpcClient() {
+    const rpcInfo =
+      await this.backgroundApi.serviceCustomRpc.getCustomRpcForNetwork(
+        this.networkId,
+      );
+    if (!rpcInfo?.rpc) {
+      throw new OneKeyInternalError('No RPC url');
+    }
+
+    const provider = new EvmApiProvider({
+      url: rpcInfo.rpc,
+      backgroundApi: this.backgroundApi,
+      networkId: this.networkId,
+    });
+    return provider;
+  }
+
+  override async fetchAccountDetailsByRpc(
+    params: IFetchServerAccountDetailsParams,
+  ): Promise<IFetchServerAccountDetailsResponse> {
+    const provider = await this.getRpcClient();
+    const resp = await provider.getAccount(params);
+    return resp;
+  }
+
+  override async fetchTokenListByRpc(
+    params: IFetchServerTokenListParams,
+  ): Promise<IFetchServerTokenListResponse> {
+    const provider = await this.getRpcClient();
+    const resp = await provider.listAccountToken(params);
+    return resp;
+  }
+
+  override async fetchTokenDetailsByRpc(
+    params: IFetchServerTokenDetailParams,
+  ): Promise<IFetchServerTokenDetailResponse> {
+    const provider = await this.getRpcClient();
+    const resp = await provider.queryAccountToken(params);
+    return resp;
+  }
+
+  override async estimateFeeByRpc(
+    params: IEstimateGasParams,
+  ): Promise<IServerEstimateFeeResponse> {
+    const provider = await this.getRpcClient();
+    const resp = await provider.estimateFee(params);
+    return resp;
+  }
+
+  override async fetchAccountHistoryDetailByRpc(
+    params: IServerFetchAccountHistoryDetailParams,
+  ): Promise<IServerFetchAccountHistoryDetailResp> {
+    const provider = await this.getRpcClient();
+    const resp = await provider.getAccountHistoryDetail(params);
+    return resp;
+  }
+
+  override async checkFeeSupportInfo(params: IMeasureRpcStatusParams) {
+    const client = new ClientEvm(params.rpcUrl);
+    return client.checkEIP1559Support();
+  }
+
+  override async proxyJsonRPCCall<T>(request: IJsonRpcRequest): Promise<T> {
+    const provider = await this.getRpcClient();
+    return provider.client.call(request.method, request.params as any);
   }
 }

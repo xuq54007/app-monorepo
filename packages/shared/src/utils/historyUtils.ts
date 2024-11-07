@@ -1,5 +1,7 @@
 import { isNil } from 'lodash';
 
+import type { IEncodedTxEvm } from '@onekeyhq/core/src/chains/evm/types';
+
 import { EOnChainHistoryTxStatus } from '../../types/history';
 import { EDecodedTxStatus } from '../../types/tx';
 import { SEARCH_KEY_MIN_LENGTH } from '../consts/walletConsts';
@@ -51,9 +53,9 @@ export function getOnChainHistoryTxAssetInfo({
   let decimals = 0;
   nft = nfts[key] ?? nfts[tokenAddress];
   if (tokenAddress === '') {
-    token = tokens[key] || tokens.native;
+    token = tokens[key] ?? tokens[tokenAddress] ?? tokens.native;
   } else {
-    token = tokens[key];
+    token = tokens[key] ?? tokens[tokenAddress];
   }
 
   if (nft) {
@@ -137,60 +139,52 @@ export function getHistoryTxDetailInfo({
   historyTx,
 }: {
   txDetails: IOnChainHistoryTx | undefined;
-  historyTx: IAccountHistoryTx;
+  historyTx: IAccountHistoryTx | undefined;
 }) {
-  const { decodedTx } = historyTx;
+  const decodedTx = historyTx?.decodedTx;
   let swapInfo;
   let nonce = txDetails?.nonce;
+  let data = txDetails?.slicedData;
 
-  if (isNil(nonce) && !isNil(decodedTx.nonce)) {
+  if (isNil(nonce) && !isNil(decodedTx?.nonce)) {
     nonce = decodedTx.nonce;
+  }
+
+  if (isNil(data) && !isNil((decodedTx?.encodedTx as IEncodedTxEvm)?.data)) {
+    const dataStr = (decodedTx?.encodedTx as IEncodedTxEvm)?.data ?? '';
+    if (dataStr.length > 500) {
+      data = `${dataStr.slice(0, 500)}...`;
+    } else {
+      data = dataStr;
+    }
   }
 
   let date = '-';
 
   if (txDetails?.timestamp) {
     date = formatDate(new Date(txDetails.timestamp * 1000));
-  } else if (decodedTx.updatedAt || decodedTx.createdAt) {
+  } else if (decodedTx?.updatedAt || decodedTx?.createdAt) {
     date = formatDate(
-      new Date(decodedTx.updatedAt || decodedTx.createdAt || 0),
+      new Date(decodedTx?.updatedAt || decodedTx?.createdAt || 0),
     );
   }
 
-  const txid = decodedTx.txid;
-
-  const gasFee = txDetails?.gasFee ?? decodedTx.totalFeeInNative;
+  const gasFee = txDetails?.gasFee ?? decodedTx?.totalFeeInNative;
   const gasFeeFiatValue =
-    txDetails?.gasFeeFiatValue ?? decodedTx.totalFeeFiatValue;
+    txDetails?.gasFeeFiatValue ?? decodedTx?.totalFeeFiatValue;
   const confirmations = txDetails?.confirmations;
   const blockHeight = txDetails?.block;
 
   return {
-    txid,
     date,
     nonce,
+    data,
     confirmations,
     blockHeight,
     swapInfo,
     gasFee,
     gasFeeFiatValue,
   };
-}
-
-export function buildLocalHistoryKey({
-  networkId,
-  accountAddress,
-  xpub,
-}: {
-  networkId: string;
-  accountAddress?: string;
-  xpub?: string;
-}) {
-  if (!accountAddress && !xpub) {
-    throw new OneKeyInternalError('accountAddress or xpub is required');
-  }
-
-  return `${networkId}_${(xpub || accountAddress) ?? ''}`.toLowerCase();
 }
 
 // sort history

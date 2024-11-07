@@ -11,6 +11,7 @@ import {
 } from '@magiceden-oss/open_creator_protocol';
 import {
   Metadata,
+  PROGRAM_ADDRESS,
   TokenRecord,
   TokenStandard,
   TokenState,
@@ -57,6 +58,7 @@ import {
   OneKeyInternalError,
 } from '@onekeyhq/shared/src/errors';
 import { memoizee } from '@onekeyhq/shared/src/utils/cacheUtils';
+import chainValueUtils from '@onekeyhq/shared/src/utils/chainValueUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import type {
   IAddressValidation,
@@ -93,6 +95,7 @@ import ClientSol from './sdkSol/ClientSol';
 import {
   BASE_FEE,
   COMPUTE_UNIT_PRICE_DECIMALS,
+  CREATE_TOKEN_ACCOUNT_RENT,
   MIN_PRIORITY_FEE,
   TOKEN_AUTH_RULES_ID,
   masterEditionAddress,
@@ -299,7 +302,6 @@ export default class Vault extends VaultBase {
                 destinationAta,
                 amount,
                 metadata: metadata as Metadata,
-                programId: tokenProgramId,
               })),
             );
           } else {
@@ -474,7 +476,6 @@ export default class Vault extends VaultBase {
     destinationAta,
     amount,
     metadata,
-    programId,
   }: {
     mint: PublicKey;
     source: PublicKey;
@@ -483,7 +484,6 @@ export default class Vault extends VaultBase {
     destinationAta: PublicKey;
     amount: string;
     metadata: Metadata;
-    programId?: PublicKey;
   }) {
     const client = await this.getClient();
     const instructions: TransactionInstruction[] = [];
@@ -521,6 +521,7 @@ export default class Vault extends VaultBase {
         destinationOwner: destination,
         destination: destinationAta,
         payer: source,
+        systemProgram: SystemProgram.programId,
         splTokenProgram: TOKEN_PROGRAM_ID,
         splAtaProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         sysvarInstructions: SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -539,11 +540,7 @@ export default class Vault extends VaultBase {
       };
 
       instructions.push(
-        createTokenMetadataTransferInstruction(
-          transferAccounts,
-          transferArgs,
-          programId,
-        ),
+        createTokenMetadataTransferInstruction(transferAccounts, transferArgs),
       );
     }
 
@@ -686,17 +683,78 @@ export default class Vault extends VaultBase {
 
     let actions: IDecodedTxAction[] = [];
 
+    const client = await this.getClient();
+    const { instructions } = await parseNativeTxDetail({
+      nativeTx,
+      client,
+    });
+
     if (unsignedTx.swapInfo) {
       actions = [
         await this.buildInternalSwapAction({
           swapInfo: unsignedTx.swapInfo,
         }),
       ];
+    } else if (unsignedTx.stakingInfo) {
+      const accountAddress = await this.getAccountAddress();
+      actions = [
+        await this.buildInternalStakingAction({
+          stakingInfo: unsignedTx.stakingInfo,
+          accountAddress,
+        }),
+      ];
     } else {
       actions = await this._decodeNativeTxActions({
-        nativeTx,
+        instructions,
         isNFT: transferPayload?.isNFT,
+        amountToSend: transferPayload?.amountToSend,
       });
+    }
+
+    if (
+      instructions.some(
+        (instruction) =>
+          instruction.programId.toString() ===
+          ASSOCIATED_TOKEN_PROGRAM_ID.toString(),
+      )
+    ) {
+      if (actions[0].assetTransfer) {
+        const nativeToken =
+          await this.backgroundApi.serviceToken.getNativeToken({
+            accountId: this.accountId,
+            networkId: this.networkId,
+          });
+        const network = await this.getNetwork();
+        if (nativeToken) {
+          actions[0].assetTransfer.sends.push({
+            from: actions[0].assetTransfer.from,
+            to: actions[0].assetTransfer.to,
+            amount: CREATE_TOKEN_ACCOUNT_RENT,
+            icon: nativeToken.logoURI ?? '',
+            name: nativeToken.name,
+            symbol: nativeToken.symbol,
+            tokenIdOnNetwork: nativeToken.address,
+            isNFT: false,
+            isNative: true,
+          });
+          actions[0].assetTransfer.nativeAmount = new BigNumber(
+            actions[0].assetTransfer.nativeAmount ?? '0',
+          )
+            .plus(CREATE_TOKEN_ACCOUNT_RENT)
+            .toFixed();
+
+          actions[0].assetTransfer.nativeAmountValue = new BigNumber(
+            actions[0].assetTransfer.nativeAmountValue ?? '0',
+          )
+            .plus(
+              chainValueUtils.convertAmountToChainValue({
+                value: CREATE_TOKEN_ACCOUNT_RENT,
+                network,
+              }),
+            )
+            .toFixed();
+        }
+      }
     }
 
     const isVersionedTransaction = nativeTx instanceof VersionedTransaction;
@@ -744,20 +802,18 @@ export default class Vault extends VaultBase {
   );
 
   async _decodeNativeTxActions({
-    nativeTx,
+    instructions,
     isNFT,
+    amountToSend,
   }: {
-    nativeTx: INativeTxSol;
+    instructions: TransactionInstruction[];
     isNFT: boolean | undefined;
+    amountToSend: string | undefined;
   }) {
     const actions: Array<IDecodedTxAction> = [];
 
     const createdAta: Record<string, IAssociatedTokenInfo> = {};
-    const client = await this.getClient();
-    const { instructions } = await parseNativeTxDetail({
-      nativeTx,
-      client,
-    });
+
     for (const instruction of instructions) {
       // TODO: only support system transfer & token transfer now
       if (
@@ -827,10 +883,16 @@ export default class Vault extends VaultBase {
         instruction.programId.toString() === TOKEN_2022_PROGRAM_ID.toString()
       ) {
         try {
-          const programId =
-            instruction.programId.toString() === TOKEN_PROGRAM_ID.toString()
-              ? TOKEN_PROGRAM_ID
-              : TOKEN_2022_PROGRAM_ID;
+          let programId = TOKEN_PROGRAM_ID;
+
+          if (instruction.programId.toString() === PROGRAM_ADDRESS) {
+            programId = new PublicKey(PROGRAM_ADDRESS);
+          } else {
+            programId =
+              instruction.programId.toString() === TOKEN_PROGRAM_ID.toString()
+                ? TOKEN_PROGRAM_ID
+                : TOKEN_2022_PROGRAM_ID;
+          }
 
           const {
             data: { instruction: instructionType },
@@ -897,6 +959,35 @@ export default class Vault extends VaultBase {
           }
         } catch {
           // pass
+        }
+      } else if (instruction.programId.toString() === PROGRAM_ADDRESS) {
+        const [, owner, , destination, tokenAddress] = instruction.keys;
+        const fromAddress = owner.pubkey.toString();
+        const toAddress = destination.pubkey.toString();
+        const tokenInfo = await this.backgroundApi.serviceToken.getToken({
+          accountId: this.accountId,
+          networkId: this.networkId,
+          tokenIdOnNetwork: tokenAddress.pubkey.toString(),
+        });
+        if (tokenInfo) {
+          const transfer: IDecodedTxTransferInfo = {
+            from: fromAddress,
+            to: toAddress,
+            tokenIdOnNetwork: tokenAddress.pubkey.toString(),
+            icon: tokenInfo.logoURI ?? '',
+            name: tokenInfo.name,
+            symbol: tokenInfo.symbol,
+            amount: amountToSend ?? '1',
+            isNFT,
+          };
+
+          actions.push(
+            await this.buildTxTransferAssetAction({
+              from: fromAddress,
+              to: toAddress,
+              transfers: [transfer],
+            }),
+          );
         }
       }
     }

@@ -1,4 +1,7 @@
-import type { ITransferInfo } from '@onekeyhq/kit-bg/src/vaults/types';
+import type {
+  IApproveInfo,
+  ITransferInfo,
+} from '@onekeyhq/kit-bg/src/vaults/types';
 import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
 import type { IEncodedTxLightning } from '@onekeyhq/shared/types/lightning';
 import type { IStakingInfo } from '@onekeyhq/shared/types/staking';
@@ -7,6 +10,7 @@ import type { ISwapTxInfo } from '@onekeyhq/shared/types/swap/types';
 import type { ICurveName } from './coreTypesBase';
 import type { IEncodedTxAda } from '../chains/ada/types';
 import type { IEncodedTxAlgo, IEncodedTxGroupAlgo } from '../chains/algo/types';
+import type { IEncodedTxAlph } from '../chains/alph/types';
 import type { IEncodedTxAptos } from '../chains/aptos/types';
 import type { IEncodedTxBtc } from '../chains/btc/types';
 import type { IEncodedTxCfx } from '../chains/cfx/types';
@@ -46,6 +50,7 @@ export type IEncodedTx =
   | IEncodedTxTron
   | IEncodedTxNexa
   | IEncodedTxLightning
+  | IEncodedTxAlph
   | IEncodedTxNostr
   | IEncodedTxDot
   | IEncodedTxDnx
@@ -101,15 +106,18 @@ export type IUnsignedTxPro = IUnsignedTx & {
   encodedTx: IEncodedTx;
   feeInfo?: IFeeInfoUnit | undefined;
   swapInfo?: ISwapTxInfo | undefined;
+  approveInfo?: IApproveInfo | undefined;
   stakingInfo?: IStakingInfo;
   txSize?: number;
   transfersInfo?: ITransferInfo[];
   rawTxUnsigned?: string;
+  uuid?: string;
 };
 export type ISignedTx = {
   txid: string;
   rawTx: string;
   psbtHex?: string;
+  finalizedPsbtHex?: string; // used for btc dApp
 };
 export type ISignedTxResult = ISignedTx & {
   signatureScheme?: ICurveName;
@@ -123,6 +131,7 @@ export type ISignedTxResult = ISignedTx & {
   randomSeed?: number;
   swapInfo?: ISwapTxInfo;
   stakingInfo?: IStakingInfo;
+  uuid?: string;
 };
 export type ISignedTxPro = ISignedTxResult & {
   encodedTx: IEncodedTx | null;

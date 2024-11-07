@@ -9,6 +9,7 @@ import { usePrevious } from '@onekeyhq/kit/src/hooks/usePrevious';
 import { usePromiseResult } from '@onekeyhq/kit/src/hooks/usePromiseResult';
 import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRouteIsFocused';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import type { IStakeTag } from '@onekeyhq/shared/types/staking';
 
 type IStakingActivityIndicatorProps = {
@@ -19,18 +20,20 @@ type IStakingActivityIndicatorProps = {
 const PendingIndicator = ({ num, onPress }: IStakingActivityIndicatorProps) => {
   const intl = useIntl();
   return (
-    <Badge badgeType="info" badgeSize="lg" onPress={onPress}>
-      <Stack borderRadius="$full" p={3} bg="$borderInfo">
-        <Stack w="$1.5" h="$1.5" borderRadius="$full" bg="$iconInfo" />
-      </Stack>
-      <Badge.Text pl="$2">
-        {num > 1
-          ? `${num} ${intl.formatMessage({
-              id: ETranslations.global_pending,
-            })} `
-          : intl.formatMessage({ id: ETranslations.global_pending })}
-      </Badge.Text>
-    </Badge>
+    <Stack cursor={onPress ? 'pointer' : 'default'}>
+      <Badge badgeType="info" badgeSize="lg" onPress={onPress}>
+        <Stack borderRadius="$full" p={3} bg="$borderInfo">
+          <Stack w="$1.5" h="$1.5" borderRadius="$full" bg="$iconInfo" />
+        </Stack>
+        <Badge.Text pl="$2">
+          {num > 1
+            ? `${num} ${intl.formatMessage({
+                id: ETranslations.global_pending,
+              })} `
+            : intl.formatMessage({ id: ETranslations.global_pending })}
+        </Badge.Text>
+      </Badge>
+    </Stack>
   );
 };
 
@@ -39,20 +42,22 @@ const StakingActivityIndicator = ({
   onPress,
 }: IStakingActivityIndicatorProps) => {
   const appNavigation = useAppNavigation();
-  const headerRight = useCallback(
-    () =>
-      num > 0 ? (
-        <PendingIndicator num={num} onPress={onPress} />
-      ) : (
+  const headerRight = useCallback(() => {
+    if (num > 0) {
+      return <PendingIndicator num={num} onPress={onPress} />;
+    }
+    if (onPress) {
+      return (
         <IconButton
           variant="tertiary"
           size="medium"
           icon="ClockTimeHistoryOutline"
           onPress={onPress}
         />
-      ),
-    [num, onPress],
-  );
+      );
+    }
+    return null;
+  }, [num, onPress]);
   useEffect(() => {
     appNavigation.setOptions({
       headerRight,
@@ -68,19 +73,23 @@ export const StakingTransactionIndicator = ({
   onRefresh,
   onPress,
 }: {
-  accountId: string;
+  accountId?: string;
   networkId: string;
   stakeTag: IStakeTag;
   onRefresh?: () => void;
   onPress?: () => void;
 }) => {
   const { result: txs, run } = usePromiseResult(
-    async () =>
-      backgroundApiProxy.serviceStaking.fetchLocalStakingHistory({
+    async () => {
+      if (!accountId) {
+        return [];
+      }
+      return backgroundApiProxy.serviceStaking.fetchLocalStakingHistory({
         accountId,
         networkId,
         stakeTag,
-      }),
+      });
+    },
     [accountId, networkId, stakeTag],
     { initResult: [] },
   );
@@ -94,17 +103,24 @@ export const StakingTransactionIndicator = ({
     }
   }, [isFocused, run]);
 
-  useEffect(() => {
-    if (!isPending) return;
-    const timer = setInterval(async () => {
-      await backgroundApiProxy.serviceHistory.fetchAccountHistory({
-        accountId,
-        networkId,
-      });
+  usePromiseResult(
+    async () => {
+      if (!isPending) {
+        return;
+      }
+      if (accountId) {
+        await backgroundApiProxy.serviceHistory.fetchAccountHistory({
+          accountId,
+          networkId,
+        });
+      }
       await run();
-    }, 15 * 1000);
-    return () => clearInterval(timer);
-  }, [isPending, accountId, networkId, run]);
+    },
+    [accountId, isPending, networkId, run],
+    {
+      pollingInterval: timerUtils.getTimeDurationMs({ seconds: 50 }),
+    },
+  );
 
   useEffect(() => {
     if (!isPending && prevIsPending) {

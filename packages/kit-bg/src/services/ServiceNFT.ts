@@ -10,15 +10,19 @@ import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
 import { memoizee } from '@onekeyhq/shared/src/utils/cacheUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
-import {
-  ETraitsDisplayType,
-  type IFetchAccountNFTsParams,
-  type IFetchAccountNFTsResp,
-  type IFetchNFTDetailsParams,
-  type IFetchNFTDetailsResp,
+import { ETraitsDisplayType } from '@onekeyhq/shared/types/nft';
+import type {
+  IAccountNFT,
+  IFetchAccountNFTsParams,
+  IFetchAccountNFTsResp,
+  IFetchNFTDetailsParams,
+  IFetchNFTDetailsResp,
 } from '@onekeyhq/shared/types/nft';
+import { EReasonForNeedPassword } from '@onekeyhq/shared/types/setting';
 
 import ServiceBase from './ServiceBase';
+
+import type { DeviceUploadResourceParams } from '@onekeyfe/hd-core';
 
 @backgroundClass()
 class ServiceNFT extends ServiceBase {
@@ -27,6 +31,27 @@ class ServiceNFT extends ServiceBase {
   }
 
   _fetchAccountNFTsControllers: AbortController[] = [];
+
+  @backgroundMethod()
+  public async uploadNFTImageToDevice(params: {
+    accountId: string;
+    uploadResParams: DeviceUploadResourceParams;
+  }) {
+    const { accountId, uploadResParams } = params;
+    const { deviceParams } =
+      await this.backgroundApi.servicePassword.promptPasswordVerifyByAccount({
+        accountId,
+        reason: EReasonForNeedPassword.Default,
+      });
+    await this.backgroundApi.serviceHardwareUI.withHardwareProcessing(
+      async () =>
+        this.backgroundApi.serviceHardware.uploadResource(
+          deviceParams?.dbDevice.connectId ?? '',
+          uploadResParams,
+        ),
+      { deviceParams, debugMethodName: 'nft.uploadNFTImageToDevice' },
+    );
+  }
 
   @backgroundMethod()
   public async abortFetchAccountNFTs() {
@@ -45,6 +70,7 @@ class ServiceNFT extends ServiceBase {
       allNetworksAccountId,
       allNetworksNetworkId,
       isManualRefresh,
+      saveToLocal,
       ...rest
     } = params;
 
@@ -114,6 +140,14 @@ class ServiceNFT extends ServiceBase {
       allNetworksAccountId === this._currentAccountId &&
       allNetworksNetworkId === this._currentNetworkId
     );
+
+    if (saveToLocal) {
+      await this.updateAccountLocalNFTs({
+        accountId,
+        networkId,
+        nfts: resp.data.data.data,
+      });
+    }
 
     return resp.data.data;
   }
@@ -198,6 +232,58 @@ class ServiceNFT extends ServiceBase {
     } catch (error) {
       return Promise.resolve(undefined);
     }
+  }
+
+  @backgroundMethod()
+  public async updateAccountLocalNFTs(params: {
+    accountId: string;
+    networkId: string;
+    nfts: IAccountNFT[];
+  }) {
+    const { accountId, networkId, nfts } = params;
+    const [xpub, accountAddress] = await Promise.all([
+      this.backgroundApi.serviceAccount.getAccountXpub({
+        accountId,
+        networkId,
+      }),
+      this.backgroundApi.serviceAccount.getAccountAddressForApi({
+        accountId,
+        networkId,
+      }),
+    ]);
+    await this.backgroundApi.simpleDb.localNFTs.updateAccountNFTs({
+      networkId,
+      accountAddress,
+      xpub,
+      nfts,
+    });
+  }
+
+  @backgroundMethod()
+  public async getAccountLocalNFTs(params: {
+    accountId: string;
+    networkId: string;
+  }) {
+    const { accountId, networkId } = params;
+    const [xpub, accountAddress] = await Promise.all([
+      this.backgroundApi.serviceAccount.getAccountXpub({
+        accountId,
+        networkId,
+      }),
+      this.backgroundApi.serviceAccount.getAccountAddressForApi({
+        accountId,
+        networkId,
+      }),
+    ]);
+
+    const localNFTs =
+      await this.backgroundApi.simpleDb.localNFTs.getAccountNFTs({
+        networkId,
+        accountAddress,
+        xpub,
+      });
+
+    return localNFTs;
   }
 
   _getNFTMemo = memoizee(

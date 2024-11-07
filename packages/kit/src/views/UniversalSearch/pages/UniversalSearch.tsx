@@ -19,6 +19,8 @@ import {
 import { useUniversalSearchActions } from '@onekeyhq/kit/src/states/jotai/contexts/universalSearch';
 import { EJotaiContextStoreNames } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
+import { EWatchlistFrom } from '@onekeyhq/shared/src/logger/scopes/market/scenes/token';
 import { ETabMarketRoutes } from '@onekeyhq/shared/src/routes';
 import type {
   EUniversalSearchPages,
@@ -246,6 +248,13 @@ export function UniversalSearch({
                   navigation.push(ETabMarketRoutes.MarketDetail, {
                     token: coingeckoId,
                   });
+                  defaultLogger.market.token.searchToken({
+                    tokenSymbol: coingeckoId,
+                    from:
+                      searchStatus === ESearchStatus.init
+                        ? 'trendingList'
+                        : 'searchList',
+                  });
                   setTimeout(() => {
                     universalSearchActions.current.addIntoRecentSearchList({
                       id: coingeckoId,
@@ -271,7 +280,11 @@ export function UniversalSearch({
                   tokenName={name}
                   tokenSymbol={symbol}
                 />
-                <MarketStar coingeckoId={coingeckoId} ml="$3" />
+                <MarketStar
+                  coingeckoId={coingeckoId}
+                  ml="$3"
+                  from={EWatchlistFrom.search}
+                />
               </XStack>
             </ListItem>
           );
@@ -281,7 +294,12 @@ export function UniversalSearch({
         }
       }
     },
-    [navigation, activeAccount?.network?.id, universalSearchActions],
+    [
+      navigation,
+      activeAccount?.network?.id,
+      searchStatus,
+      universalSearchActions,
+    ],
   );
 
   const renderResult = useCallback(() => {
@@ -300,7 +318,7 @@ export function UniversalSearch({
 
       case ESearchStatus.loading:
         return (
-          <YStack px="$5">
+          <YStack px="$5" pt="$5">
             <SkeletonItem />
             <SkeletonItem />
             <SkeletonItem />
@@ -310,6 +328,7 @@ export function UniversalSearch({
       case ESearchStatus.done:
         return (
           <SectionList
+            mt="$5"
             sections={sections}
             // renderSectionHeader={renderSectionHeader}
             ListEmptyComponent={
@@ -346,7 +365,7 @@ export function UniversalSearch({
         title={intl.formatMessage({ id: ETranslations.global_search })}
       />
       <Page.Body>
-        <View p="$5" pt={0}>
+        <View px="$5">
           <SearchBar
             autoFocus
             placeholder={searchPlaceholderText}

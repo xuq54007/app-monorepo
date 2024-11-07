@@ -28,10 +28,10 @@ import {
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { ListItem } from '@onekeyhq/kit/src/components/ListItem';
 import { NetworkAvatar } from '@onekeyhq/kit/src/components/NetworkAvatar';
-import { TokenIconView } from '@onekeyhq/kit/src/components/TokenListView/TokenIconView';
 import { usePromiseResult } from '@onekeyhq/kit/src/hooks/usePromiseResult';
 import useConfigurableChainSelector from '@onekeyhq/kit/src/views/ChainSelector/hooks/useChainSelector';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import uriUtils from '@onekeyhq/shared/src/utils/uriUtils';
 import type { IServerNetwork } from '@onekeyhq/shared/types';
 import type { ICustomRpcItem } from '@onekeyhq/shared/types/customRpc';
@@ -159,6 +159,7 @@ function DialogContent({
               networkId,
               enabled: rpcInfo?.enabled ?? true,
             });
+            defaultLogger.setting.page.addCustomRPC({ network: networkId });
           } catch (e: any) {
             rpcValidRef.current = false;
             void form.trigger('rpc');
@@ -297,6 +298,7 @@ function CustomRPC() {
 
   const onDeleteCustomRpc = useCallback(
     async (item: ICustomRpcItem) => {
+      defaultLogger.setting.page.deleteCustomRPC({ network: item.networkId });
       await backgroundApiProxy.serviceCustomRpc.deleteCustomRpc(item.networkId);
       setTimeout(() => {
         void run();
@@ -307,11 +309,17 @@ function CustomRPC() {
 
   const onToggleCustomRpcEnabledState = useCallback(
     async (item: ICustomRpcItem) => {
-      await backgroundApiProxy.serviceCustomRpc.addCustomRpc({
-        rpc: item.rpc,
+      await backgroundApiProxy.serviceCustomRpc.updateCustomRpcEnabledStatus({
         networkId: item.networkId,
         enabled: !item.enabled,
       });
+      if (item.enabled) {
+        defaultLogger.setting.page.turnOffCustomRPC({
+          network: item.networkId,
+        });
+      } else {
+        defaultLogger.setting.page.turnOnCustomRPC({ network: item.networkId });
+      }
       setTimeout(() => {
         void run();
       }, 200);
@@ -389,14 +397,12 @@ function CustomRPC() {
           renderItem={({ item }) => (
             <ListItem testID="CustomRpcItemContainer">
               <Switch
+                disabled={item.isCustomNetwork}
                 size={ESwitchSize.small}
                 value={item.enabled}
                 onChange={() => onToggleCustomRpcEnabledState(item)}
               />
-              <TokenIconView
-                icon={item.network.logoURI}
-                networkId={item.networkId}
-              />
+              <NetworkAvatar networkId={item.networkId} size="$10" />
               <ListItem.Text
                 flex={1}
                 primary={

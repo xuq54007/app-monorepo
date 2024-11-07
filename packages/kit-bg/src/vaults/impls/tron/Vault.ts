@@ -4,7 +4,10 @@ import BigNumber from 'bignumber.js';
 import { isEmpty, isNil } from 'lodash';
 import TronWeb from 'tronweb';
 
-import type { IEncodedTxTron } from '@onekeyhq/core/src/chains/tron/types';
+import type {
+  IDecodedTxExtraTron,
+  IEncodedTxTron,
+} from '@onekeyhq/core/src/chains/tron/types';
 import coreChainApi from '@onekeyhq/core/src/instance/coreChainApi';
 import type { ISignedTxPro, IUnsignedTxPro } from '@onekeyhq/core/src/types';
 import {
@@ -21,6 +24,11 @@ import type {
   IXprvtValidation,
   IXpubValidation,
 } from '@onekeyhq/shared/types/address';
+import type {
+  IMeasureRpcStatusParams,
+  IMeasureRpcStatusResult,
+} from '@onekeyhq/shared/types/customRpc';
+import type { IOnChainHistoryTx } from '@onekeyhq/shared/types/history';
 import {
   EDecodedTxActionType,
   EDecodedTxStatus,
@@ -43,6 +51,7 @@ import { KeyringWatching } from './KeyringWatching';
 import type { IDBWalletType } from '../../../dbs/local/types';
 import type { KeyringBase } from '../../base/KeyringBase';
 import type {
+  IBroadcastTransactionByCustomRpcParams,
   IBroadcastTransactionParams,
   IBuildAccountAddressDetailParams,
   IBuildDecodedTxParams,
@@ -600,5 +609,71 @@ export default class Vault extends VaultBase {
   ): Promise<IGeneralInputValidation> {
     const { result } = await this.baseValidateGeneralInput(params);
     return result;
+  }
+
+  override async buildOnChainHistoryTxExtraInfo({
+    onChainHistoryTx,
+  }: {
+    onChainHistoryTx: IOnChainHistoryTx;
+  }): Promise<IDecodedTxExtraTron> {
+    const receipt = onChainHistoryTx.receipt;
+    return Promise.resolve({
+      energyUsage: receipt?.energyUsage,
+      energyFee: receipt?.energyFee,
+      energyUsageTotal: receipt?.energyUsageTotal,
+      netUsage: receipt?.netUsage,
+    });
+  }
+
+  override async getCustomRpcEndpointStatus(
+    params: IMeasureRpcStatusParams,
+  ): Promise<IMeasureRpcStatusResult> {
+    const tronWeb = new TronWeb({ fullHost: params.rpcUrl });
+    const start = performance.now();
+    const {
+      result: { number: blockNumber },
+    } = await tronWeb.fullNode.request(
+      'jsonrpc',
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_getBlockByNumber',
+        params: ['latest', false],
+      },
+      'post',
+    );
+    const bestBlockNumber = parseInt(blockNumber, 10);
+    return {
+      responseTime: Math.floor(performance.now() - start),
+      bestBlockNumber,
+    };
+  }
+
+  override async broadcastTransactionFromCustomRpc(
+    params: IBroadcastTransactionByCustomRpcParams,
+  ): Promise<ISignedTxPro> {
+    const { customRpcInfo, signedTx } = params;
+    const rpcUrl = customRpcInfo.rpc;
+    if (!rpcUrl) {
+      throw new OneKeyInternalError('Invalid rpc url');
+    }
+    const tronWeb = new TronWeb({ fullHost: rpcUrl });
+    const ret = await tronWeb.trx.sendRawTransaction(
+      JSON.parse(signedTx.rawTx),
+    );
+
+    if (typeof ret.code !== 'undefined') {
+      throw new OneKeyInternalError(
+        `${ret.code} ${Buffer.from(ret.message || '', 'hex').toString()}`,
+      );
+    }
+    console.log('broadcastTransaction END:', {
+      txid: signedTx.txid,
+      rawTx: signedTx.rawTx,
+    });
+    return {
+      ...params.signedTx,
+      txid: signedTx.txid,
+    };
   }
 }

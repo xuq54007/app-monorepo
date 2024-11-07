@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 import { useCallback } from 'react';
 
+import { isEmpty } from 'lodash';
+
 import type { IEncodedTx, IUnsignedTxPro } from '@onekeyhq/core/src/types';
 import type {
   IApproveInfo,
@@ -10,6 +12,7 @@ import type {
 } from '@onekeyhq/kit-bg/src/vaults/types';
 import { EModalRoutes, EModalSendRoutes } from '@onekeyhq/shared/src/routes';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
+import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
 import type { IStakingInfo } from '@onekeyhq/shared/types/staking';
 import type { ISwapTxInfo } from '@onekeyhq/shared/types/swap/types';
 import type { ISendTxOnSuccessData } from '@onekeyhq/shared/types/tx';
@@ -27,7 +30,7 @@ type IBuildUnsignedTxParams = {
   encodedTx?: IEncodedTx;
   unsignedTx?: IUnsignedTxPro;
   transfersInfo?: ITransferInfo[];
-  approveInfo?: IApproveInfo;
+  approvesInfo?: IApproveInfo[];
   wrappedInfo?: IWrappedInfo;
   swapInfo?: ISwapTxInfo;
   stakingInfo?: IStakingInfo;
@@ -36,6 +39,10 @@ type IBuildUnsignedTxParams = {
   onCancel?: () => void;
   sameModal?: boolean;
   transferPayload?: ITransferPayload;
+  signOnly?: boolean;
+  useFeeInTx?: boolean;
+  feeInfoEditable?: boolean;
+  feeInfo?: IFeeInfoUnit;
 };
 
 function useSendConfirm(params: IParams) {
@@ -51,24 +58,71 @@ function useSendConfirm(params: IParams) {
         onFail,
         onCancel,
         transferPayload,
+        signOnly,
+        useFeeInTx,
+        feeInfoEditable,
+        approvesInfo,
+        encodedTx,
+        transfersInfo,
         ...rest
       } = params;
       try {
-        const unsignedTx =
-          await backgroundApiProxy.serviceSend.prepareSendConfirmUnsignedTx({
-            networkId,
-            accountId,
-            ...rest,
-          });
+        const unsignedTxs = [];
+        // for batch approve&swap
+        if (
+          approvesInfo &&
+          !isEmpty(approvesInfo) &&
+          (encodedTx || !isEmpty(transfersInfo))
+        ) {
+          let prevNonce: number | undefined;
+          for (const approveInfo of approvesInfo) {
+            const unsignedTx =
+              await backgroundApiProxy.serviceSend.prepareSendConfirmUnsignedTx(
+                {
+                  networkId,
+                  accountId,
+                  approveInfo,
+                  prevNonce,
+                },
+              );
+            prevNonce = unsignedTx.nonce;
+            unsignedTxs.push(unsignedTx);
+          }
+          unsignedTxs.push(
+            await backgroundApiProxy.serviceSend.prepareSendConfirmUnsignedTx({
+              networkId,
+              accountId,
+              encodedTx,
+              transfersInfo,
+              prevNonce,
+              ...rest,
+            }),
+          );
+        } else {
+          unsignedTxs.push(
+            await backgroundApiProxy.serviceSend.prepareSendConfirmUnsignedTx({
+              networkId,
+              accountId,
+              approveInfo: approvesInfo?.[0],
+              encodedTx,
+              transfersInfo,
+              ...rest,
+            }),
+          );
+        }
+
         if (sameModal) {
           navigation.push(EModalSendRoutes.SendConfirm, {
             accountId,
             networkId,
-            unsignedTxs: [unsignedTx],
+            unsignedTxs,
             onSuccess,
             onFail,
             onCancel,
             transferPayload,
+            signOnly,
+            useFeeInTx,
+            feeInfoEditable,
           });
         } else {
           navigation.pushModal(EModalRoutes.SendModal, {
@@ -76,11 +130,14 @@ function useSendConfirm(params: IParams) {
             params: {
               accountId,
               networkId,
-              unsignedTxs: [unsignedTx],
+              unsignedTxs,
               onSuccess,
               onFail,
               onCancel,
               transferPayload,
+              signOnly,
+              useFeeInTx,
+              feeInfoEditable,
             },
           });
         }

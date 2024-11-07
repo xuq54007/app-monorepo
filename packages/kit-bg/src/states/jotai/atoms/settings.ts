@@ -1,6 +1,7 @@
 import type { ILocaleSymbol } from '@onekeyhq/shared/src/locale';
 import { generateUUID } from '@onekeyhq/shared/src/utils/miscUtils';
 import { EOnekeyDomain } from '@onekeyhq/shared/types';
+import { EAlignPrimaryAccountMode } from '@onekeyhq/shared/types/dappConnection';
 
 import { EAtomNames } from '../atomNames';
 import { globalAtom } from '../utils';
@@ -27,13 +28,18 @@ export type ISettingsPersistAtom = {
   spendDustUTXO: boolean;
   inscriptionProtection: boolean;
   isFirstTimeSwap: boolean;
+  swapBatchApproveAndSwap: boolean;
+  swapEnableRecipientAddress: boolean;
 
   hardwareConnectSrc: EOnekeyDomain;
   currencyInfo: {
     symbol: string;
     id: string;
   };
+  alignPrimaryAccountMode?: EAlignPrimaryAccountMode;
+  isCustomNonceEnabled: boolean;
 };
+
 export const settingsAtomInitialValue: ISettingsPersistAtom = {
   theme: 'system',
   lastLocale: 'system',
@@ -49,11 +55,15 @@ export const settingsAtomInitialValue: ISettingsPersistAtom = {
   spendDustUTXO: false,
   inscriptionProtection: true,
   isFirstTimeSwap: true,
+  swapBatchApproveAndSwap: true,
+  swapEnableRecipientAddress: false,
   hardwareConnectSrc: EOnekeyDomain.ONEKEY_SO,
   currencyInfo: {
     id: 'usd',
     symbol: '$',
   },
+  alignPrimaryAccountMode: EAlignPrimaryAccountMode.AlignDappToWallet,
+  isCustomNonceEnabled: false,
 };
 export const { target: settingsPersistAtom, use: useSettingsPersistAtom } =
   globalAtom<ISettingsPersistAtom>({
@@ -87,5 +97,20 @@ export const { target: settingsAtom, use: useSettingsAtom } =
       swapToAnotherAccountSwitchOn: false,
     },
   });
+
+type ISettingsValuePersistAtom = {
+  hideValue: boolean;
+};
+
+export const {
+  target: settingsValuePersistAtom,
+  use: useSettingsValuePersistAtom,
+} = globalAtom<ISettingsValuePersistAtom>({
+  persist: true,
+  name: EAtomNames.settingsValuePersistAtom,
+  initialValue: {
+    hideValue: false,
+  },
+});
 
 // extract high frequency refresh data to another atom

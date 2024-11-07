@@ -132,6 +132,7 @@ export default class ServicePassword extends ServiceBase {
     const output = decodeSensitiveText({
       encodedText: input,
       key: instanceId,
+      allowRawPassword: true,
     });
     return Promise.resolve(output);
   }
@@ -474,6 +475,7 @@ export default class ServicePassword extends ServiceBase {
     reason?: EReasonForNeedPassword;
   }) {
     const isHardware = accountUtils.isHwWallet({ walletId });
+    const isQrWallet = accountUtils.isQrWallet({ walletId });
     let password = '';
     let deviceParams: IDeviceSharedCallParams | undefined;
 
@@ -502,6 +504,7 @@ export default class ServicePassword extends ServiceBase {
     return {
       password,
       isHardware,
+      isQrWallet,
       deviceParams,
     };
   }

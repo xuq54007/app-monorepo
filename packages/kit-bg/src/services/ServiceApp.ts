@@ -13,6 +13,7 @@ import {
   EAppEventBusNames,
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import {
   ERootRoutes,
@@ -45,18 +46,23 @@ class ServiceApp extends ServiceBase {
       return RNRestart.restart();
     }
     if (platformEnv.isDesktop) {
-      return window.desktopApi?.reload?.();
+      return globalThis.desktopApi?.reload?.();
     }
     // restartApp() MUST be called from background in Ext, UI reload will close whole Browser
     if (platformEnv.isExtensionBackground) {
       return chrome.runtime.reload();
     }
     if (platformEnv.isRuntimeBrowser) {
-      return window?.location?.reload?.();
+      return globalThis?.location?.reload?.();
     }
   }
 
   private async resetData() {
+    // const v4migrationPersistData = await v4migrationPersistAtom.get();
+    // const v4migrationAutoStartDisabled =
+    //   v4migrationPersistData?.v4migrationAutoStartDisabled;
+    // ----------------------------------------------
+
     // clean app storage
     try {
       await appStorage.clear();
@@ -81,20 +87,43 @@ class ServiceApp extends ServiceBase {
       console.error('localDb.reset() error');
     }
 
+    // await this.backgroundApi.serviceV4Migration.saveAppStorageV4migrationAutoStartDisabled(
+    //   {
+    //     v4migrationAutoStartDisabled,
+    //   },
+    // );
+
+    try {
+      const isV4DbExist: boolean =
+        await this.backgroundApi.serviceV4Migration.checkIfV4DbExist();
+      if (isV4DbExist) {
+        await v4dbHubs.v4localDb.reset();
+        await timerUtils.wait(600);
+      }
+    } catch (error) {
+      //
+    }
+
     await timerUtils.wait(1500);
 
     if (platformEnv.isRuntimeBrowser) {
       try {
-        global.localStorage.clear();
+        globalThis.localStorage.clear();
       } catch {
         console.error('window.localStorage.clear() error');
       }
     }
 
+    try {
+      await this.backgroundApi.serviceNotification.unregisterClient();
+    } catch (error) {
+      //
+    }
+
     if (platformEnv.isWeb || platformEnv.isDesktop) {
       // reset route/href
       try {
-        global.$navigationRef.current?.navigate(ERootRoutes.Main, {
+        globalThis.$navigationRef.current?.navigate(ERootRoutes.Main, {
           screen: ETabRoutes.Home,
           params: {
             screen: ETabHomeRoutes.TabHome,
@@ -118,10 +147,6 @@ class ServiceApp extends ServiceBase {
 
   @backgroundMethod()
   async resetApp() {
-    // const v4migrationPersistData = await v4migrationPersistAtom.get();
-    // const v4migrationAutoStartDisabled =
-    //   v4migrationPersistData?.v4migrationAutoStartDisabled;
-
     resetUtils.startResetting();
     try {
       await this.resetData();
@@ -130,25 +155,8 @@ class ServiceApp extends ServiceBase {
     } finally {
       resetUtils.endResetting();
     }
-
+    defaultLogger.setting.page.clearData({ action: 'ResetApp' });
     await timerUtils.wait(600);
-
-    // await this.backgroundApi.serviceV4Migration.saveAppStorageV4migrationAutoStartDisabled(
-    //   {
-    //     v4migrationAutoStartDisabled,
-    //   },
-    // );
-
-    try {
-      const isV4DbExist: boolean =
-        await this.backgroundApi.serviceV4Migration.checkIfV4DbExist();
-      if (isV4DbExist) {
-        await v4dbHubs.v4localDb.reset();
-        await timerUtils.wait(600);
-      }
-    } catch (error) {
-      //
-    }
 
     this.restartApp();
   }

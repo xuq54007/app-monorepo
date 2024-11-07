@@ -20,6 +20,7 @@ export enum EAtomNames {
   firmwareUpdateRetryAtom = 'firmwareUpdateRetryAtom',
   firmwareUpdateWorkflowRunningAtom = 'firmwareUpdateWorkflowRunningAtom',
   firmwareUpdateDevSettingsPersistAtom = 'firmwareUpdateDevSettingsPersistAtom',
+  notificationsDevSettingsPersistAtom = 'notificationsDevSettingsPersistAtom',
   appUpdatePersistAtom = 'appUpdatePersistAtom',
   spotlightPersistAtom = 'spotlightPersistAtom',
   onboardingConnectWalletLoadingAtom = 'onboardingConnectWalletLoadingAtom',
@@ -27,9 +28,12 @@ export enum EAtomNames {
   v4migrationAtom = 'v4migrationAtom',
   v4migrationPersistAtom = 'v4migrationPersistAtom',
   accountIsAutoCreatingAtom = 'accountIsAutoCreatingAtom',
+  indexedAccountAddressCreationStateAtom = 'indexedAccountAddressCreationStateAtom',
   accountManualCreatingAtom = 'accountManualCreatingAtom',
   galleryPersistAtom = 'galleryPersistAtom',
   activeAccountValueAtom = 'activeAccountValueAtom',
-
+  settingsValuePersistAtom = 'settingsValuePersistAtom',
+  notificationsAtom = 'notificationsAtom',
+  notificationsReadedAtom = 'notificationsReadedAtom',
   accountSelectorAccountsListIsLoadingAtom = 'accountSelectorAccountsListIsLoadingAtom',
 }

@@ -24,12 +24,15 @@ import {
   getLocaleMessages,
 } from '@onekeyhq/shared/src/locale/getDefaultLocale';
 import systemLocaleUtils from '@onekeyhq/shared/src/locale/systemLocale';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
+import { clearPackage } from '@onekeyhq/shared/src/modules3rdParty/auto-update';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { memoizee } from '@onekeyhq/shared/src/utils/cacheUtils';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import resetUtils from '@onekeyhq/shared/src/utils/resetUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import type { IServerNetwork } from '@onekeyhq/shared/types';
+import type { EAlignPrimaryAccountMode } from '@onekeyhq/shared/types/dappConnection';
 import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
 import {
   EReasonForNeedPassword,
@@ -204,6 +207,7 @@ class ServiceSetting extends ServiceBase {
     if (values.tokenAndNFT) {
       // clear token and nft
       await this.backgroundApi.simpleDb.localTokens.clearRawData();
+      await this.backgroundApi.simpleDb.localNFTs.clearRawData();
     }
     if (values.transactionHistory) {
       // clear transaction history
@@ -216,6 +220,9 @@ class ServiceSetting extends ServiceBase {
     if (values.browserCache) {
       await this.backgroundApi.serviceDiscovery.clearCache();
     }
+    if (values.appUpdateCache) {
+      await this.backgroundApi.serviceAppUpdate.clearCache();
+    }
     if (values.browserHistory) {
       // clear Browser History, Bookmarks, Pins
       await this.backgroundApi.simpleDb.browserTabs.clearRawData();
@@ -226,7 +233,7 @@ class ServiceSetting extends ServiceBase {
     }
     if (values.connectSites) {
       // clear connect sites
-      await this.backgroundApi.simpleDb.dappConnection.clearRawData();
+      await this.backgroundApi.serviceDApp.disconnectAllWebsites();
     }
     if (values.signatureRecord) {
       // clear signature record
@@ -238,6 +245,10 @@ class ServiceSetting extends ServiceBase {
     if (values.customRpc) {
       await this.backgroundApi.simpleDb.customRpc.clearRawData();
     }
+    if (values.serverNetworks) {
+      await this.backgroundApi.simpleDb.serverNetwork.clearRawData();
+    }
+    defaultLogger.setting.page.clearData({ action: 'Cache' });
   }
 
   @backgroundMethod()
@@ -247,6 +258,7 @@ class ServiceSetting extends ServiceBase {
       ESwapTxHistoryStatus.CANCELING,
       ESwapTxHistoryStatus.PENDING,
     ]);
+    defaultLogger.setting.page.clearData({ action: 'Pending txn' });
   }
 
   @backgroundMethod()
@@ -404,6 +416,14 @@ class ServiceSetting extends ServiceBase {
       accountId,
     });
     return isTaprootPath(account.path) || isTaprootAddress(account.address);
+  }
+
+  @backgroundMethod()
+  public async setAlignPrimaryAccountMode(mode: EAlignPrimaryAccountMode) {
+    await settingsPersistAtom.set((prev) => ({
+      ...prev,
+      alignPrimaryAccountMode: mode,
+    }));
   }
 }
 

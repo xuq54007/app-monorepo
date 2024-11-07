@@ -5,6 +5,7 @@ import { cloneDeep, isEqual, isUndefined, omitBy } from 'lodash';
 
 import type { IDialogInstance } from '@onekeyhq/components';
 import { Dialog } from '@onekeyhq/components';
+import { tonMnemonicToKeyPair } from '@onekeyhq/core/src/secret';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { CommonDeviceLoading } from '@onekeyhq/kit/src/components/Hardware/Hardware';
 import type useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
@@ -39,6 +40,7 @@ import {
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
 import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type {
   IAccountChainSelectorRouteParams,
   IAccountSelectorRouteParamsExtraConfig,
@@ -50,9 +52,13 @@ import {
 } from '@onekeyhq/shared/src/routes';
 import accountSelectorUtils from '@onekeyhq/shared/src/utils/accountSelectorUtils';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
+import bufferUtils from '@onekeyhq/shared/src/utils/bufferUtils';
 import { memoFn } from '@onekeyhq/shared/src/utils/cacheUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
-import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
+import {
+  EAccountSelectorAutoSelectTriggerBy,
+  EAccountSelectorSceneName,
+} from '@onekeyhq/shared/types';
 
 import { ContextJotaiActionsBase } from '../../utils/ContextJotaiActionsBase';
 
@@ -432,6 +438,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
         othersWalletAccount: IDBAccount | undefined;
         num: number;
         autoChangeToAccountMatchedNetworkId?: string;
+        forceSelectToNetworkId?: string;
       },
     ) => {
       const {
@@ -439,6 +446,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
         othersWalletAccount,
         indexedAccount,
         autoChangeToAccountMatchedNetworkId,
+        forceSelectToNetworkId,
       } = params;
       if (othersWalletAccount && indexedAccount) {
         throw new Error(
@@ -457,11 +465,13 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
         throw new Error('confirmSelectAccount ERROR: walletId is undefined');
       }
 
-      const accountNetworkId = this.getAutoSelectNetworkIdForAccount.call(set, {
-        num,
-        account: othersWalletAccount,
-        autoChangeToAccountMatchedNetworkId,
-      });
+      const accountNetworkId: string =
+        forceSelectToNetworkId ||
+        this.getAutoSelectNetworkIdForAccount.call(set, {
+          num,
+          account: othersWalletAccount,
+          autoChangeToAccountMatchedNetworkId,
+        });
 
       await this.updateSelectedAccount.call(set, {
         num,
@@ -575,7 +585,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
 
         await Promise.all([
           generatingAccountsFn({ wallet, indexedAccount, hidden }),
-          await timerUtils.wait(1000),
+          await timerUtils.wait(100),
         ]);
 
         appEventBus.emit(EAppEventBusNames.FinalizeWalletSetupStep, {
@@ -588,7 +598,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
           step: EFinalizeWalletSetupSteps.Ready,
         });
 
-        await timerUtils.wait(0);
+        await timerUtils.wait(1000);
 
         return { wallet, indexedAccount };
       } catch (error) {
@@ -610,6 +620,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
         indexedAccount: IDBIndexedAccount | undefined;
         skipDeviceCancel?: boolean;
         hideCheckingDeviceLoading?: boolean;
+        autoHandleExitError?: boolean;
       },
     ) => {
       const {
@@ -617,6 +628,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
         indexedAccount,
         skipDeviceCancel,
         hideCheckingDeviceLoading,
+        autoHandleExitError,
       } = params;
       defaultLogger.account.batchCreatePerf.addDefaultNetworkAccounts({
         wallet,
@@ -636,6 +648,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
 
           skipDeviceCancel,
           hideCheckingDeviceLoading,
+          autoHandleExitError,
         },
       );
     },
@@ -714,7 +727,9 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
       try {
         const res = await serviceAccount.createHWHiddenWallet({
           walletId,
-          skipDeviceCancel,
+          skipDeviceCancel: options?.addDefaultNetworkAccounts
+            ? true
+            : skipDeviceCancel,
           hideCheckingDeviceLoading,
         });
         const { wallet, indexedAccount } = res;
@@ -742,8 +757,10 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
             await this.addDefaultNetworkAccounts.call(set, {
               wallet,
               indexedAccount,
-              skipDeviceCancel: true,
-              hideCheckingDeviceLoading: true,
+              skipDeviceCancel,
+              hideCheckingDeviceLoading: options?.showAddAccountsLoading
+                ? true
+                : hideCheckingDeviceLoading,
             });
           } finally {
             await dialog?.close();
@@ -762,9 +779,13 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
       this.withFinalizeWalletSetupStep.call(set, {
         createWalletFn: async () => {
           const { wallet, device, indexedAccount } =
-            await this.createHWWallet.call(set, params, {
-              disableAutoSelect: true,
-            });
+            await this.createHWWallet.call(
+              set,
+              { ...params, skipDeviceCancel: true },
+              {
+                disableAutoSelect: true,
+              },
+            );
 
           let hiddenWalletCreatedResult:
             | {
@@ -782,13 +803,13 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
                 },
               );
             }
-            await timerUtils.wait(3000);
+            await timerUtils.wait(100);
 
             hiddenWalletCreatedResult = await this.createHWHiddenWallet.call(
               set,
               {
                 walletId: wallet.id,
-                skipDeviceCancel: params.skipDeviceCancel,
+                skipDeviceCancel: true,
                 hideCheckingDeviceLoading: params.hideCheckingDeviceLoading,
               },
             );
@@ -822,15 +843,15 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
             await this.addDefaultNetworkAccounts.call(set, {
               wallet: hidden.wallet,
               indexedAccount: hidden.indexedAccount,
-              skipDeviceCancel: params.skipDeviceCancel,
+              skipDeviceCancel: true,
               hideCheckingDeviceLoading: params.hideCheckingDeviceLoading,
             });
-            await timerUtils.wait(3000);
+            await timerUtils.wait(100);
           }
           await this.addDefaultNetworkAccounts.call(set, {
             wallet,
             indexedAccount,
-            skipDeviceCancel: params.skipDeviceCancel,
+            skipDeviceCancel: false,
             hideCheckingDeviceLoading: params.hideCheckingDeviceLoading,
           });
         },
@@ -896,6 +917,52 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
       }),
   );
 
+  createTonImportedWallet = contextAtomMethod(
+    async (
+      _,
+      set,
+      {
+        mnemonic,
+      }: {
+        mnemonic: string;
+      },
+    ) => {
+      const { servicePassword } = backgroundApiProxy;
+      const { mnemonic: realMnemonic } = await serviceAccount.validateMnemonic(
+        mnemonic,
+      );
+      const keyPair = await tonMnemonicToKeyPair(realMnemonic.split(' '));
+      const secretKeyUint8Array = platformEnv.isNative
+        ? new Uint8Array(Object.values(keyPair.secretKey))
+        : keyPair.secretKey;
+      const privateHex = bufferUtils.bytesToHex(
+        secretKeyUint8Array.slice(0, 32),
+      );
+      const input = await servicePassword.encodeSensitiveText({
+        text: privateHex,
+      });
+      const r = await serviceAccount.addImportedAccount({
+        input,
+        deriveType: 'default',
+        networkId: getNetworkIdsMap().ton,
+        name: '',
+        shouldCheckDuplicateName: true,
+      });
+
+      const accountId = r?.accounts?.[0]?.id;
+      await serviceAccount.saveTonImportedAccountMnemonic({
+        accountId,
+        mnemonic,
+      });
+      void this.updateSelectedAccountForSingletonAccount.call(set, {
+        num: 0,
+        networkId: getNetworkIdsMap().ton,
+        walletId: WALLET_TYPE_IMPORTED,
+        othersWalletAccountId: accountId,
+      });
+    },
+  );
+
   removeAccount = contextAtomMethod(
     async (
       get,
@@ -903,9 +970,11 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
       {
         indexedAccount,
         account,
+        isRemoveLastOthersAccount,
       }: {
         indexedAccount?: IDBIndexedAccount;
         account?: IDBAccount;
+        isRemoveLastOthersAccount?: boolean;
       },
     ) => {
       // TODO add home scene check
@@ -915,7 +984,9 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
       if (accountUtils.isOthersAccount({ accountId: account?.id })) {
         await this.autoSelectNextAccount.call(set, {
           num: 0,
-          triggerBy: 'removeOthersAccount',
+          triggerBy: isRemoveLastOthersAccount
+            ? EAccountSelectorAutoSelectTriggerBy.removeLastOthersAccount
+            : EAccountSelectorAutoSelectTriggerBy.removeAccount,
         });
       }
     },
@@ -938,7 +1009,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
 
       await this.autoSelectNextAccount.call(set, {
         num,
-        triggerBy: 'removeWallet',
+        triggerBy: EAccountSelectorAutoSelectTriggerBy.removeWallet,
       });
     },
   );
@@ -1470,7 +1541,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
         sceneName?: EAccountSelectorSceneName;
         sceneUrl?: string;
         num: number;
-        triggerBy?: 'removeWallet' | 'removeOthersAccount';
+        triggerBy?: EAccountSelectorAutoSelectTriggerBy;
       },
     ) => {
       console.log('accountSelector actions.autoSelectAccount >>> ', {
@@ -1488,9 +1559,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
       // wait activeAccount build done
       await timerUtils.wait(300);
       const storageReady = get(accountSelectorStorageReadyAtom());
-      const selectedAccount = this.getSelectedAccount.call(set, { num });
       const activeAccount = this.getActiveAccount.call(set, { num });
-
       const isActiveAccountReady = Boolean(
         activeAccount && activeAccount?.ready && storageReady,
       );
@@ -1501,6 +1570,7 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
       // TODO auto select account from home scene
       const { network, wallet, indexedAccount, account, dbAccount } =
         activeAccount;
+      const selectedAccount = this.getSelectedAccount.call(set, { num });
       const isAccountExist = Boolean(indexedAccount || account || dbAccount);
       if (
         !selectedAccount?.focusedWallet ||
@@ -1529,20 +1599,48 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
           (await serviceAccount.isWalletHasIndexedAccounts({
             walletId: selectedWalletId,
           }));
+        const currentFocusWallet = selectedAccount?.focusedWallet;
 
-        // auto select hd hw wallet
+        // auto select hd hw wallet if current wallet not contains next available account
         if (!selectedWalletId || !hasIndexedAccounts) {
-          const { wallets } = await serviceAccount.getAllHdHwQrWallets();
-          for (const wallet0 of wallets) {
-            if (
-              await serviceAccount.isWalletHasIndexedAccounts({
-                walletId: wallet0.id,
-              })
-            ) {
-              selectedWallet = wallet0;
-              selectedWalletId = selectedWallet?.id;
-              selectedAccountNew.walletId = selectedWalletId;
-              break;
+          let shouldSelectHdHwWallet = true;
+          if (
+            selectedWalletId &&
+            accountUtils.isOthersWallet({ walletId: selectedWalletId })
+          ) {
+            try {
+              const { accounts } =
+                await serviceAccount.getSingletonAccountsOfWallet({
+                  walletId: selectedWalletId as IDBWalletIdSingleton,
+                  activeNetworkId: network?.id || '',
+                });
+              const firstAccount = accounts?.[0];
+              if (firstAccount) {
+                // others wallet contains next available account, no need to switch to other hd hw wallet
+                shouldSelectHdHwWallet = false;
+              }
+            } catch (e) {
+              //
+            }
+          }
+          if (shouldSelectHdHwWallet) {
+            const { wallets } = await serviceAccount.getAllHdHwQrWallets();
+            for (const wallet0 of wallets) {
+              if (
+                await serviceAccount.isWalletHasIndexedAccounts({
+                  walletId: wallet0.id,
+                })
+              ) {
+                selectedWallet = wallet0;
+                selectedWalletId = selectedWallet?.id;
+                selectedAccountNew.walletId = selectedWalletId;
+                break;
+              }
+            }
+            // maybe no hd hw wallet found, reset walletId and indexedAccountId
+            if (!selectedWallet) {
+              selectedAccountNew.walletId = undefined;
+              selectedAccountNew.indexedAccountId = undefined;
             }
           }
         }
@@ -1655,14 +1753,22 @@ class AccountSelectorActions extends ContextJotaiActionsBase {
           builder: () => selectedAccountNew,
         });
 
-        if (selectedAccount.walletId !== selectedAccountNew.walletId) {
+        if (
+          selectedAccount.walletId !== selectedAccountNew.walletId &&
+          triggerBy !==
+            EAccountSelectorAutoSelectTriggerBy.removeLastOthersAccount &&
+          triggerBy !== EAccountSelectorAutoSelectTriggerBy.removeAccount
+        ) {
           set(accountSelectorEditModeAtom(), false);
         }
       } else if (
         // (else if) when auto select logic not trigger, should fix focusedWallet only
         // focused A wallet, but remove B wallet, should focus back to A wallet
         triggerBy &&
-        ['removeWallet', 'removeOthersAccount'].includes(triggerBy)
+        [
+          EAccountSelectorAutoSelectTriggerBy.removeWallet,
+          EAccountSelectorAutoSelectTriggerBy.removeLastOthersAccount,
+        ].includes(triggerBy)
       ) {
         const selectedAccountNew = await this.cloneSelectedAccountNew.call(
           set,
@@ -1713,6 +1819,7 @@ export function useAccountSelectorActions() {
   const createHWHiddenWallet = actions.createHWHiddenWallet.use();
   const createHWWalletWithHidden = actions.createHWWalletWithHidden.use();
   const createQrWallet = actions.createQrWallet.use();
+  const createTonImportedWallet = actions.createTonImportedWallet.use();
   const autoSelectNextAccount = actions.autoSelectNextAccount.use();
   const autoSelectNetworkOfOthersWalletAccount =
     actions.autoSelectNetworkOfOthersWalletAccount.use();
@@ -1723,6 +1830,7 @@ export function useAccountSelectorActions() {
   const syncLocalDeriveTypeFromGlobal =
     actions.syncLocalDeriveTypeFromGlobal.use();
   const reloadSwapToAccountFromHome = actions.reloadSwapToAccountFromHome.use();
+  const addDefaultNetworkAccounts = actions.addDefaultNetworkAccounts.use();
 
   return useRef({
     reloadActiveAccountInfo,
@@ -1745,6 +1853,7 @@ export function useAccountSelectorActions() {
     createHWHiddenWallet,
     createHWWalletWithHidden,
     createQrWallet,
+    createTonImportedWallet,
     autoSelectNextAccount,
     autoSelectNetworkOfOthersWalletAccount,
     syncFromScene,
@@ -1752,5 +1861,6 @@ export function useAccountSelectorActions() {
     syncHomeAndSwapSelectedAccount,
     syncLocalDeriveTypeFromGlobal,
     reloadSwapToAccountFromHome,
+    addDefaultNetworkAccounts,
   });
 }

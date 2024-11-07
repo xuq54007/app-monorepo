@@ -7,7 +7,12 @@ import { getDeviceInfo } from './deviceInfo';
 
 import type { AxiosInstance } from 'axios';
 
-class Analytics {
+export const ANALYTICS_EVENT_PATH = '/utility/v1/track';
+
+const TRACK_EVENT_PATH = `${ANALYTICS_EVENT_PATH}/event`;
+const TRACK_ATTRIBUTES_PATH = `${ANALYTICS_EVENT_PATH}/attributes`;
+
+export class Analytics {
   private instanceId = '';
 
   private baseURL = '';
@@ -17,7 +22,7 @@ class Analytics {
   private request: AxiosInstance | null = null;
 
   private basicInfo = {} as {
-    screenName: string;
+    pageName: string;
   };
 
   private deviceInfo: Record<string, any> | null = null;
@@ -45,6 +50,9 @@ class Analytics {
   }
 
   trackEvent(eventName: string, eventProps?: Record<string, any>) {
+    if (eventProps?.pageName) {
+      this.basicInfo.pageName = eventProps.pageName;
+    }
     if (!this.instanceId || !this.baseURL) {
       this.cacheEvents.push([eventName, eventProps]);
     } else {
@@ -59,7 +67,7 @@ class Analytics {
       this.deviceInfo.appBuildNumber = platformEnv.buildNumber;
       this.deviceInfo.appVersion = platformEnv.version;
     }
-    this.deviceInfo.screenName = this.basicInfo.screenName;
+    this.deviceInfo.pageName = this.basicInfo.pageName;
     return this.deviceInfo;
   }
 
@@ -77,13 +85,15 @@ class Analytics {
     } as Record<string, string>;
     if (
       !platformEnv.isNative &&
+      // eslint-disable-next-line unicorn/prefer-global-this
       typeof window !== 'undefined' &&
+      // eslint-disable-next-line unicorn/prefer-global-this
       'location' in window
     ) {
-      event.currentUrl = window.location.href;
+      event.currentUrl = globalThis.location.href;
     }
     const axios = this.lazyAxios();
-    await axios.post('/utility/v1/track/event', {
+    await axios.post(TRACK_EVENT_PATH, {
       eventName,
       eventProps: event,
     });
@@ -94,7 +104,7 @@ class Analytics {
       return;
     }
     const axios = this.lazyAxios();
-    await axios.post('/utility/v1/track/attributes', {
+    await axios.post(TRACK_ATTRIBUTES_PATH, {
       distinctId: this.instanceId,
       attributes: {
         ...attributes,
@@ -113,3 +123,4 @@ class Analytics {
 }
 
 export const analytics = new Analytics();
+globalThis.$analytics = analytics;

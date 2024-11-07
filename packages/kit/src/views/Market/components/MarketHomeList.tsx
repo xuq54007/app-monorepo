@@ -46,6 +46,8 @@ import {
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
+import { EWatchlistFrom } from '@onekeyhq/shared/src/logger/scopes/market/scenes/token';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { ETabMarketRoutes } from '@onekeyhq/shared/src/routes';
 import { listItemPressStyle } from '@onekeyhq/shared/src/style';
@@ -57,6 +59,7 @@ import type {
 
 import useAppNavigation from '../../../hooks/useAppNavigation';
 import { usePrevious } from '../../../hooks/usePrevious';
+import { usePromiseResult } from '../../../hooks/usePromiseResult';
 import { useThemeVariant } from '../../../hooks/useThemeVariant';
 
 import { MarketMore } from './MarketMore';
@@ -167,7 +170,6 @@ function BasicMarketHomeList({
   const navigation = useAppNavigation();
 
   const updateAtRef = useRef(0);
-  const updateTimer = useRef<ReturnType<typeof setInterval>>();
 
   const [listData, setListData] = useState<IMarketToken[]>([]);
   const prevCoingeckoIdsLength = usePrevious(category.coingeckoIds.length);
@@ -177,28 +179,33 @@ function BasicMarketHomeList({
     if (
       now - updateAtRef.current >
         timerUtils.getTimeDurationMs({ seconds: 45 }) ||
-      prevCoingeckoIdsLength !== category.coingeckoIds.length
+      prevCoingeckoIdsLength !== category.coingeckoIds.length ||
+      (prevCoingeckoIdsLength === 0 && category.coingeckoIds.length === 0)
     ) {
+      updateAtRef.current = now;
       const response = await backgroundApiProxy.serviceMarket.fetchCategory(
         category.categoryId,
         category.coingeckoIds,
         true,
       );
-      updateAtRef.current = now;
       void InteractionManager.runAfterInteractions(() => {
         setListData(response);
       });
     }
   }, [category.categoryId, category.coingeckoIds, prevCoingeckoIdsLength]);
 
+  usePromiseResult(
+    async () => {
+      await fetchCategory();
+    },
+    [fetchCategory],
+    {
+      pollingInterval: timerUtils.getTimeDurationMs({ seconds: 50 }),
+    },
+  );
+
   useEffect(() => {
     void fetchCategory();
-    updateTimer.current = setInterval(() => {
-      void fetchCategory();
-    }, timerUtils.getTimeDurationMs({ seconds: 50 }));
-    return () => {
-      clearInterval(updateTimer.current);
-    };
   }, [fetchCategory]);
 
   const { gtMd, md } = useMedia();
@@ -268,6 +275,10 @@ function BasicMarketHomeList({
                     }),
                     onPress: () => {
                       actions.removeFormWatchList(coingeckoId);
+                      defaultLogger.market.token.removeFromWatchlist({
+                        tokenSymbol: coingeckoId,
+                        removeWatchlistFrom: EWatchlistFrom.catalog,
+                      });
                     },
                   }
                 : {
@@ -277,6 +288,10 @@ function BasicMarketHomeList({
                     }),
                     onPress: () => {
                       actions.addIntoWatchList(coingeckoId);
+                      defaultLogger.market.token.addToWatchList({
+                        tokenSymbol: coingeckoId,
+                        addWatchlistFrom: EWatchlistFrom.catalog,
+                      });
                     },
                   },
               showMoreAction && {
@@ -326,15 +341,10 @@ function BasicMarketHomeList({
             {...listItemPressStyle}
             {...(platformEnv.isNative ? pressEvents : undefined)}
           >
-            <XStack gap="$3" ai="center" flexShrink={1}>
+            <XStack gap="$3" ai="center">
               <MarketTokenIcon uri={item.image} size="$10" />
-              <YStack flexShrink={1}>
-                <SizableText
-                  size="$bodyLgMedium"
-                  userSelect="none"
-                  numberOfLines={1}
-                  flexShrink={1}
-                >
+              <YStack>
+                <SizableText size="$bodyLgMedium" userSelect="none">
                   {item.symbol.toUpperCase()}
                 </SizableText>
                 <SizableText
@@ -355,9 +365,11 @@ function BasicMarketHomeList({
                 </SizableText>
               </YStack>
             </XStack>
-            <XStack ai="center" gap="$5">
+            <XStack ai="center" gap="$5" flexShrink={1}>
               {mdColumnKeys[0] === 'price' ? (
                 <MarketTokenPrice
+                  numberOfLines={1}
+                  flexShrink={1}
                   size="$bodyLgMedium"
                   price={String(item[mdColumnKeys[0]])}
                   tokenName={item.name}
@@ -390,6 +402,9 @@ function BasicMarketHomeList({
                   borderRadius="$2"
                 >
                   <NumberSizeableText
+                    adjustsFontSizeToFit
+                    numberOfLines={platformEnv.isNative ? 1 : 2}
+                    px="$1"
                     userSelect="none"
                     size="$bodyMdMedium"
                     color="white"
@@ -784,6 +799,7 @@ function BasicMarketHomeList({
                       key={record.coingeckoId}
                       coingeckoId={record.coingeckoId}
                       tabIndex={tabIndex}
+                      from={EWatchlistFrom.catalog}
                     />
                   </Stack>
                   {showMoreAction ? (
@@ -794,7 +810,7 @@ function BasicMarketHomeList({
                 </XStack>
               ),
             },
-          ].filter(Boolean) as ITableProps<IMarketToken>['columns'])
+          ] as ITableProps<IMarketToken>['columns'])
         : [
             {
               title: '',
@@ -919,9 +935,9 @@ function BasicMarketHomeList({
           TableFooterComponent={gtMd ? <Stack height={60} /> : undefined}
           extraData={gtMd ? undefined : mdColumnKeys}
           TableEmptyComponent={
-            platformEnv.isNativeAndroid ? (
+            platformEnv.isNativeAndroid ? null : (
               <ListEmptyComponent columns={columns} />
-            ) : null
+            )
           }
         />
       </YStack>

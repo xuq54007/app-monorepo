@@ -2,10 +2,9 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-import checkDiskSpace from 'check-disk-space';
 import { BrowserWindow, app, dialog, ipcMain } from 'electron';
 import isDev from 'electron-is-dev';
-import logger from 'electron-log';
+import logger from 'electron-log/main';
 import { rootPath } from 'electron-root-path';
 import { CancellationToken, autoUpdater } from 'electron-updater';
 import { readCleartextMessage, readKey } from 'openpgp';
@@ -256,6 +255,24 @@ const init = ({ mainWindow, store }: IDependencies) => {
     },
   );
 
+  const clearUpdateCache = async () => {
+    try {
+      // @ts-ignore
+      const baseCachePath = autoUpdater?.app?.baseCachePath;
+      if (baseCachePath) {
+        const cachePath = path.join(baseCachePath, '@onekeyhqdesktop-updater');
+        logger.info('auto-updater', `cachePath: ${cachePath}`);
+        const isExist = fs.existsSync(cachePath);
+        if (isExist) {
+          fs.rmSync(cachePath, { recursive: true, force: true });
+        }
+        logger.info('auto-updater', `removed: ${cachePath}`);
+      }
+    } catch (error) {
+      logger.info('auto-updater', 'Error clearing cache: ', error);
+    }
+  };
+
   ipcMain.on(ipcMessageKeys.UPDATE_CHECK, async (_, isManual?: boolean) => {
     if (isManual) {
       isManualCheck = true;
@@ -265,19 +282,6 @@ const init = ({ mainWindow, store }: IDependencies) => {
       `Update checking request (manual: ${b2t(isManualCheck)})`,
     );
 
-    // fix the issue where the remaining space inside the read-only image is 0
-    //  after loading AppImage from a read-only partition in Linux.
-    const { free } = await checkDiskSpace(isLinux ? '/' : rootPath);
-    logger.info('check-free-space', `${free} ${rootPath}`);
-    if (free < 1024 * 1024 * 300) {
-      mainWindow.webContents.send(ipcMessageKeys.UPDATE_ERROR, {
-        err: {
-          message: 'Insufficient disk space, please clear and retry.',
-        },
-        isNetworkError: false,
-      });
-      return;
-    }
     const feedUrl = `${buildServiceEndpoint({
       serviceName: EServiceEndpointEnum.Utility,
       env: updateSettings.useTestFeedUrl ? 'test' : 'prod',
@@ -327,21 +331,7 @@ const init = ({ mainWindow, store }: IDependencies) => {
     if (updateCancellationToken) {
       updateCancellationToken.cancel();
     }
-    try {
-      // @ts-ignore
-      if (autoUpdater.downloadedUpdateHelper) {
-        logger.info(
-          'auto-updater',
-          // @ts-ignore
-          autoUpdater.downloadedUpdateHelper.cacheDir,
-        );
-        // @ts-ignore
-        await autoUpdater.downloadedUpdateHelper.clear();
-        logger.info('auto-updater', 'clearing cache');
-      }
-    } catch (error) {
-      logger.info('auto-updater', 'Error clearing cache: ', error);
-    }
+    await clearUpdateCache();
     updateCancellationToken = new CancellationToken();
     autoUpdater
       .downloadUpdate(updateCancellationToken)
@@ -407,6 +397,14 @@ const init = ({ mainWindow, store }: IDependencies) => {
         });
     },
   );
+
+  ipcMain.on(ipcMessageKeys.UPDATE_CLEAR, async () => {
+    if (updateCancellationToken) {
+      updateCancellationToken.cancel();
+    }
+    isDownloading = false;
+    await clearUpdateCache();
+  });
 
   ipcMain.on(ipcMessageKeys.UPDATE_SETTINGS, (_, settings: IUpdateSettings) => {
     logger.info('auto-update', 'Set setting: ', JSON.stringify(settings));

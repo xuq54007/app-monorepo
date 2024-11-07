@@ -228,7 +228,7 @@ class ProviderApiTon extends ProviderApiBase {
     const accounts = await this.getAccountsInfo(request);
     const account = accounts[0];
     const timestamp = Math.floor(Date.now() / 1000);
-    const appDomain = request.origin ?? '';
+    const appDomain = (request.origin ?? '').replace(/^(https?:\/\/)/, '');
     const result = await this.backgroundApi.serviceDApp.openSignMessageModal({
       request,
       networkId: account?.accountInfo?.networkId ?? '',
@@ -246,7 +246,7 @@ class ProviderApiTon extends ProviderApiBase {
     });
 
     return {
-      signature: result,
+      signature: Buffer.from(result as string, 'hex').toString('base64'),
       timestamp,
       domain: {
         lengthBytes: Buffer.from(appDomain).length,

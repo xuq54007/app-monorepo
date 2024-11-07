@@ -1,14 +1,10 @@
+import type { PropsWithChildren } from 'react';
 import { memo, useCallback, useMemo } from 'react';
 
-import {
-  Divider,
-  NumberSizeableText,
-  Skeleton,
-  Stack,
-  XStack,
-  YStack,
-} from '@onekeyhq/components';
+import type { IXStackProps } from '@onekeyhq/components';
+import { Divider, Skeleton, Stack, XStack, YStack } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
+import NumberSizeableTextWrapper from '@onekeyhq/kit/src/components/NumberSizeableTextWrapper';
 import { ReviewControl } from '@onekeyhq/kit/src/components/ReviewControl';
 import { Token } from '@onekeyhq/kit/src/components/Token';
 import { useAccountData } from '@onekeyhq/kit/src/hooks/useAccountData';
@@ -16,7 +12,7 @@ import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import { usePromiseResult } from '@onekeyhq/kit/src/hooks/usePromiseResult';
 import { useReceiveToken } from '@onekeyhq/kit/src/hooks/useReceiveToken';
 import { RawActions } from '@onekeyhq/kit/src/views/Home/components/WalletActions/RawActions';
-import { StakingApr } from '@onekeyhq/kit/src/views/Staking/components/StakingApr';
+import { TokenDetailStakingEntry } from '@onekeyhq/kit/src/views/Staking/components/TokenDetailStakingEntry';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { WALLET_TYPE_WATCHING } from '@onekeyhq/shared/src/consts/dbConsts';
 import {
@@ -24,14 +20,34 @@ import {
   EModalSendRoutes,
   EModalSwapRoutes,
 } from '@onekeyhq/shared/src/routes';
-import { waitAsync } from '@onekeyhq/shared/src/utils/promiseUtils';
+import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
+import { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 
 import ActionBuy from './ActionBuy';
 import ActionSell from './ActionSell';
 
 import type { IProps } from '.';
 
-function TokenDetailsHeader(props: IProps) {
+function ActionsRowContainer(props: PropsWithChildren<IXStackProps>) {
+  return (
+    <XStack
+      justifyContent="space-between"
+      $gtSm={{
+        gap: '$2',
+        justifyContent: 'flex-start',
+      }}
+      {...props}
+    />
+  );
+}
+
+function TokenDetailsHeader(
+  props: IProps & {
+    setOverviewInit: (value: boolean) => void;
+    overviewInit: boolean;
+    historyInit: boolean;
+  },
+) {
   const {
     accountId,
     networkId,
@@ -40,6 +56,10 @@ function TokenDetailsHeader(props: IProps) {
     deriveType,
     tokenInfo,
     isAllNetworks,
+    indexedAccountId,
+    setOverviewInit,
+    overviewInit,
+    historyInit,
   } = props;
   const navigation = useAppNavigation();
 
@@ -59,6 +79,11 @@ function TokenDetailsHeader(props: IProps) {
     deriveType,
   });
 
+  const initialized = useMemo(
+    () => overviewInit && historyInit,
+    [overviewInit, historyInit],
+  );
+
   const { result: tokenDetails, isLoading: isLoadingTokenDetails } =
     usePromiseResult(
       async () => {
@@ -68,42 +93,52 @@ function TokenDetailsHeader(props: IProps) {
             networkId,
             contractList: [tokenInfo.address],
           });
+        setOverviewInit(true);
         return tokensDetails[0];
       },
-      [accountId, networkId, tokenInfo.address],
+      [accountId, networkId, setOverviewInit, tokenInfo.address],
       {
         watchLoading: true,
       },
     );
 
-  const handleOnSwap = useCallback(async () => {
-    navigation.pushModal(EModalRoutes.SwapModal, {
-      screen: EModalSwapRoutes.SwapMainLand,
-      params: {
-        importNetworkId: networkId,
-        importFromToken: {
-          contractAddress: tokenInfo.address,
-          symbol: tokenInfo.symbol,
-          networkId,
-          isNative: tokenInfo.isNative,
-          decimals: tokenInfo.decimals,
-          name: tokenInfo.name,
-          logoURI: tokenInfo.logoURI,
-          networkLogoURI: network?.logoURI,
+  const createSwapActionHandler = useCallback(
+    (actionType?: ESwapTabSwitchType) => async () => {
+      navigation.pushModal(EModalRoutes.SwapModal, {
+        screen: EModalSwapRoutes.SwapMainLand,
+        params: {
+          importNetworkId: networkId,
+          importFromToken: {
+            contractAddress: tokenInfo.address,
+            symbol: tokenInfo.symbol,
+            networkId,
+            isNative: tokenInfo.isNative,
+            decimals: tokenInfo.decimals,
+            name: tokenInfo.name,
+            logoURI: tokenInfo.logoURI,
+            networkLogoURI: network?.logoURI,
+          },
+          ...(actionType && {
+            swapTabSwitchType: actionType,
+          }),
         },
-      },
-    });
-  }, [
-    navigation,
-    network?.logoURI,
-    networkId,
-    tokenInfo.address,
-    tokenInfo.decimals,
-    tokenInfo.isNative,
-    tokenInfo.logoURI,
-    tokenInfo.name,
-    tokenInfo.symbol,
-  ]);
+      });
+    },
+    [
+      navigation,
+      network?.logoURI,
+      networkId,
+      tokenInfo.address,
+      tokenInfo.decimals,
+      tokenInfo.isNative,
+      tokenInfo.logoURI,
+      tokenInfo.name,
+      tokenInfo.symbol,
+    ],
+  );
+
+  const handleOnSwap = createSwapActionHandler(ESwapTabSwitchType.SWAP);
+  const handleOnBridge = createSwapActionHandler(ESwapTabSwitchType.BRIDGE);
 
   const handleSendPress = useCallback(() => {
     navigation.pushModal(EModalRoutes.SendModal, {
@@ -113,13 +148,26 @@ function TokenDetailsHeader(props: IProps) {
         accountId,
         isNFT: false,
         token: tokenDetails?.info ?? tokenInfo,
+        isAllNetworks,
       },
     });
-  }, [accountId, navigation, networkId, tokenDetails?.info, tokenInfo]);
+  }, [
+    accountId,
+    isAllNetworks,
+    navigation,
+    networkId,
+    tokenDetails?.info,
+    tokenInfo,
+  ]);
 
   const isReceiveDisabled = useMemo(
     () => wallet?.type === WALLET_TYPE_WATCHING,
     [wallet?.type],
+  );
+
+  const disableSwapAction = useMemo(
+    () => accountUtils.isUrlAccountFn({ accountId }),
+    [accountId],
   );
 
   const renderTokenIcon = useCallback(() => {
@@ -130,12 +178,15 @@ function TokenDetailsHeader(props: IProps) {
         tokenImageUri={tokenInfo.logoURI ?? tokenDetails?.info.logoURI}
         size="xl"
         networkImageUri={isAllNetworks ? network?.logoURI : ''}
+        showNetworkIcon={isAllNetworks}
+        networkId={networkId}
       />
     );
   }, [
     isAllNetworks,
     isLoadingTokenDetails,
     network?.logoURI,
+    networkId,
     tokenDetails?.info.logoURI,
     tokenInfo.logoURI,
   ]);
@@ -159,14 +210,16 @@ function TokenDetailsHeader(props: IProps) {
               </YStack>
             ) : (
               <>
-                <NumberSizeableText
+                <NumberSizeableTextWrapper
+                  hideValue
                   size="$heading3xl"
                   formatter="balance"
                   formatterOptions={{ tokenSymbol: tokenInfo.symbol }}
                 >
                   {tokenDetails?.balanceParsed ?? '0'}
-                </NumberSizeableText>
-                <NumberSizeableText
+                </NumberSizeableTextWrapper>
+                <NumberSizeableTextWrapper
+                  hideValue
                   formatter="value"
                   formatterOptions={{
                     currency: settings.currencyInfo.symbol,
@@ -175,46 +228,72 @@ function TokenDetailsHeader(props: IProps) {
                   size="$bodyLgMedium"
                 >
                   {tokenDetails?.fiatValue ?? '0'}
-                </NumberSizeableText>
+                </NumberSizeableTextWrapper>
               </>
             )}
           </Stack>
         </XStack>
         {/* Actions */}
-        <RawActions>
-          <ReviewControl>
-            <ActionBuy
-              networkId={networkId}
-              accountId={accountId}
-              walletType={wallet?.type}
-              tokenAddress={tokenInfo.address}
-            />
-          </ReviewControl>
+        <RawActions flexDirection="column" gap="$5">
+          <ActionsRowContainer>
+            <ReviewControl>
+              <ActionBuy
+                networkId={networkId}
+                accountId={accountId}
+                walletType={wallet?.type}
+                tokenAddress={tokenInfo.address}
+                disabled={!initialized}
+              />
+            </ReviewControl>
 
-          <RawActions.Swap onPress={handleOnSwap} />
-
-          <RawActions.Send onPress={handleSendPress} />
-          <RawActions.Receive
-            disabled={isReceiveDisabled}
-            onPress={() => handleOnReceive(tokenInfo)}
-          />
-          <ReviewControl>
-            <ActionSell
-              networkId={networkId}
-              accountId={accountId}
-              walletType={wallet?.type}
-              tokenAddress={tokenInfo.address}
+            <RawActions.Swap
+              onPress={handleOnSwap}
+              disabled={disableSwapAction || !initialized}
             />
-          </ReviewControl>
+            <RawActions.Bridge
+              onPress={handleOnBridge}
+              disabled={disableSwapAction || !initialized}
+            />
+            <ReviewControl>
+              <ActionSell
+                networkId={networkId}
+                accountId={accountId}
+                walletType={wallet?.type}
+                tokenAddress={tokenInfo.address}
+                disabled={!initialized}
+              />
+            </ReviewControl>
+          </ActionsRowContainer>
+          <ActionsRowContainer>
+            <RawActions.Send
+              onPress={handleSendPress}
+              disabled={!initialized}
+            />
+            <RawActions.Receive
+              disabled={isReceiveDisabled || !initialized}
+              onPress={() => handleOnReceive(tokenInfo)}
+            />
+            <Stack
+              w={50}
+              $gtSm={{
+                display: 'none',
+              }}
+            />
+            <Stack
+              w={50}
+              $gtSm={{
+                display: 'none',
+              }}
+            />
+          </ActionsRowContainer>
         </RawActions>
       </Stack>
-
-      <StakingApr
+      <TokenDetailStakingEntry
         networkId={networkId}
         accountId={accountId}
+        indexedAccountId={indexedAccountId}
         tokenAddress={tokenInfo.address}
       />
-
       {/* History */}
       <Divider mb="$3" />
     </>

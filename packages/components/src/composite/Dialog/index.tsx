@@ -13,16 +13,18 @@ import {
   useState,
 } from 'react';
 
+import { isNil } from 'lodash';
 import { useIntl } from 'react-intl';
 import { AnimatePresence, Sheet, Dialog as TMDialog, useMedia } from 'tamagui';
 
+import { dismissKeyboard } from '@onekeyhq/shared/src/keyboard';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
 import { SheetGrabber } from '../../content';
 import { Form } from '../../forms/Form';
 import { Portal } from '../../hocs';
-import { useBackHandler, useSheetZIndex } from '../../hooks';
+import { useBackHandler, useOverlayZIndex } from '../../hooks';
 import { Spinner, Stack } from '../../primitives';
 
 import { Content } from './Content';
@@ -88,6 +90,7 @@ function DialogFrame({
   showConfirmButton = true,
   showCancelButton = true,
   testID,
+  isAsync,
 }: IDialogProps) {
   const intl = useIntl();
   const { footerRef } = useContext(DialogContext);
@@ -132,12 +135,16 @@ function DialogFrame({
 
   const media = useMedia();
 
-  const sheetZIndex = useSheetZIndex();
+  const zIndex = useOverlayZIndex(open);
   const renderDialogContent = (
     <Stack>
       <DialogHeader onClose={handleCancelButtonPress} />
       {/* extra children */}
-      <Content testID={testID} estimatedContentHeight={estimatedContentHeight}>
+      <Content
+        testID={testID}
+        isAsync={isAsync}
+        estimatedContentHeight={estimatedContentHeight}
+      >
         {renderContent}
       </Content>
       <Footer
@@ -180,7 +187,7 @@ function DialogFrame({
         onOpenChange={handleOpenChange}
         snapPointsMode="fit"
         animation="quick"
-        zIndex={sheetZIndex}
+        zIndex={zIndex}
         {...sheetProps}
       >
         <Sheet.Overlay
@@ -189,7 +196,7 @@ function DialogFrame({
           enterStyle={{ opacity: 0 }}
           exitStyle={{ opacity: 0 }}
           backgroundColor="$bgBackdrop"
-          zIndex={sheetProps?.zIndex || sheetZIndex}
+          zIndex={sheetProps?.zIndex || zIndex}
         />
         <Sheet.Frame
           unstyled
@@ -218,14 +225,16 @@ function DialogFrame({
       <AnimatePresence>
         {open ? (
           <Stack
-            position={'fixed' as unknown as any}
+            position={
+              platformEnv.isNative ? 'absolute' : ('fixed' as unknown as any)
+            }
             top={0}
             left={0}
             right={0}
             bottom={0}
             alignItems="center"
             justifyContent="center"
-            zIndex={floatingPanelProps?.zIndex}
+            zIndex={floatingPanelProps?.zIndex || zIndex}
           >
             <TMDialog.Overlay
               key="overlay"
@@ -239,7 +248,7 @@ function DialogFrame({
                 opacity: 0,
               }}
               onPress={handleBackdropPress}
-              zIndex={floatingPanelProps?.zIndex}
+              zIndex={floatingPanelProps?.zIndex || zIndex}
             />
             {/* /* fix missing title warnings in html dialog element on Web */}
             <TMDialog.Title display="none" />
@@ -286,12 +295,26 @@ function BaseDialogContainer(
     tone,
     description,
     icon,
+    renderIcon,
     showExitButton,
+    open,
+    onOpenChange,
     ...props
   }: IDialogContainerProps,
   ref: ForwardedRef<IDialogInstance>,
 ) {
-  const [isOpen, changeIsOpen] = useState(true);
+  const [isOpenState, changeIsOpenState] = useState(true);
+  const isControlled = !isNil(open);
+  const isOpen = isControlled ? open : isOpenState;
+  const changeIsOpen = useCallback(
+    (value: boolean) => {
+      if (isControlled) {
+        onOpenChange?.(value);
+      }
+      changeIsOpenState(value);
+    },
+    [isControlled, onOpenChange],
+  );
   const formRef = useRef();
   const handleClose = useCallback(
     (extra?: { flag?: string }) => {
@@ -299,7 +322,7 @@ function BaseDialogContainer(
       return onClose(extra);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [onClose],
+    [changeIsOpen, onClose],
   );
 
   const contextValue = useMemo(
@@ -319,7 +342,7 @@ function BaseDialogContainer(
   const handleOpen = useCallback(() => {
     changeIsOpen(true);
     onOpen?.();
-  }, [onOpen]);
+  }, [changeIsOpen, onOpen]);
 
   const handleImperativeClose = useCallback(
     (extra?: { flag?: string }) => handleClose(extra),
@@ -339,6 +362,7 @@ function BaseDialogContainer(
     tone,
     description,
     icon,
+    renderIcon,
     showExitButton,
   });
 
@@ -350,9 +374,10 @@ function BaseDialogContainer(
       tone,
       description,
       icon,
+      renderIcon,
       showExitButton,
     }));
-  }, [description, icon, showExitButton, title, tone]);
+  }, [description, icon, renderIcon, showExitButton, title, tone]);
   const headerContextValue = useMemo(
     () => ({ headerProps, setHeaderProps }),
     [headerProps],
@@ -388,6 +413,7 @@ function dialogShow({
     ref: React.RefObject<IDialogInstance> | undefined;
   }) => JSX.Element;
 }): IDialogInstance {
+  dismissKeyboard();
   let instanceRef: React.RefObject<IDialogInstance> | undefined =
     createRef<IDialogInstance>();
 
@@ -444,9 +470,20 @@ function dialogShow({
       ? renderToContainer(portalContainer, element)
       : Portal.Render(Portal.Constant.FULL_WINDOW_OVERLAY_PORTAL, element),
   };
+  const close = async (extra?: { flag?: string }, times = 0) => {
+    if (times > 10) {
+      return;
+    }
+    if (!instanceRef?.current) {
+      setTimeout(() => {
+        void close(extra, times + 1);
+      }, 10);
+      return Promise.resolve();
+    }
+    return instanceRef?.current?.close(extra);
+  };
   return {
-    close: async (extra?: { flag?: string }) =>
-      instanceRef?.current?.close(extra),
+    close,
     getForm: () => instanceRef?.current?.getForm(),
   };
 }

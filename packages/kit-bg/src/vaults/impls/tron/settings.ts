@@ -50,6 +50,8 @@ const settings: IVaultSettings = {
   estimatedFeePollingInterval: 6,
   editApproveAmountEnabled: true,
 
+  customRpcEnabled: true,
+
   accountDeriveInfo,
   networkInfo: {
     default: {
@@ -59,6 +61,9 @@ const settings: IVaultSettings = {
   },
 
   cannotSendToSelf: true,
+
+  hasResource: true,
+  resourceKey: ETranslations.global_energy_bandwidth,
 };
 
 export default Object.freeze(settings);

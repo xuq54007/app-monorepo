@@ -1,17 +1,27 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unused-vars,@typescript-eslint/require-await */
-import { ipcRenderer } from 'electron';
-import { verify } from 'openpgp';
+import path from 'path';
+
+import { Titlebar, TitlebarColor } from 'custom-electron-titlebar';
+import { ipcRenderer, nativeImage } from 'electron';
 
 import type {
   IDesktopAppState,
+  IDesktopMainProcessDevOnlyApiParams,
   IMediaType,
   IPrefType,
 } from '@onekeyhq/shared/types/desktop';
+import type {
+  INotificationPermissionDetail,
+  INotificationSetBadgeParams,
+  INotificationShowParams,
+} from '@onekeyhq/shared/types/notification';
 
 import { ipcMessageKeys } from './config';
+import { staticPath } from './resoucePath';
 
 import type { IUpdateSettings } from './libs/store';
+import type { IMacBundleInfo } from './libs/utils';
 
 export interface IVerifyUpdateParams {
   downloadedFile?: string;
@@ -27,11 +37,11 @@ export interface IInstallUpdateParams extends IVerifyUpdateParams {
 
 export type IDesktopAPI = {
   on: (channel: string, func: (...args: any[]) => any) => void;
-  hello: string;
   arch: string;
   platform: string;
   systemVersion: string;
   isMas: boolean;
+  isDev: boolean;
   channel?: string;
   reload: () => void;
   ready: () => void;
@@ -66,6 +76,7 @@ export type IDesktopAPI = {
   downloadUpdate: () => void;
   verifyUpdate: (event: IVerifyUpdateParams) => void;
   installUpdate: (event: IInstallUpdateParams) => void;
+  clearUpdate: () => void;
   setAutoUpdateSettings: (settings: IUpdateSettings) => void;
   touchUpdateResource: (params: {
     resourceUrl: string;
@@ -99,6 +110,11 @@ export type IDesktopAPI = {
   setSystemIdleTime: (idleTime: number, cb?: () => void) => void;
   setAllowedPhishingUrls: (urls: string[]) => void;
   clearWebViewCache: () => void;
+  showNotification: (params: INotificationShowParams) => void;
+  setBadge: (params: INotificationSetBadgeParams) => void;
+  getNotificationPermission: () => INotificationPermissionDetail;
+  callDevOnlyApi: (params: IDesktopMainProcessDevOnlyApiParams) => any;
+  openLoggerFile: () => void;
 };
 declare global {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -106,6 +122,9 @@ declare global {
     desktopApi: IDesktopAPI;
     INJECT_PATH: string;
   }
+
+  // eslint-disable-next-line vars-on-top, no-var
+  var desktopApi: IDesktopAPI;
 }
 
 ipcRenderer.on(
@@ -118,17 +137,19 @@ ipcRenderer.on(
   ) => {
     // for DesktopWebView:
     //    const { preloadJsUrl } = window.ONEKEY_DESKTOP_GLOBALS;
-    window.ONEKEY_DESKTOP_GLOBALS = globals;
+    globalThis.ONEKEY_DESKTOP_GLOBALS = globals;
     // contextBridge.exposeInMainWorld('ONEKEY_DESKTOP_GLOBALS', globals);
   },
 );
 
-window.ONEKEY_DESKTOP_DEEP_LINKS = window.ONEKEY_DESKTOP_DEEP_LINKS || [];
+globalThis.ONEKEY_DESKTOP_DEEP_LINKS =
+  globalThis.ONEKEY_DESKTOP_DEEP_LINKS || [];
 ipcRenderer.on(ipcMessageKeys.OPEN_DEEP_LINK_URL, (event, data) => {
-  if (window.ONEKEY_DESKTOP_DEEP_LINKS) {
-    window.ONEKEY_DESKTOP_DEEP_LINKS.push(data);
+  if (globalThis.ONEKEY_DESKTOP_DEEP_LINKS) {
+    globalThis.ONEKEY_DESKTOP_DEEP_LINKS.push(data);
   }
-  window.ONEKEY_DESKTOP_DEEP_LINKS = window.ONEKEY_DESKTOP_DEEP_LINKS.slice(-5);
+  globalThis.ONEKEY_DESKTOP_DEEP_LINKS =
+    globalThis.ONEKEY_DESKTOP_DEEP_LINKS.slice(-5);
 });
 
 const validChannels = [
@@ -145,6 +166,7 @@ const validChannels = [
   ipcMessageKeys.APP_LOCK_NOW,
   ipcMessageKeys.TOUCH_UPDATE_RES_SUCCESS,
   ipcMessageKeys.TOUCH_UPDATE_PROGRESS,
+  ipcMessageKeys.SHOW_ABOUT_WINDOW,
 ];
 
 const getChannel = () => {
@@ -161,18 +183,51 @@ const getChannel = () => {
   return channel;
 };
 
-const desktopApi = {
+let globalTitleBar: Titlebar | null = null;
+
+const isDev = ipcRenderer.sendSync(ipcMessageKeys.IS_DEV);
+// packages/components/tamagui.config.ts
+// lightColors.bgApp
+const lightColor = '#ffffff';
+// packages/components/tamagui.config.ts
+// darkColors.bgApp
+const darkColor = '#0f0f0f';
+
+const isMac = process.platform === 'darwin';
+
+const updateGlobalTitleBarBackgroundColor = () => {
+  if (globalTitleBar) {
+    setTimeout(() => {
+      let color = lightColor;
+      const theme = localStorage.getItem('ONEKEY_THEME_PRELOAD');
+      if (theme === 'dark') {
+        color = darkColor;
+      } else if (theme === 'light') {
+        color = lightColor;
+      } else if (globalThis.matchMedia) {
+        color = globalThis.matchMedia('(prefers-color-scheme: dark)').matches
+          ? darkColor
+          : lightColor;
+      } else {
+        color = lightColor;
+      }
+      globalTitleBar?.updateBackground(TitlebarColor.fromHex(color));
+    }, 0);
+  }
+};
+
+const desktopApi = Object.freeze({
   getVersion: () => ipcRenderer.sendSync(ipcMessageKeys.APP_VERSION) as string,
   on: (channel: string, func: (...args: any[]) => any) => {
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));
     }
   },
-  hello: 'world',
   arch: process.arch,
   platform: process.platform,
   systemVersion: process.getSystemVersion(),
   isMas: process.mas,
+  isDev,
   channel: getChannel(),
   ready: () => ipcRenderer.send(ipcMessageKeys.APP_READY),
   reload: () => ipcRenderer.send(ipcMessageKeys.APP_RELOAD),
@@ -195,13 +250,16 @@ const desktopApi = {
   },
   getMediaAccessStatus: (prefType: IMediaType) =>
     ipcRenderer.sendSync(ipcMessageKeys.APP_GET_MEDIA_ACCESS_STATUS, prefType),
-  openPreferences: () => ipcRenderer.send(ipcMessageKeys.APP_OPEN_PREFERENCES),
+  openPreferences: (prefType: IPrefType) =>
+    ipcRenderer.send(ipcMessageKeys.APP_OPEN_PREFERENCES, prefType),
   toggleMaximizeWindow: () =>
     ipcRenderer.send(ipcMessageKeys.APP_TOGGLE_MAXIMIZE_WINDOW),
   changeDevTools: (isOpen: boolean) =>
     ipcRenderer.send(ipcMessageKeys.APP_CHANGE_DEV_TOOLS_STATUS, isOpen),
-  changeTheme: (theme: string) =>
-    ipcRenderer.send(ipcMessageKeys.THEME_UPDATE, theme),
+  changeTheme: (theme: string) => {
+    ipcRenderer.send(ipcMessageKeys.THEME_UPDATE, theme);
+    updateGlobalTitleBarBackgroundColor();
+  },
   changeLanguage: (lang: string) => {
     ipcRenderer.send(ipcMessageKeys.APP_CHANGE_LANGUAGE, lang);
   },
@@ -211,6 +269,9 @@ const desktopApi = {
     ipcRenderer.sendSync(ipcMessageKeys.APP_GET_ENV_PATH) as {
       [key: string]: string;
     },
+  getBundleInfo: () =>
+    ipcRenderer.sendSync(ipcMessageKeys.APP_GET_BUNDLE_INFO) as IMacBundleInfo,
+  openLoggerFile: () => ipcRenderer.send(ipcMessageKeys.APP_OPEN_LOGGER_FILE),
   promptTouchID: async (
     msg: string,
   ): Promise<{ success: boolean; error?: string }> =>
@@ -244,6 +305,7 @@ const desktopApi = {
     ipcRenderer.send(ipcMessageKeys.UPDATE_VERIFY, params),
   installUpdate: (params: IInstallUpdateParams) =>
     ipcRenderer.send(ipcMessageKeys.UPDATE_INSTALL, params),
+  clearUpdate: () => ipcRenderer.send(ipcMessageKeys.UPDATE_CLEAR),
   setAutoUpdateSettings: (settings: IUpdateSettings) =>
     ipcRenderer.send(ipcMessageKeys.UPDATE_SETTINGS, settings),
   clearAutoUpdateSettings: () =>
@@ -314,7 +376,48 @@ const desktopApi = {
   clearWebViewCache: () => {
     ipcRenderer.send(ipcMessageKeys.CLEAR_WEBVIEW_CACHE);
   },
-};
+  showNotification: (params: INotificationShowParams) => {
+    ipcRenderer.send(ipcMessageKeys.NOTIFICATION_SHOW, params);
+  },
+  setBadge: (params: INotificationSetBadgeParams) => {
+    ipcRenderer.send(ipcMessageKeys.NOTIFICATION_SET_BADGE, params);
+    // if windows
+    if (process.platform === 'win32') {
+      /* 
+      // If invokeType is set to "handle"
+      // Replace 8 with whatever number you want the badge to display
+      ipcRenderer.invoke('notificationCount', 8); 
+      */
+      // handle -> ipcRenderer.invoke
+      void ipcRenderer.invoke(
+        ipcMessageKeys.NOTIFICATION_SET_BADGE_WINDOWS,
+        params.count ?? 0,
+      );
+    }
+  },
+  getNotificationPermission: () =>
+    ipcRenderer.sendSync(ipcMessageKeys.NOTIFICATION_GET_PERMISSION),
+  callDevOnlyApi: (params: IDesktopMainProcessDevOnlyApiParams) =>
+    ipcRenderer.sendSync(ipcMessageKeys.APP_DEV_ONLY_API, params),
+});
 
-window.desktopApi = desktopApi;
+globalThis.desktopApi = desktopApi;
 // contextBridge.exposeInMainWorld('desktopApi', desktopApi);
+
+if (!isMac) {
+  globalThis.addEventListener('DOMContentLoaded', () => {
+    // eslint-disable-next-line no-new
+    globalTitleBar = new Titlebar({
+      icon: nativeImage.createFromPath(
+        path.join(
+          __dirname,
+          isDev
+            ? '../public/static/images/icons/round_icon.png'
+            : '../build/static/images/icons/round_icon.png',
+        ),
+      ),
+    });
+    globalTitleBar.updateTitle('');
+    updateGlobalTitleBarBackgroundColor();
+  });
+}

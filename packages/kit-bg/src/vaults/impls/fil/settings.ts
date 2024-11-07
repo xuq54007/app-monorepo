@@ -44,6 +44,7 @@ const settings: IVaultSettings = {
   transferZeroNativeTokenEnabled: true,
   estimatedFeePollingInterval: 30,
 
+  customRpcEnabled: true,
   defaultFeePresetIndex: 0,
 
   accountDeriveInfo,
@@ -55,6 +56,7 @@ const settings: IVaultSettings = {
   },
 
   hideFeeInfoInHistoryList: true,
+  isNativeTokenContractAddressEmpty: true,
 };
 
 export default Object.freeze(settings);

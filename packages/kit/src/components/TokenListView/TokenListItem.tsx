@@ -21,6 +21,7 @@ export type ITokenListItemProps = {
   withNetwork?: boolean;
   isAllNetworks?: boolean;
   isTokenSelector?: boolean;
+  hideValue?: boolean;
 } & Omit<IListItemProps, 'onPress'>;
 
 function BasicTokenListItem(props: ITokenListItemProps) {
@@ -32,6 +33,7 @@ function BasicTokenListItem(props: ITokenListItemProps) {
     isAllNetworks,
     withNetwork,
     isTokenSelector,
+    hideValue,
     ...rest
   } = props;
 
@@ -79,6 +81,7 @@ function BasicTokenListItem(props: ITokenListItemProps) {
         {isTokenSelector ? (
           <TokenNameView
             name={token.name}
+            // name={token.accountId || ''}
             networkId={token.networkId}
             textProps={{
               size: '$bodyMd',
@@ -87,6 +90,7 @@ function BasicTokenListItem(props: ITokenListItemProps) {
           />
         ) : (
           <TokenBalanceView
+            hideValue={hideValue}
             numberOfLines={1}
             size="$bodyMd"
             color="$textSubdued"
@@ -132,6 +136,7 @@ function BasicTokenListItem(props: ITokenListItemProps) {
         ) : null}
         {isTokenSelector ? (
           <TokenBalanceView
+            hideValue={hideValue}
             numberOfLines={1}
             textAlign="right"
             size="$bodyLgMedium"
@@ -145,6 +150,7 @@ function BasicTokenListItem(props: ITokenListItemProps) {
         ) : null}
         {isTokenSelector ? (
           <TokenValueView
+            hideValue={hideValue}
             numberOfLines={1}
             $key={token.$key ?? ''}
             size="$bodyMd"
@@ -158,6 +164,7 @@ function BasicTokenListItem(props: ITokenListItemProps) {
           />
         ) : (
           <TokenValueView
+            hideValue={hideValue}
             numberOfLines={1}
             $key={token.$key ?? ''}
             size="$bodyLgMedium"

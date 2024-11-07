@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { EventEmitter } from 'events';
-import os from 'os';
 import * as path from 'path';
 import { format as formatUrl } from 'url';
 
+import {
+  attachTitlebarToWindow,
+  setupTitlebar,
+} from 'custom-electron-titlebar/main';
 import {
   BrowserWindow,
   Menu,
@@ -18,36 +21,45 @@ import {
 } from 'electron';
 import contextMenu from 'electron-context-menu';
 import isDev from 'electron-is-dev';
-import logger from 'electron-log';
+import logger from 'electron-log/main';
 
 import {
   ONEKEY_APP_DEEP_LINK_NAME,
   WALLET_CONNECT_DEEP_LINK_NAME,
 } from '@onekeyhq/shared/src/consts/deeplinkConsts';
 import uriUtils from '@onekeyhq/shared/src/utils/uriUtils';
-import type { IMediaType, IPrefType } from '@onekeyhq/shared/types/desktop';
+import type {
+  IDesktopAppState,
+  IDesktopSubModuleInitParams,
+  IMediaType,
+} from '@onekeyhq/shared/types/desktop';
 
+import appDevOnlyApi from './appDevOnlyApi';
+import appNotification from './appNotification';
+import appPermission from './appPermission';
 import { ipcMessageKeys } from './config';
 import { ETranslations, i18nText, initLocale } from './i18n';
 import { registerShortcuts, unregisterShortcuts } from './libs/shortcuts';
 import * as store from './libs/store';
+import { parseContentPList } from './libs/utils';
 import initProcess, { restartBridge } from './process';
+import { resourcesPath, staticPath } from './resoucePath';
+import {
+  checkAvailabilityAsync,
+  requestVerificationAsync,
+  startServices,
+} from './service';
+
+logger.initialize();
+logger.transports.file.maxSize = 1024 * 1024 * 10;
 
 // https://github.com/sindresorhus/electron-context-menu
-const disposeContextMenu = contextMenu({
-  showSaveImageAs: true,
-});
+let disposeContextMenu: ReturnType<typeof contextMenu> | undefined;
 
 const APP_NAME = 'OneKey Wallet';
 app.name = APP_NAME;
 let mainWindow: BrowserWindow | null;
 
-(global as any).resourcesPath = isDev
-  ? path.join(__dirname, '../public/static')
-  : process.resourcesPath;
-const staticPath = isDev
-  ? path.join(__dirname, '../public/static')
-  : path.join((global as any).resourcesPath, 'static');
 // static path
 const preloadJsUrl = path.join(staticPath, 'preload.js');
 
@@ -57,6 +69,10 @@ const sdkConnectSrc = isDev
 
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
+
+if (!isMac) {
+  setupTitlebar();
+}
 
 let systemIdleInterval: NodeJS.Timeout;
 
@@ -82,70 +98,78 @@ function showMainWindow() {
 
 const initMenu = () => {
   const template = [
-    ...(isMac
-      ? [
-          {
-            label: app.name,
-            submenu: [
-              {
-                role: 'about',
-                label: i18nText(ETranslations.menu_about_onekey_wallet),
-              },
-              { type: 'separator' },
-              !process.mas && {
-                label: i18nText(ETranslations.menu_check_for_updates),
-                click: () => {
-                  showMainWindow();
-                  const safelyMainWindow = getSafelyMainWindow();
-                  safelyMainWindow?.webContents.send(
-                    ipcMessageKeys.CHECK_FOR_UPDATES,
+    {
+      label: app.name,
+      submenu: [
+        {
+          role: isMac ? 'about' : undefined,
+          label: i18nText(ETranslations.menu_about_onekey_wallet),
+          click: isMac
+            ? undefined
+            : () => {
+                const safelyMainWindow = getSafelyMainWindow();
+                if (safelyMainWindow) {
+                  safelyMainWindow.webContents.send(
+                    ipcMessageKeys.SHOW_ABOUT_WINDOW,
                   );
-                },
+                }
               },
-              { type: 'separator' },
-              {
-                label: i18nText(ETranslations.menu_preferences),
-                accelerator: 'CmdOrCtrl+,',
-                click: () => {
-                  const safelyMainWindow = getSafelyMainWindow();
-                  const visible = !!safelyMainWindow?.isVisible();
-                  logger.info('APP_OPEN_SETTINGS visible >>>> ', visible);
-                  showMainWindow();
-                  safelyMainWindow?.webContents.send(
-                    ipcMessageKeys.APP_OPEN_SETTINGS,
-                    visible,
-                  );
-                },
-              },
-              { type: 'separator' },
-              {
-                label: i18nText(ETranslations.menu_lock_now),
-                click: () => {
-                  showMainWindow();
-                  const safelyMainWindow = getSafelyMainWindow();
-                  if (safelyMainWindow) {
-                    safelyMainWindow.webContents.send(
-                      ipcMessageKeys.APP_LOCK_NOW,
-                    );
-                  }
-                },
-              },
-              { type: 'separator' },
-              {
-                role: 'hide',
-                accelerator: 'Alt+CmdOrCtrl+H',
-                label: i18nText(ETranslations.menu_hide_onekey_wallet),
-              },
-              { role: 'unhide', label: i18nText(ETranslations.menu_show_all) },
-              { type: 'separator' },
-              {
-                role: 'quit',
-                label: i18nText(ETranslations.menu_quit_onekey_wallet),
-              },
-            ].filter(Boolean),
+        },
+        { type: 'separator' },
+        !process.mas && {
+          label: i18nText(ETranslations.menu_check_for_updates),
+          click: () => {
+            showMainWindow();
+            const safelyMainWindow = getSafelyMainWindow();
+            safelyMainWindow?.webContents.send(
+              ipcMessageKeys.CHECK_FOR_UPDATES,
+            );
           },
-        ]
-      : []),
+        },
+        { type: 'separator' },
+        {
+          label: i18nText(ETranslations.menu_preferences),
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            const safelyMainWindow = getSafelyMainWindow();
+            const visible = !!safelyMainWindow?.isVisible();
+            logger.info('APP_OPEN_SETTINGS visible >>>> ', visible);
+            showMainWindow();
+            safelyMainWindow?.webContents.send(
+              ipcMessageKeys.APP_OPEN_SETTINGS,
+              visible,
+            );
+          },
+        },
+        { type: 'separator' },
+        {
+          label: i18nText(ETranslations.menu_lock_now),
+          accelerator: 'CmdOrCtrl+Shift+L',
+          click: () => {
+            showMainWindow();
+            const safelyMainWindow = getSafelyMainWindow();
+            if (safelyMainWindow) {
+              safelyMainWindow.webContents.send(ipcMessageKeys.APP_LOCK_NOW);
+            }
+          },
+        },
+        { type: 'separator' },
+        {
+          role: 'hide',
+          accelerator: 'Alt+CmdOrCtrl+H',
+          label: i18nText(ETranslations.menu_hide_onekey_wallet),
+        },
+        isMac && {
+          role: 'unhide',
+          label: i18nText(ETranslations.menu_show_all),
+        },
+        { type: 'separator' },
+        {
+          role: 'quit',
+          label: i18nText(ETranslations.menu_quit_onekey_wallet),
+        },
+      ].filter(Boolean),
+    },
     {
       label: i18nText(ETranslations.global_edit),
       submenu: [
@@ -191,7 +215,7 @@ const initMenu = () => {
       label: i18nText(ETranslations.menu_window),
       submenu: [
         { role: 'minimize', label: i18nText(ETranslations.menu_minimize) },
-        { role: 'zoom', label: i18nText(ETranslations.menu_zoom) },
+        isMac && { role: 'zoom', label: i18nText(ETranslations.menu_zoom) },
         ...(isMac
           ? [
               { type: 'separator' },
@@ -208,7 +232,7 @@ const initMenu = () => {
               },
             ]
           : []),
-      ],
+      ].filter(Boolean),
     },
     {
       role: 'help',
@@ -246,6 +270,21 @@ const initMenu = () => {
   ];
   const menu = Menu.buildFromTemplate(template as any);
   Menu.setApplicationMenu(menu);
+  disposeContextMenu?.();
+  disposeContextMenu = contextMenu({
+    showSaveImageAs: true,
+    showSearchWithGoogle: false,
+    showLookUpSelection: false,
+    showSelectAll: true,
+    labels: {
+      cut: i18nText(ETranslations.menu_cut),
+      copy: i18nText(ETranslations.global_copy),
+      paste: i18nText(ETranslations.menu_paste),
+      selectAll: i18nText(ETranslations.menu_select_all),
+      copyImage: i18nText(ETranslations.menu__copy_image),
+      saveImageAs: i18nText(ETranslations.menu__save_image_as),
+    },
+  });
 };
 
 const refreshMenu = () => {
@@ -337,7 +376,8 @@ function createMainWindow() {
   const browserWindow = new BrowserWindow({
     show: false,
     title: APP_NAME,
-    titleBarStyle: isWin ? 'default' : 'hidden',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: !isMac,
     trafficLightPosition: { x: 20, y: 18 },
     autoHideMenuBar: true,
     frame: true,
@@ -368,6 +408,9 @@ function createMainWindow() {
     ...savedWinBounds,
   });
 
+  if (!isMac) {
+    attachTitlebarToWindow(browserWindow);
+  }
   const getSafelyBrowserWindow = () => {
     if (browserWindow && !browserWindow.isDestroyed()) {
       return browserWindow;
@@ -412,7 +455,7 @@ function createMainWindow() {
     safelyBrowserWindow?.webContents.send(
       ipcMessageKeys.SET_ONEKEY_DESKTOP_GLOBALS,
       {
-        resourcesPath: (global as any).resourcesPath,
+        resourcesPath,
         staticPath: `file://${staticPath}`,
         preloadJsUrl: `file://${preloadJsUrl}?timestamp=${Date.now()}`,
         sdkConnectSrc,
@@ -457,7 +500,7 @@ function createMainWindow() {
       app.relaunch();
     }
     app.exit(0);
-    disposeContextMenu();
+    disposeContextMenu?.();
   });
   ipcMain.on(ipcMessageKeys.APP_FOCUS, () => {
     showMainWindow();
@@ -482,25 +525,13 @@ function createMainWindow() {
     },
   );
 
-  ipcMain.on(
-    ipcMessageKeys.APP_OPEN_PREFERENCES,
-    (_event, prefType: IPrefType) => {
-      const platform = os.type();
-      if (platform === 'Darwin') {
-        void shell.openPath(
-          '/System/Library/PreferencePanes/Security.prefPane',
-        );
-      } else if (platform === 'Windows_NT') {
-        // ref https://docs.microsoft.com/en-us/windows/uwp/launch-resume/launch-settings-app
-        if (prefType === 'camera') {
-          void shell.openExternal('ms-settings:privacy-webcam');
-        }
-        // BlueTooth is not supported on desktop currently
-      } else {
-        // Linux ??
-      }
-    },
-  );
+  const subModuleInitParams: IDesktopSubModuleInitParams = {
+    APP_NAME,
+    getSafelyMainWindow,
+  };
+  appNotification.init(subModuleInitParams);
+  appPermission.init(subModuleInitParams);
+  appDevOnlyApi.init(subModuleInitParams);
 
   ipcMain.on(ipcMessageKeys.APP_TOGGLE_MAXIMIZE_WINDOW, () => {
     const safelyBrowserWindow = getSafelyBrowserWindow();
@@ -513,7 +544,25 @@ function createMainWindow() {
     }
   });
 
-  ipcMain.on(ipcMessageKeys.TOUCH_ID_CAN_PROMPT, (event) => {
+  ipcMain.on(ipcMessageKeys.IS_DEV, (event) => {
+    event.returnValue = isDev;
+  });
+
+  ipcMain.on(ipcMessageKeys.TOUCH_ID_CAN_PROMPT, async (event) => {
+    if (isWin) {
+      logger.info('[TOUCH_ID_CAN_PROMPT] Windows checkAvailabilityAsync');
+      try {
+        const result = await checkAvailabilityAsync();
+        event.returnValue = result;
+      } catch (error) {
+        logger.info(
+          '[TOUCH_ID_CAN_PROMPT] Windows checkAvailabilityAsync',
+          error,
+        );
+        event.returnValue = false;
+      }
+      return;
+    }
     const result = systemPreferences?.canPromptTouchID?.();
     event.returnValue = !!result;
   });
@@ -541,6 +590,10 @@ function createMainWindow() {
     };
   });
 
+  ipcMain.on(ipcMessageKeys.APP_GET_BUNDLE_INFO, (event) => {
+    event.returnValue = parseContentPList();
+  });
+
   ipcMain.on(ipcMessageKeys.APP_CHANGE_DEV_TOOLS_STATUS, (event, isOpen) => {
     store.setDevTools(isOpen);
     refreshMenu();
@@ -553,6 +606,33 @@ function createMainWindow() {
   });
 
   ipcMain.on(ipcMessageKeys.TOUCH_ID_PROMPT, async (event, msg: string) => {
+    if (isWin) {
+      logger.info(
+        '[TOUCH_ID_PROMPT] Windows requestVerificationAsync',
+        isAppReady,
+      );
+      try {
+        const { success, error } = await requestVerificationAsync(msg);
+        event.reply(ipcMessageKeys.TOUCH_ID_PROMPT_RES, { success });
+        if (error) {
+          logger.info(
+            '[TOUCH_ID_PROMPT] Windows requestVerificationAsync error',
+            error,
+          );
+        }
+      } catch (e: any) {
+        logger.info(
+          '[TOUCH_ID_PROMPT] Windows requestVerificationAsync error',
+          e,
+        );
+        event.reply(ipcMessageKeys.TOUCH_ID_PROMPT_RES, {
+          success: false,
+          error: e.message,
+        });
+      }
+      return;
+    }
+
     try {
       await systemPreferences.promptTouchID(msg);
       event.reply(ipcMessageKeys.TOUCH_ID_PROMPT_RES, { success: true });
@@ -609,6 +689,10 @@ function createMainWindow() {
     systemIdleHandler(setIdleTime, event);
   });
 
+  ipcMain.on(ipcMessageKeys.APP_OPEN_LOGGER_FILE, () => {
+    void shell.openPath(path.dirname(logger.transports.file.getFile().path));
+  });
+
   ipcMain.on(ipcMessageKeys.CLEAR_WEBVIEW_CACHE, () => {
     void session.defaultSession.clearStorageData({
       storages: ['cookies', 'cachestorage'],
@@ -643,7 +727,8 @@ function createMainWindow() {
 
   browserWindow.on('focus', () => {
     const safelyBrowserWindow = getSafelyBrowserWindow();
-    safelyBrowserWindow?.webContents.send(ipcMessageKeys.APP_STATE, 'active');
+    const state: IDesktopAppState = 'active';
+    safelyBrowserWindow?.webContents.send(ipcMessageKeys.APP_STATE, state);
     registerShortcuts((event) => {
       const w = getSafelyBrowserWindow();
       w?.webContents.send(ipcMessageKeys.APP_SHORCUT, event);
@@ -652,16 +737,15 @@ function createMainWindow() {
 
   browserWindow.on('blur', () => {
     const safelyBrowserWindow = getSafelyBrowserWindow();
-    safelyBrowserWindow?.webContents.send(ipcMessageKeys.APP_STATE, 'blur');
+    const state: IDesktopAppState = 'blur';
+    safelyBrowserWindow?.webContents.send(ipcMessageKeys.APP_STATE, state);
     unregisterShortcuts();
   });
 
   browserWindow.on('hide', () => {
     const safelyBrowserWindow = getSafelyBrowserWindow();
-    safelyBrowserWindow?.webContents.send(
-      ipcMessageKeys.APP_STATE,
-      'background',
-    );
+    const state: IDesktopAppState = 'background';
+    safelyBrowserWindow?.webContents.send(ipcMessageKeys.APP_STATE, state);
   });
 
   app.on('login', (event, webContents, request, authInfo, callback) => {
@@ -839,6 +923,7 @@ if (!singleInstance && !process.mas) {
   app.on('ready', async () => {
     const locale = await initLocale();
     logger.info('locale >>>> ', locale);
+    startServices();
     if (!mainWindow) {
       mainWindow = createMainWindow();
       initMenu();
@@ -860,7 +945,7 @@ app.on('before-quit', () => {
     mainWindow?.removeAllListeners('close');
     mainWindow?.close();
   }
-  disposeContextMenu();
+  disposeContextMenu?.();
 });
 
 // Quit when all windows are closed.

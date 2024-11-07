@@ -23,7 +23,11 @@ import type {
   IEncodedTxCosmos,
 } from '@onekeyhq/core/src/chains/cosmos/types';
 import coreChainApi from '@onekeyhq/core/src/instance/coreChainApi';
-import type { IEncodedTx, IUnsignedTxPro } from '@onekeyhq/core/src/types';
+import type {
+  IEncodedTx,
+  ISignedTxPro,
+  IUnsignedTxPro,
+} from '@onekeyhq/core/src/types';
 import { OneKeyInternalError } from '@onekeyhq/shared/src/errors';
 import { checkIsDefined } from '@onekeyhq/shared/src/utils/assertUtils';
 import bufferUtils from '@onekeyhq/shared/src/utils/bufferUtils';
@@ -36,7 +40,12 @@ import type {
   IXprvtValidation,
   IXpubValidation,
 } from '@onekeyhq/shared/types/address';
+import type {
+  IMeasureRpcStatusParams,
+  IMeasureRpcStatusResult,
+} from '@onekeyhq/shared/types/customRpc';
 import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
+import type { IStakeTxCosmosAmino } from '@onekeyhq/shared/types/staking';
 import {
   EDecodedTxActionType,
   EDecodedTxDirection,
@@ -51,10 +60,12 @@ import { KeyringHardware } from './KeyringHardware';
 import { KeyringHd } from './KeyringHd';
 import { KeyringImported } from './KeyringImported';
 import { KeyringWatching } from './KeyringWatching';
+import { ClientCosmos } from './sdkCosmos/ClientCosmos';
 
 import type { IDBWalletType } from '../../../dbs/local/types';
 import type { KeyringBase } from '../../base/KeyringBase';
 import type {
+  IBroadcastTransactionByCustomRpcParams,
   IBuildAccountAddressDetailParams,
   IBuildDecodedTxParams,
   IBuildEncodedTxParams,
@@ -248,6 +259,12 @@ export default class VaultCosmos extends VaultBase {
     return this._buildEncodedTxWithFee({ transfersInfo });
   }
 
+  override async buildStakeEncodedTx(
+    params: IStakeTxCosmosAmino,
+  ): Promise<IEncodedTxCosmos> {
+    return TransactionWrapper.fromAminoSignDoc(params, undefined).toObject();
+  }
+
   private _getTransactionTypeByMessage(
     message: ICosmosUnpackedMessage,
   ): EDecodedTxActionType {
@@ -271,57 +288,71 @@ export default class VaultCosmos extends VaultBase {
     const account = await this.getAccount();
     const txWrapper = new TransactionWrapper(encodedTx.signDoc, encodedTx.msg);
     const msgs = getMsgs(txWrapper);
+    const { stakingInfo } = unsignedTx;
 
-    const actions = [];
-    for (const msg of msgs) {
-      let action: IDecodedTxAction | null = null;
-      const actionType = this._getTransactionTypeByMessage(msg);
-      if (actionType === EDecodedTxActionType.ASSET_TRANSFER) {
-        const { amount, fromAddress, toAddress } =
-          'unpacked' in msg ? msg.unpacked : msg.value;
-        const amounts = amount as Array<{ denom: string; amount: string }>;
-        const token = await this.backgroundApi.serviceToken.getToken({
-          networkId: network.id,
-          accountId: this.accountId,
-          tokenIdOnNetwork: amounts[0].denom,
-        });
-        if (token) {
-          const amountNumber = new BigNumber(amounts[0].amount)
-            .shiftedBy(-token.decimals)
-            .toFixed();
-          const amountDenom = token.symbol;
+    let actions = [];
 
-          action = await this.buildTxTransferAssetAction({
-            from: fromAddress,
-            to: toAddress,
-            transfers: [
-              {
-                from: fromAddress,
-                to: toAddress,
-                amount: amountNumber,
-                icon: token.logoURI ?? '',
-                symbol: amountDenom,
-                name: token.name,
-                tokenIdOnNetwork: token.address,
-                isNative: amountDenom === network.symbol,
-              },
-            ],
+    if (stakingInfo) {
+      const msg = msgs[0];
+      const { validatorAddress } = 'unpacked' in msg ? msg.unpacked : msg.value;
+      actions = [
+        await this.buildInternalStakingAction({
+          accountAddress: account.address,
+          stakingInfo,
+          stakingToAddress: validatorAddress,
+        }),
+      ];
+    } else {
+      for (const msg of msgs) {
+        let action: IDecodedTxAction | null = null;
+        const actionType = this._getTransactionTypeByMessage(msg);
+        if (actionType === EDecodedTxActionType.ASSET_TRANSFER) {
+          const { amount, fromAddress, toAddress } =
+            'unpacked' in msg ? msg.unpacked : msg.value;
+          const amounts = amount as Array<{ denom: string; amount: string }>;
+          const token = await this.backgroundApi.serviceToken.getToken({
+            networkId: network.id,
+            accountId: this.accountId,
+            tokenIdOnNetwork: amounts[0].denom,
           });
+          if (token) {
+            const amountNumber = new BigNumber(amounts[0].amount)
+              .shiftedBy(-token.decimals)
+              .toFixed();
+            const amountDenom = token.symbol;
+
+            action = await this.buildTxTransferAssetAction({
+              from: fromAddress,
+              to: toAddress,
+              transfers: [
+                {
+                  from: fromAddress,
+                  to: toAddress,
+                  amount: amountNumber,
+                  icon: token.logoURI ?? '',
+                  symbol: amountDenom,
+                  name: token.name,
+                  tokenIdOnNetwork: token.address,
+                  isNative: amountDenom === network.symbol,
+                },
+              ],
+            });
+          }
         }
-      }
 
-      if (!action) {
-        action = {
-          type: EDecodedTxActionType.UNKNOWN,
-          direction: EDecodedTxDirection.OTHER,
-          unknownAction: {
-            from: '',
-            to: '',
-          },
-        };
-      }
+        if (!action) {
+          action = {
+            type: EDecodedTxActionType.UNKNOWN,
+            direction: EDecodedTxDirection.OTHER,
+            unknownAction: {
+              from: '',
+              to: '',
+            },
+          };
+        }
 
-      if (action) actions.push(action);
+        if (action) actions.push(action);
+      }
     }
 
     const fee = getFee(txWrapper);
@@ -511,7 +542,7 @@ export default class VaultCosmos extends VaultBase {
           });
         const balance = new BigNumber(tokenDetail[0].balance);
         const feeNum = new BigNumber(feeAmount.amount);
-        if (balance < feeNum.plus(sendNative)) {
+        if (balance.isLessThan(feeNum.plus(sendNative))) {
           const amount = balance
             .minus(feeNum)
             .toFixed(0, BigNumber.ROUND_FLOOR);
@@ -531,6 +562,39 @@ export default class VaultCosmos extends VaultBase {
     });
     return {
       encodedTx: bufferUtils.bytesToHex(rawTx) as unknown as IEncodedTx,
+    };
+  }
+
+  override async getCustomRpcEndpointStatus(
+    params: IMeasureRpcStatusParams,
+  ): Promise<IMeasureRpcStatusResult> {
+    const client = new ClientCosmos({ url: params.rpcUrl });
+    const start = performance.now();
+    const { height } = await client.fetchBlockHeaderV1beta1();
+    const bestBlockNumber = parseInt(height, 10);
+    return {
+      responseTime: Math.floor(performance.now() - start),
+      bestBlockNumber,
+    };
+  }
+
+  override async broadcastTransactionFromCustomRpc(
+    params: IBroadcastTransactionByCustomRpcParams,
+  ): Promise<ISignedTxPro> {
+    const { customRpcInfo, signedTx } = params;
+    const rpcUrl = customRpcInfo.rpc;
+    const client = new ClientCosmos({ url: rpcUrl });
+    const txId = await client.broadcastTransaction({ rawTx: signedTx.rawTx });
+    console.log('broadcastTransaction Done:', {
+      txId,
+      rawTx: signedTx.rawTx,
+    });
+
+    if (!txId) throw new Error('broadcastTransaction failed');
+
+    return {
+      ...signedTx,
+      txid: txId,
     };
   }
 }

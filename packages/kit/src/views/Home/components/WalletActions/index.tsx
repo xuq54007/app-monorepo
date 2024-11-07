@@ -7,7 +7,10 @@ import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/background
 import { ReviewControl } from '@onekeyhq/kit/src/components/ReviewControl';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import { usePromiseResult } from '@onekeyhq/kit/src/hooks/usePromiseResult';
-import { useActiveAccount } from '@onekeyhq/kit/src/states/jotai/contexts/accountSelector';
+import {
+  useActiveAccount,
+  useSelectedAccount,
+} from '@onekeyhq/kit/src/states/jotai/contexts/accountSelector';
 import {
   useAllTokenListAtom,
   useAllTokenListMapAtom,
@@ -39,6 +42,7 @@ function WalletActionSend() {
   const {
     activeAccount: { account, network, wallet },
   } = useActiveAccount({ num: 0 });
+  // const { selectedAccount } = useSelectedAccount({ num: 0 });
   const intl = useIntl();
 
   const [allTokens] = useAllTokenListAtom();
@@ -151,11 +155,19 @@ function WalletActionSend() {
     <RawActions.Send
       onPress={handleOnSend}
       disabled={vaultSettings?.disabledSendAction}
+      // label={`${account?.id || ''}`}
     />
   );
 }
 
-function WalletActionSwap({ networkId }: { networkId?: string }) {
+function WalletActionSwap({
+  networkId,
+  accountId,
+}: {
+  networkId?: string;
+  accountId?: string;
+}) {
+  const intl = useIntl();
   const navigation =
     useAppNavigation<IPageNavigationProp<IModalSwapParamList>>();
   const vaultSettings = usePromiseResult(async () => {
@@ -167,20 +179,26 @@ function WalletActionSwap({ networkId }: { networkId?: string }) {
   const handleOnSwap = useCallback(() => {
     navigation.pushModal(EModalRoutes.SwapModal, {
       screen: EModalSwapRoutes.SwapMainLand,
-      params: { importNetworkId: networkId },
+      params: {
+        importNetworkId: networkId,
+      },
     });
   }, [navigation, networkId]);
   return (
     <RawActions.Swap
       onPress={handleOnSwap}
-      disabled={vaultSettings?.disabledSwapAction}
+      label={intl.formatMessage({ id: ETranslations.global_trade })}
+      disabled={
+        vaultSettings?.disabledSwapAction ||
+        accountUtils.isUrlAccountFn({ accountId })
+      }
     />
   );
 }
 
 function WalletActions({ ...rest }: IXStackProps) {
   const {
-    activeAccount: { network },
+    activeAccount: { network, account },
   } = useActiveAccount({ num: 0 });
 
   return (
@@ -188,7 +206,7 @@ function WalletActions({ ...rest }: IXStackProps) {
       <ReviewControl>
         <WalletActionBuy />
       </ReviewControl>
-      <WalletActionSwap networkId={network?.id} />
+      <WalletActionSwap networkId={network?.id} accountId={account?.id} />
       <WalletActionSend />
       <WalletActionReceive />
       <WalletActionMore />

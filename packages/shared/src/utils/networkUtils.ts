@@ -1,6 +1,8 @@
 import {
   BtcDappNetworkTypes,
+  BtcDappUniSetChainTypes,
   EBtcDappNetworkTypeEnum,
+  EBtcDappUniSetChainTypeEnum,
 } from '../../types/ProviderApis/ProviderApiBtc.type';
 import { getNetworkIdsMap } from '../config/networkIds';
 import {
@@ -11,6 +13,7 @@ import {
   IMPL_LIGHTNING_TESTNET,
   SEPERATOR,
 } from '../engine/engineConsts';
+import platformEnv from '../platformEnv';
 
 import numberUtils from './numberUtils';
 
@@ -87,6 +90,24 @@ export function getBtcDappNetworkName(network: IServerNetwork) {
   }
 }
 
+export function getBtcDappUniSetChainName(network: IServerNetwork) {
+  if (network && isBTCNetwork(network.id)) {
+    if (network.isTestnet) {
+      if (network.id === getNetworkIdsMap().sbtc) {
+        return Promise.resolve(
+          BtcDappUniSetChainTypes[EBtcDappUniSetChainTypeEnum.BITCOIN_SIGNET],
+        );
+      }
+      return Promise.resolve(
+        BtcDappUniSetChainTypes[EBtcDappUniSetChainTypeEnum.BITCOIN_TESTNET],
+      );
+    }
+    return Promise.resolve(
+      BtcDappUniSetChainTypes[EBtcDappUniSetChainTypeEnum.BITCOIN_MAINNET],
+    );
+  }
+}
+
 function isAllNetwork({
   networkId,
 }: {
@@ -96,12 +117,21 @@ function isAllNetwork({
 }
 
 function getDefaultDeriveTypeVisibleNetworks() {
-  return [
-    getNetworkIdsMap().btc,
-    getNetworkIdsMap().tbtc,
-    getNetworkIdsMap().sbtc,
-    getNetworkIdsMap().ltc,
-  ];
+  return platformEnv.isE2E
+    ? [
+        getNetworkIdsMap().eth,
+        getNetworkIdsMap().sol,
+        getNetworkIdsMap().btc,
+        getNetworkIdsMap().tbtc,
+        getNetworkIdsMap().sbtc,
+        getNetworkIdsMap().ltc,
+      ]
+    : [
+        getNetworkIdsMap().btc,
+        getNetworkIdsMap().tbtc,
+        getNetworkIdsMap().sbtc,
+        getNetworkIdsMap().ltc,
+      ];
 }
 
 function toNetworkIdFallback({
@@ -135,4 +165,5 @@ export default {
   isAllNetwork,
   getDefaultDeriveTypeVisibleNetworks,
   toNetworkIdFallback,
+  getBtcDappUniSetChainName,
 };

@@ -37,16 +37,18 @@ const settings: IVaultSettings = {
     // ECoreApiExportedSecretKeyType.publicKey,
   ],
 
-  defaultFeePresetIndex: 0,
+  defaultFeePresetIndex: 1,
 
   isUtxo: false,
   isSingleToken: true,
   NFTEnabled: false,
   nonceRequired: false,
   feeUTXORequired: false,
-  editFeeEnabled: false,
+  editFeeEnabled: true,
   replaceTxEnabled: false,
   estimatedFeePollingInterval: 300,
+
+  customRpcEnabled: true,
 
   accountDeriveInfo,
   networkInfo: {
@@ -57,6 +59,7 @@ const settings: IVaultSettings = {
   },
 
   minTransferAmount: new BigNumber(DUST_AMOUNT).shiftedBy(-8).toString(),
+  isNativeTokenContractAddressEmpty: true,
 };
 
 export default Object.freeze(settings);

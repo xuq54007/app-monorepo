@@ -94,6 +94,16 @@ export type IOnChainHistoryTx = {
   outputs?: IOnChainHistoryTxUTXOOutput[];
 
   tokenApprove?: IOnChainHistoryTxApprove;
+
+  tokenActive?: {
+    token: string;
+    from: string;
+  };
+
+  contractCall?: {
+    functionName?: string;
+  };
+
   // TODO: on chain swap info
   swapInfo?: any;
 
@@ -108,6 +118,21 @@ export type IOnChainHistoryTx = {
 
   // Dynex
   paymentId?: string;
+
+  // TON
+  eventId?: string;
+
+  // Tron
+  receipt?: {
+    energyUsage?: number;
+    energyFee?: number;
+    energyUsageTotal?: number;
+    netUsage?: number;
+    netFee?: number;
+    netFeeCost?: number;
+  };
+
+  slicedData?: string;
 };
 
 export type IAccountHistoryTx = {
@@ -121,6 +146,8 @@ export type IAccountHistoryTx = {
 
   decodedTx: IDecodedTx;
   stakingInfo?: IStakingInfo;
+
+  originalId?: string; // for ton
 };
 
 export type IHistoryListSectionGroup = {
@@ -155,6 +182,8 @@ export type IFetchHistoryTxDetailsParams = {
   networkId: string;
   txid: string;
   withUTXOs?: boolean;
+  accountAddress?: string;
+  xpub?: string;
 };
 
 export type IFetchTxDetailsParams = {
@@ -189,3 +218,17 @@ export type IAllNetworkHistoryExtraItem = {
   accountAddress: string;
   accountXpub?: string;
 };
+
+export interface IServerFetchAccountHistoryDetailParams {
+  accountId: string;
+  networkId: string;
+  txid: string;
+  accountAddress?: string;
+  xpub?: string;
+}
+
+export interface IServerFetchAccountHistoryDetailResp {
+  data: {
+    data: IFetchHistoryTxDetailsResp;
+  };
+}

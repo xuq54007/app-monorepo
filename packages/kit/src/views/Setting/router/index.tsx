@@ -32,6 +32,9 @@ const SettingSpendUTXOModal = LazyLoadPage(
 const SettingCustomRPCModal = LazyLoadPage(
   () => import('@onekeyhq/kit/src/views/Setting/pages/CustomRPC'),
 );
+const SettingCustomNetworkModal = LazyLoadPage(
+  () => import('@onekeyhq/kit/src/views/Setting/pages/CustomNetwork'),
+);
 
 const SettingSignatureRecordModal = LazyLoadPage(
   () => import('@onekeyhq/kit/src/views/Setting/pages/SignatureRecord'),
@@ -49,6 +52,28 @@ const V4MigrationDevSettings = LazyLoadPage(
 const ExportCustomNetworkConfig = LazyLoadPage(
   () =>
     import('@onekeyhq/kit/src/views/Setting/pages/ExportCustomNetworkConfig'),
+);
+
+const NotificationsSettings = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Setting/pages/Notifications/NotificationsSettings'
+    ),
+);
+
+const ManageAccountActivity = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Setting/pages/Notifications/ManageAccountActivity'
+    ),
+);
+
+const AlignPrimaryAccountModal = LazyLoadPage(
+  () => import('@onekeyhq/kit/src/views/Setting/pages/AlignPrimaryAccount'),
+);
+
+const CustomNonceModal = LazyLoadPage(
+  () => import('@onekeyhq/kit/src/views/Setting/pages/CustomNonce'),
 );
 
 export const ModalSettingStack: IModalFlowNavigatorConfig<
@@ -76,6 +101,10 @@ export const ModalSettingStack: IModalFlowNavigatorConfig<
     component: SettingCustomRPCModal,
   },
   {
+    name: EModalSettingRoutes.SettingCustomNetwork,
+    component: SettingCustomNetworkModal,
+  },
+  {
     name: EModalSettingRoutes.SettingAppAutoLockModal,
     component: SettingAppAutoLockModal,
   },
@@ -98,6 +127,22 @@ export const ModalSettingStack: IModalFlowNavigatorConfig<
   {
     name: EModalSettingRoutes.SettingExportCustomNetworkConfig,
     component: ExportCustomNetworkConfig,
+  },
+  {
+    name: EModalSettingRoutes.SettingNotifications,
+    component: NotificationsSettings,
+  },
+  {
+    name: EModalSettingRoutes.SettingManageAccountActivity,
+    component: ManageAccountActivity,
+  },
+  {
+    name: EModalSettingRoutes.SettingAlignPrimaryAccount,
+    component: AlignPrimaryAccountModal,
+  },
+  {
+    name: EModalSettingRoutes.SettingCustomNonce,
+    component: CustomNonceModal,
   },
   ...(ModalAddressBookRouter as IModalFlowNavigatorConfig<
     EModalSettingRoutes | EModalAddressBookRoutes,

@@ -8,7 +8,12 @@ export const cspRules = [
 ];
 
 export const ipcMessageKeys = {
+  IS_DEV: 'IS_DEV',
+  // DEV Only
+  APP_DEV_ONLY_API: 'electronAppMainProcessDevOnly/api',
+
   // Updater
+  SHOW_ABOUT_WINDOW: 'showAboutWindow',
   UPDATE_CHECK: 'update/check',
   UPDATE_SETTINGS: 'update/settings',
   UPDATE_CLEAR_SETTINGS: 'update/clearSettings',
@@ -16,6 +21,7 @@ export const ipcMessageKeys = {
   UPDATE_VERIFY: 'update/verify',
   UPDATE_VERIFIED: 'update/verified',
   UPDATE_INSTALL: 'update/install',
+  UPDATE_CLEAR: 'update/clear',
   UPDATE_CHECKING: 'update/checking',
   UPDATE_AVAILABLE: 'update/available',
   UPDATE_NOT_AVAILABLE: 'update/not-available',
@@ -46,6 +52,8 @@ export const ipcMessageKeys = {
   APP_CHANGE_LANGUAGE: 'app/changeLanguage',
   APP_LOCK_NOW: 'app/lockNow',
   APP_GET_ENV_PATH: 'app/getEnvPath',
+  APP_GET_BUNDLE_INFO: 'app/getBundleInfo',
+  APP_OPEN_LOGGER_FILE: 'app/openLoggerFile',
 
   // Theme
   THEME_UPDATE: 'theme/update',
@@ -81,4 +89,9 @@ export const ipcMessageKeys = {
   WEBVIEW_NEW_WINDOW: 'webview/newWindow',
   SET_ALLOWED_PHISHING_URLS: 'webview/setAllowedPhishingUrls',
   CLEAR_WEBVIEW_CACHE: 'webview/clearCache',
+
+  NOTIFICATION_SHOW: 'notification/show',
+  NOTIFICATION_GET_PERMISSION: 'notification/getPermission',
+  NOTIFICATION_SET_BADGE: 'notification/setBadge',
+  NOTIFICATION_SET_BADGE_WINDOWS: 'notification/setBadge/windows',
 };

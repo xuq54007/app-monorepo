@@ -1,11 +1,21 @@
 import { ECoreApiExportedSecretKeyType } from '@onekeyhq/core/src/types';
 import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
 import {
+  EMPTY_NATIVE_TOKEN_ADDRESS,
+  EthereumMatic,
+  SepoliaMatic,
+} from '@onekeyhq/shared/src/consts/addresses';
+import {
   COINTYPE_ETH,
   IMPL_EVM,
   INDEX_PLACEHOLDER,
 } from '@onekeyhq/shared/src/engine/engineConsts';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import type {
+  IStakingConfig,
+  IStakingFlowConfig,
+} from '@onekeyhq/shared/types/earn';
+import { EEarnProviderEnum } from '@onekeyhq/shared/types/earn';
 
 import { EDBAccountType } from '../../../dbs/local/consts';
 
@@ -24,6 +34,87 @@ export type IAccountDeriveTypesEvm = keyof IAccountDeriveInfoMapEvm;
 
 const networkIdMap = getNetworkIdsMap();
 
+const commonStakeConfigs = {
+  ETH: {
+    enabled: true,
+    tokenAddress: EMPTY_NATIVE_TOKEN_ADDRESS,
+    displayProfit: true,
+    stakingWithApprove: false,
+  },
+  MATIC: {
+    enabled: true,
+    tokenAddress: EthereumMatic,
+    displayProfit: true,
+    stakingWithApprove: true,
+  },
+};
+
+const lidoConfig: { ETH: IStakingFlowConfig; MATIC: IStakingFlowConfig } = {
+  ETH: {
+    ...commonStakeConfigs.ETH,
+    enabled: true,
+    unstakeWithSignMessage: true,
+    claimWithAmount: true,
+  },
+  MATIC: {
+    ...commonStakeConfigs.MATIC,
+    enabled: true,
+    claimWithTx: true,
+  },
+};
+
+const stakingConfig: IStakingConfig = {
+  [getNetworkIdsMap().eth]: {
+    providers: {
+      [EEarnProviderEnum.Lido]: {
+        supportedSymbols: ['ETH', 'MATIC'],
+        configs: lidoConfig,
+      },
+      [EEarnProviderEnum.Everstake]: {
+        supportedSymbols: ['ETH', 'MATIC'],
+        configs: {
+          ETH: {
+            ...commonStakeConfigs.ETH,
+            claimWithAmount: true,
+          },
+          MATIC: {
+            ...commonStakeConfigs.MATIC,
+            claimWithTx: true,
+          },
+        },
+      },
+    },
+  },
+  [getNetworkIdsMap().sepolia]: {
+    providers: {
+      [EEarnProviderEnum.Lido]: {
+        supportedSymbols: ['ETH', 'MATIC'],
+        configs: {
+          ...lidoConfig,
+          MATIC: { ...lidoConfig.MATIC, tokenAddress: SepoliaMatic },
+        },
+      },
+    },
+  },
+  [getNetworkIdsMap().holesky]: {
+    providers: {
+      [EEarnProviderEnum.Everstake]: {
+        supportedSymbols: ['ETH', 'MATIC'],
+        configs: {
+          ETH: commonStakeConfigs.ETH,
+          MATIC: commonStakeConfigs.MATIC,
+        },
+      },
+      [EEarnProviderEnum.Lido]: {
+        supportedSymbols: ['ETH'],
+        configs: {
+          ETH: lidoConfig.ETH,
+        },
+      },
+    },
+  },
+};
+
 const accountDeriveInfo: IAccountDeriveInfoMapEvm = {
   default: {
     // category: `44'/${COINTYPE_ETH}'`,
@@ -31,7 +122,7 @@ const accountDeriveInfo: IAccountDeriveInfoMapEvm = {
     labelKey: ETranslations.bip44__standard,
     template: `m/44'/${COINTYPE_ETH}'/0'/0/${INDEX_PLACEHOLDER}`,
     coinType: COINTYPE_ETH,
-    desc: 'OneKey, MetaMask, Trezor, imToken, m/44’/60’/0’/0/*',
+    desc: `OneKey, MetaMask, Trezor, imToken, m/44'/60'/0'/0/*`,
   },
   // TODO
   // etcNative: {
@@ -40,7 +131,7 @@ const accountDeriveInfo: IAccountDeriveInfoMapEvm = {
   //   labelKey: 'form__bip44_standard_cointype_61',
   //   template: `m/44'/${COINTYPE_ETC}'/0'/0/${INDEX_PLACEHOLDER}`,
   //   coinType: COINTYPE_ETC,
-  //   desc: 'm’/44’/61’/0’/*',
+  //   desc: `m'/44'/61'/0'/*`,
   //   // ETC only, hide in other EVM chains
   //   enableConditions: [
   //     {
@@ -55,7 +146,7 @@ const accountDeriveInfo: IAccountDeriveInfoMapEvm = {
     idSuffix: 'LedgerLive', // hd-1--m/44'/60'/0'/0/0--LedgerLive
     template: `m/44'/${COINTYPE_ETH}'/${INDEX_PLACEHOLDER}'/0/0`,
     coinType: COINTYPE_ETH,
-    desc: 'm/44’/60’/*’/0/0',
+    desc: `m/44'/60'/*'/0/0`,
   },
 };
 
@@ -83,6 +174,8 @@ const settings: IVaultSettings = {
   isSingleToken: false,
   NFTEnabled: true,
   nonceRequired: true,
+  canEditNonce: true,
+  canEditData: true,
   feeUTXORequired: false,
   editFeeEnabled: true,
   replaceTxEnabled: true,
@@ -109,6 +202,8 @@ const settings: IVaultSettings = {
   },
 
   customRpcEnabled: true,
+
+  stakingConfig,
 };
 
 export default Object.freeze(settings);

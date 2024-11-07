@@ -12,7 +12,11 @@ import {
   backgroundMethod,
 } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import { getNetworkImplsFromDappScope } from '@onekeyhq/shared/src/background/backgroundUtils';
-import { IMPL_BTC, IMPL_TBTC } from '@onekeyhq/shared/src/engine/engineConsts';
+import {
+  IMPL_BTC,
+  IMPL_EVM,
+  IMPL_TBTC,
+} from '@onekeyhq/shared/src/engine/engineConsts';
 import {
   EAppEventBusNames,
   appEventBus,
@@ -29,11 +33,12 @@ import {
 import { ensureSerializable } from '@onekeyhq/shared/src/utils/assertUtils';
 import extUtils from '@onekeyhq/shared/src/utils/extUtils';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
+import { buildModalRouteParams } from '@onekeyhq/shared/src/utils/routeUtils';
 import { sidePanelState } from '@onekeyhq/shared/src/utils/sidePanelUtils';
 import uriUtils from '@onekeyhq/shared/src/utils/uriUtils';
 import { implToNamespaceMap } from '@onekeyhq/shared/src/walletConnect/constant';
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
-import type { IDappSourceInfo } from '@onekeyhq/shared/types';
+import type { IDappSourceInfo, IServerNetwork } from '@onekeyhq/shared/types';
 import type {
   IConnectedAccountInfo,
   IConnectionAccountInfo,
@@ -43,40 +48,21 @@ import type {
   IGetDAppAccountInfoParams,
 } from '@onekeyhq/shared/types/dappConnection';
 import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
+import type { IAccountToken } from '@onekeyhq/shared/types/token';
+
+import { vaultFactory } from '../vaults/factory';
 
 import ServiceBase from './ServiceBase';
 
 import type { IBackgroundApiWebembedCallMessage } from '../apis/IBackgroundApi';
 import type ProviderApiBase from '../providers/ProviderApiBase';
+import type { IAddEthereumChainParameter } from '../providers/ProviderApiEthereum';
 import type ProviderApiPrivate from '../providers/ProviderApiPrivate';
-import type { ITransferInfo } from '../vaults/types';
+import type { IAccountDeriveTypes, ITransferInfo } from '../vaults/types';
 import type {
   IJsBridgeMessagePayload,
   IJsonRpcRequest,
 } from '@onekeyfe/cross-inpage-provider-types';
-
-function buildModalRouteParams({
-  screens = [],
-  routeParams,
-}: {
-  screens: string[];
-  routeParams: Record<string, any>;
-}) {
-  const modalParams: { screen: any; params: any } = {
-    screen: null,
-    params: {},
-  };
-  let paramsCurrent = modalParams;
-  let paramsLast = modalParams;
-  screens.forEach((screen) => {
-    paramsCurrent.screen = screen;
-    paramsCurrent.params = {};
-    paramsLast = paramsCurrent;
-    paramsCurrent = paramsCurrent.params;
-  });
-  paramsLast.params = routeParams;
-  return modalParams;
-}
 
 function getQueryDAppAccountParams(params: IGetDAppAccountInfoParams) {
   const { scope, isWalletConnectRequest, options = {} } = params;
@@ -216,7 +202,7 @@ class ServiceDApp extends ServiceBase {
       }
     } else {
       const doOpenModal = () =>
-        global.$navigationRef.current?.navigate(
+        globalThis.$navigationRef.current?.navigate(
           modalParams.screen,
           modalParams.params,
         );
@@ -237,7 +223,7 @@ class ServiceDApp extends ServiceBase {
 
   private tryOpenExistingExtensionWindow() {
     if (platformEnv.isExtension && this.existingWindowId) {
-      extUtils.openExistWindow({ windowId: this.existingWindowId });
+      extUtils.focusExistWindow({ windowId: this.existingWindowId });
     }
   }
 
@@ -265,13 +251,13 @@ class ServiceDApp extends ServiceBase {
     unsignedMessage,
     accountId,
     networkId,
-    sceneName,
+    walletInternalSign,
   }: {
     request: IJsBridgeMessagePayload;
     unsignedMessage: IUnsignedMessage;
     accountId: string;
     networkId: string;
-    sceneName?: EAccountSelectorSceneName;
+    walletInternalSign?: boolean;
   }) {
     if (!accountId || !networkId) {
       throw new Error('accountId and networkId required');
@@ -283,7 +269,7 @@ class ServiceDApp extends ServiceBase {
         unsignedMessage,
         accountId,
         networkId,
-        sceneName,
+        walletInternalSign,
       },
       fullScreen: !platformEnv.isNativeIOS,
     });
@@ -317,6 +303,55 @@ class ServiceDApp extends ServiceBase {
       },
       fullScreen: true,
     }) as Promise<ISignedTxPro>;
+  }
+
+  @backgroundMethod()
+  async openAddCustomNetworkModal({
+    request,
+    params,
+  }: {
+    request: IJsBridgeMessagePayload;
+    params: IAddEthereumChainParameter;
+  }): Promise<IServerNetwork> {
+    return this.openModal({
+      request,
+      screens: [
+        EModalRoutes.DAppConnectionModal,
+        EDAppConnectionModal.AddCustomNetworkModal,
+      ],
+      params: {
+        networkInfo: params,
+      },
+      fullScreen: true,
+    }) as Promise<IServerNetwork>;
+  }
+
+  @backgroundMethod()
+  async openAddCustomTokenModal({
+    request,
+    ...params
+  }: {
+    request: IJsBridgeMessagePayload;
+    token?: IAccountToken;
+    walletId: string;
+    isOthersWallet?: boolean;
+    indexedAccountId?: string;
+    accountId: string;
+    networkId: string;
+    deriveType: IAccountDeriveTypes;
+    onSuccess?: () => void;
+  }) {
+    return this.openModal({
+      request,
+      screens: [
+        EModalRoutes.DAppConnectionModal,
+        EDAppConnectionModal.AddCustomTokenModal,
+      ],
+      params: {
+        ...params,
+      },
+      fullScreen: true,
+    }) as Promise<IServerNetwork>;
   }
 
   // connection allowance
@@ -455,10 +490,12 @@ class ServiceDApp extends ServiceBase {
     origin,
     storageType,
     beforeConnect = false,
+    entry,
   }: {
     origin: string;
     storageType: IConnectionStorageType;
     beforeConnect?: boolean;
+    entry?: 'Browser' | 'SettingModal' | 'ExtPanel' | 'ExtFloatingTrigger';
   }) {
     const { simpleDb, serviceWalletConnect } = this.backgroundApi;
     // disconnect walletConnect
@@ -482,6 +519,14 @@ class ServiceDApp extends ServiceBase {
     appEventBus.emit(EAppEventBusNames.DAppConnectUpdate, undefined);
     if (!beforeConnect) {
       await this.backgroundApi.serviceDApp.notifyDAppAccountsChanged(origin);
+    }
+    if (entry) {
+      defaultLogger.discovery.dapp.disconnect({
+        dappDomain: origin,
+        disconnectType:
+          storageType === 'walletConnect' ? 'WalletConnect' : 'Injected',
+        disconnectFrom: entry,
+      });
     }
   }
 
@@ -914,16 +959,183 @@ class ServiceDApp extends ServiceBase {
     );
   }
 
+  // Follow home account changed to switch dApp connection account
+  @backgroundMethod()
+  async isSupportSwitchDAppConnectionAccount(params: {
+    origin: string;
+    accountId?: string;
+    networkId?: string;
+    indexedAccountId?: string;
+    isOthersWallet?: boolean;
+    deriveType: IAccountDeriveTypes;
+  }) {
+    const {
+      origin,
+      accountId,
+      indexedAccountId,
+      networkId,
+      isOthersWallet,
+      deriveType,
+    } = params;
+    const connectedAccountsInfo = await this.findInjectedAccountByOrigin(
+      origin,
+    );
+    if (
+      !connectedAccountsInfo ||
+      !connectedAccountsInfo.length ||
+      connectedAccountsInfo.length > 1
+    ) {
+      return { supportSwitchConnectionAccount: false, accountExist: false };
+    }
+
+    const connectedAccountInfo = connectedAccountsInfo[0];
+    if (accountId && connectedAccountInfo.accountId === accountId) {
+      return { supportSwitchConnectionAccount: false, accountExist: true };
+    }
+    const connectedAccount = await this.backgroundApi.serviceAccount.getAccount(
+      {
+        accountId: connectedAccountInfo.accountId,
+        networkId: connectedAccountInfo.networkId ?? '',
+      },
+    );
+    if (isOthersWallet && accountId && networkId) {
+      const otherAccount = await this.backgroundApi.serviceAccount.getAccount({
+        accountId,
+        networkId,
+      });
+      // If networkId is same or both are evm, support switch
+      if (
+        (connectedAccount.impl === IMPL_EVM &&
+          otherAccount.impl === IMPL_EVM) ||
+        connectedAccountInfo.networkId === networkId
+      ) {
+        return { supportSwitchConnectionAccount: true, accountExist: true };
+      }
+
+      return { supportSwitchConnectionAccount: false, accountExist: true };
+    }
+    if (!indexedAccountId) {
+      return { supportSwitchConnectionAccount: false, accountExist: false };
+    }
+
+    try {
+      const usedDeriveType = networkUtils.isBTCNetwork(
+        connectedAccountInfo.networkId,
+      )
+        ? connectedAccountInfo.deriveType
+        : deriveType;
+      const networkAccount =
+        await this.backgroundApi.serviceAccount.getNetworkAccount({
+          accountId: undefined,
+          indexedAccountId,
+          networkId: connectedAccountInfo.networkId ?? '',
+          deriveType: usedDeriveType,
+        });
+
+      if (connectedAccount.id === networkAccount?.id) {
+        return {
+          supportSwitchConnectionAccount: false,
+          accountExist: !!networkAccount?.id,
+        };
+      }
+      return {
+        supportSwitchConnectionAccount: true,
+        accountExist: !!networkAccount?.id,
+      };
+    } catch {
+      return { supportSwitchConnectionAccount: true, accountExist: false };
+    }
+  }
+
+  @backgroundMethod()
+  async getDappConnectNetworkAccount(params: {
+    origin: string;
+    accountId?: string;
+    networkId?: string;
+    indexedAccountId?: string;
+    isOthersWallet?: boolean;
+    deriveType: IAccountDeriveTypes;
+  }) {
+    const {
+      origin,
+      accountId,
+      indexedAccountId,
+      networkId,
+      isOthersWallet,
+      deriveType,
+    } = params;
+    const connectedAccountsInfo = await this.findInjectedAccountByOrigin(
+      origin,
+    );
+    if (
+      !connectedAccountsInfo ||
+      !connectedAccountsInfo.length ||
+      connectedAccountsInfo.length > 1
+    ) {
+      return null;
+    }
+
+    const connectedAccountInfo = connectedAccountsInfo[0];
+    if (isOthersWallet && accountId && networkId) {
+      try {
+        const otherAccount = await this.backgroundApi.serviceAccount.getAccount(
+          {
+            accountId,
+            networkId,
+          },
+        );
+        return otherAccount;
+      } catch {
+        return null;
+      }
+    }
+
+    if (!indexedAccountId) {
+      return null;
+    }
+
+    try {
+      const usedDeriveType = networkUtils.isBTCNetwork(
+        connectedAccountInfo.networkId,
+      )
+        ? connectedAccountInfo.deriveType
+        : deriveType;
+      const networkAccount =
+        await this.backgroundApi.serviceAccount.getNetworkAccount({
+          accountId: undefined,
+          indexedAccountId,
+          networkId: connectedAccountInfo.networkId ?? '',
+          deriveType: usedDeriveType,
+        });
+      return networkAccount;
+    } catch {
+      return null;
+    }
+  }
+
   @backgroundMethod()
   async proxyRPCCall<T>({
     networkId,
     request,
     skipParseResponse,
+    origin,
   }: {
     networkId: string;
     request: IJsonRpcRequest;
     skipParseResponse?: boolean;
+    origin: string;
   }) {
+    const isCustomNetwork =
+      await this.backgroundApi.serviceNetwork.isCustomNetwork({
+        networkId,
+      });
+    if (isCustomNetwork) {
+      const vault = await vaultFactory.getChainOnlyVault({
+        networkId,
+      });
+      const result = await vault.proxyJsonRPCCall(request);
+      return [result];
+    }
     const client = await this.getClient(EServiceEndpointEnum.Wallet);
     const results = await client.post<{
       data: {
@@ -941,6 +1153,7 @@ class ServiceDApp extends ServiceBase {
           params: request.id ? request : { ...request, id: 0 },
         },
       ],
+      origin,
     });
 
     const data = results.data.data.data;
@@ -964,6 +1177,14 @@ class ServiceDApp extends ServiceBase {
       | ProviderApiPrivate
       | undefined;
     return privateProvider?.callWebEmbedApiProxy(data);
+  }
+
+  @backgroundMethod()
+  async getLastFocusUrl() {
+    const privateProvider = this.backgroundApi.providers.$private as
+      | ProviderApiPrivate
+      | undefined;
+    return privateProvider?.getLastFocusUrl();
   }
 }
 

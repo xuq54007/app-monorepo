@@ -1,5 +1,6 @@
 import qs from 'querystring';
 
+import BigNumber from 'bignumber.js';
 import { isNil, omit, omitBy } from 'lodash';
 
 import type { IAddressQueryResult } from '@onekeyhq/kit/src/components/AddressInput';
@@ -9,6 +10,7 @@ import {
 } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import { parseRPCResponse } from '@onekeyhq/shared/src/request/utils';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
+import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import type { INetworkAccount } from '@onekeyhq/shared/types/account';
 import { ERequestWalletTypeEnum } from '@onekeyhq/shared/types/account';
 import type {
@@ -16,6 +18,7 @@ import type {
   IFetchAccountDetailsParams,
   IFetchAccountDetailsResp,
   IQueryCheckAddressArgs,
+  IServerAccountBadgeResp,
 } from '@onekeyhq/shared/types/address';
 import { EServerInteractedStatus } from '@onekeyhq/shared/types/address';
 import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
@@ -28,7 +31,10 @@ import type {
 } from '@onekeyhq/shared/types/proxy';
 
 import simpleDb from '../dbs/simple/simpleDb';
-import { activeAccountValueAtom } from '../states/jotai/atoms';
+import {
+  activeAccountValueAtom,
+  currencyPersistAtom,
+} from '../states/jotai/atoms';
 import { vaultFactory } from '../vaults/factory';
 
 import ServiceBase from './ServiceBase';
@@ -89,27 +95,16 @@ class ServiceAccountProfile extends ServiceBase {
       xpub?: string;
     },
   ): Promise<IFetchAccountDetailsResp> {
-    const queryParams = {
-      ...omit(params, ['accountId', 'signal']),
-    };
-
-    const client = await this.getClient(EServiceEndpointEnum.Wallet);
+    const vault = await vaultFactory.getVault({
+      accountId: params.accountId,
+      networkId: params.networkId,
+    });
     const controller = new AbortController();
     this._fetchAccountDetailsControllers.push(controller);
-    const resp = await client.get<{
-      data: IFetchAccountDetailsResp;
-    }>(
-      `/wallet/v1/account/get-account?${qs.stringify(
-        omitBy(queryParams, isNil),
-      )}`,
-      {
-        headers: await this._getWalletTypeHeader({
-          accountId: params.accountId,
-        }),
-        signal: controller.signal,
-      },
-    );
-
+    const resp = await vault.fetchAccountDetails({
+      ...params,
+      signal: controller.signal,
+    });
     return resp.data.data;
   }
 
@@ -139,31 +134,34 @@ class ServiceAccountProfile extends ServiceBase {
     return vault.fillAccountDetails({ accountDetails });
   }
 
-  private async getAddressInteractionStatus({
-    accountId,
+  private async getAddressAccountBadge({
     networkId,
     fromAddress,
     toAddress,
   }: {
-    accountId: string;
+    fromAddress?: string;
     networkId: string;
-    fromAddress: string;
     toAddress: string;
-  }): Promise<IAddressInteractionStatus> {
+  }): Promise<{ isContract?: boolean; interacted: IAddressInteractionStatus }> {
+    const isCustomNetwork =
+      await this.backgroundApi.serviceNetwork.isCustomNetwork({
+        networkId,
+      });
+    if (isCustomNetwork) {
+      return { isContract: false, interacted: 'unknown' };
+    }
+    const client = await this.getClient(EServiceEndpointEnum.Wallet);
     try {
-      const client = await this.getClient(EServiceEndpointEnum.Wallet);
       const resp = await client.get<{
-        data: {
-          status: EServerInteractedStatus;
-        };
-      }>('/wallet/v1/account/interacted', {
+        data: IServerAccountBadgeResp;
+      }>('/wallet/v1/account/badges', {
         params: {
           networkId,
-          accountAddress: fromAddress,
-          toAccountAddress: toAddress,
+          fromAddress,
+          toAddress,
         },
-        headers: await this._getWalletTypeHeader({ accountId }),
       });
+      const { isContract, interacted } = resp.data.data;
       const statusMap: Record<
         EServerInteractedStatus,
         IAddressInteractionStatus
@@ -172,32 +170,49 @@ class ServiceAccountProfile extends ServiceBase {
         [EServerInteractedStatus.TRUE]: 'interacted',
         [EServerInteractedStatus.UNKNOWN]: 'unknown',
       };
-      return statusMap[resp.data.data.status] ?? 'unknown';
+      return { isContract, interacted: statusMap[interacted] ?? 'unknown' };
     } catch {
-      return 'unknown';
+      return { interacted: 'unknown' };
     }
   }
 
-  private async checkAccountInteractionStatus({
+  private async checkAccountBadges({
     networkId,
     accountId,
     toAddress,
+    checkInteractionStatus,
+    checkAddressContract,
+    result,
   }: {
+    accountId?: string;
+    checkInteractionStatus?: boolean;
+    checkAddressContract?: boolean;
     networkId: string;
-    accountId: string;
     toAddress: string;
-  }): Promise<IAddressInteractionStatus | undefined> {
-    const acc = await this.backgroundApi.serviceAccount.getAccount({
-      networkId,
-      accountId,
-    });
-    if (acc.address.toLowerCase() !== toAddress.toLowerCase()) {
-      return this.getAddressInteractionStatus({
-        accountId,
+    result: IAddressQueryResult;
+  }): Promise<void> {
+    let fromAddress: string | undefined;
+    if (accountId) {
+      const acc = await this.backgroundApi.serviceAccount.getAccount({
         networkId,
-        fromAddress: acc.address,
-        toAddress,
+        accountId,
       });
+      fromAddress = acc.address;
+    }
+    const { isContract, interacted } = await this.getAddressAccountBadge({
+      networkId,
+      fromAddress,
+      toAddress,
+    });
+    if (
+      checkInteractionStatus &&
+      toAddress.toLowerCase() !== fromAddress &&
+      fromAddress
+    ) {
+      result.addressInteractionStatus = interacted;
+    }
+    if (checkAddressContract) {
+      result.isContract = isContract;
     }
   }
 
@@ -234,6 +249,7 @@ class ServiceAccountProfile extends ServiceBase {
     enableAddressBook,
     enableWalletName,
     enableAddressInteractionStatus,
+    enableAddressContract,
     enableVerifySendFundToSelf,
     skipValidateAddress,
   }: IQueryCheckAddressArgs) {
@@ -261,7 +277,7 @@ class ServiceAccountProfile extends ServiceBase {
     if (!skipValidateAddress && result.validStatus !== 'valid') {
       return result;
     }
-    const resolveAddress = result.resolveAddress ?? result.input;
+    const resolveAddress = result.resolveAddress ?? address;
     if (enableVerifySendFundToSelf && accountId && resolveAddress) {
       const disableFundToSelf = await this.verifyCannotSendToSelf({
         networkId,
@@ -273,12 +289,13 @@ class ServiceAccountProfile extends ServiceBase {
         return result;
       }
     }
-
     if (enableAddressBook && resolveAddress) {
       // handleAddressBookName
       const addressBookItem =
         await this.backgroundApi.serviceAddressBook.findItem({
-          networkId,
+          networkId: !networkUtils.isEvmNetwork({ networkId })
+            ? networkId
+            : undefined,
           address: resolveAddress,
         });
       result.addressBookName = addressBookItem?.name;
@@ -317,13 +334,20 @@ class ServiceAccountProfile extends ServiceBase {
         result.walletAccountName = `${item.walletName} / ${item.accountName}`;
       }
     }
-    if (enableAddressInteractionStatus && resolveAddress && accountId) {
-      result.addressInteractionStatus =
-        await this.checkAccountInteractionStatus({
-          networkId,
-          accountId,
-          toAddress: resolveAddress,
-        });
+    if (
+      resolveAddress &&
+      (enableAddressContract || (enableAddressInteractionStatus && accountId))
+    ) {
+      await this.checkAccountBadges({
+        networkId,
+        accountId,
+        toAddress: resolveAddress,
+        checkAddressContract: enableAddressContract,
+        checkInteractionStatus: Boolean(
+          enableAddressInteractionStatus && accountId,
+        ),
+        result,
+      });
     }
     return result;
   }
@@ -408,6 +432,72 @@ class ServiceAccountProfile extends ServiceBase {
   }
 
   @backgroundMethod()
+  async updateAllNetworkAccountValue(params: {
+    accountId: string;
+    value: Record<string, string>;
+    currency: string;
+    updateAll?: boolean;
+  }) {
+    const { currency, value, updateAll } = params;
+
+    const currencyItems = (await currencyPersistAtom.get()).currencyItems;
+
+    let usdValue: Record<string, string> = value;
+
+    if (currency !== 'usd') {
+      const currencyInfo = currencyItems.find((item) => item.id === currency);
+
+      if (!currencyInfo) {
+        throw new Error('Currency not found');
+      }
+      usdValue = Object.entries(value).reduce((acc, [n, v]) => {
+        acc[n] = new BigNumber(v)
+          .div(new BigNumber(currencyInfo.value))
+          .toString();
+        return acc;
+      }, {} as Record<string, string>);
+    }
+
+    const usdAccountValue = {
+      ...params,
+      value: usdValue,
+      currency: 'usd',
+    };
+
+    if (updateAll) {
+      await activeAccountValueAtom.set(usdAccountValue);
+    } else {
+      const accountsValue =
+        await simpleDb.accountValue.getAllNetworkAccountsValue({
+          accounts: [{ accountId: params.accountId }],
+        });
+      const currentAccountValue = accountsValue?.[0];
+      if (currentAccountValue?.accountId !== params.accountId) {
+        return;
+      }
+
+      await activeAccountValueAtom.set({
+        ...usdAccountValue,
+        value: {
+          ...currentAccountValue.value,
+          ...usdValue,
+        },
+      });
+    }
+
+    await simpleDb.accountValue.updateAllNetworkAccountValue(usdAccountValue);
+  }
+
+  @backgroundMethod()
+  async getAllNetworkAccountsValue(params: {
+    accounts: { accountId: string }[];
+  }) {
+    const accountsValue =
+      await simpleDb.accountValue.getAllNetworkAccountsValue(params);
+    return accountsValue;
+  }
+
+  @backgroundMethod()
   async getAccountsValue(params: { accounts: { accountId: string }[] }) {
     const accountsValue = await simpleDb.accountValue.getAccountsValue(params);
     return accountsValue;
@@ -418,10 +508,43 @@ class ServiceAccountProfile extends ServiceBase {
     accountId: string;
     value: string;
     currency: string;
+    shouldUpdateActiveAccountValue?: boolean;
   }) {
-    await activeAccountValueAtom.set(params);
+    if (params.shouldUpdateActiveAccountValue) {
+      await activeAccountValueAtom.set(params);
+    }
 
     await simpleDb.accountValue.updateAccountValue(params);
+  }
+
+  @backgroundMethod()
+  async updateAccountValueForSingleNetwork(params: {
+    accountId: string;
+    value: string;
+    currency: string;
+  }) {
+    const accountsValue = await simpleDb.accountValue.getAccountsValue({
+      accounts: [{ accountId: params.accountId }],
+    });
+    const currentAccountValue = accountsValue?.[0];
+    if (currentAccountValue?.accountId !== params.accountId) {
+      return;
+    }
+    if (
+      currentAccountValue?.currency &&
+      params.currency &&
+      currentAccountValue?.currency !== params.currency
+    ) {
+      return;
+    }
+    if (
+      currentAccountValue?.value &&
+      params.value &&
+      new BigNumber(params.value).lte(currentAccountValue.value)
+    ) {
+      return;
+    }
+    await this.updateAccountValue(params);
   }
 
   // Get wallet type

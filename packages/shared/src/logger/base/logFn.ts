@@ -1,9 +1,11 @@
-import { analytics } from '../../analytics';
 import platformEnv from '../../platformEnv';
 import { getLoggerExtension } from '../extensions';
 import { defaultLoggerConfig } from '../loggerConfig';
 
 import type { IMethodDecoratorMetadata, Metadata } from '../types';
+
+let prevMsg: string | undefined;
+let repeatContentCount = 0;
 
 export const logFn = ({
   scopeName,
@@ -32,8 +34,15 @@ export const logFn = ({
     const config = await defaultLoggerConfig.savedLoggerConfigAsync;
     const shouldLogToConsole =
       !platformEnv.isDev || !!config?.enabled?.[scopeName]?.[sceneName];
-    const prefix = `***log*** ${scopeName} => ${sceneName} => ${methodName} : `;
+    const prefix = `${scopeName} => ${sceneName} => ${methodName} : `;
     let msg = `${prefix} ${rawMsg}`;
+    if (metadata.type === 'local') {
+      if (prevMsg === msg) {
+        repeatContentCount += 1;
+        return;
+      }
+      prevMsg = msg;
+    }
 
     if (process.env.NODE_ENV !== 'production' && platformEnv.isNative) {
       // RN chrome remote console cannot display correct JSON stringify strings, so change to single quotes
@@ -62,6 +71,10 @@ export const logFn = ({
 
           const logger = getLoggerExtension(''); // use root logger instance
           if (shouldLogToConsole) {
+            if (repeatContentCount > 0) {
+              logger[metadata.level](`└───[${repeatContentCount} repeat]`);
+              repeatContentCount = 0;
+            }
             logger[metadata.level](msg);
             if (metadata.level === 'error') {
               console.error(timestamp(), msg);
@@ -71,8 +84,22 @@ export const logFn = ({
         }
         break;
       case 'server':
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        analytics.trackEvent(methodName, obj.args[0]);
+        globalThis?.$analytics?.trackEvent(
+          methodName,
+          (obj.args as Record<string, string>[]).reduce(
+            (prev, current, index) => {
+              if (!current) {
+                return prev;
+              }
+              const value =
+                typeof current === 'object' && !Array.isArray(current)
+                  ? current
+                  : { [index]: current };
+              return { ...prev, ...value };
+            },
+            {},
+          ),
+        );
         break;
       case 'console':
       default: {

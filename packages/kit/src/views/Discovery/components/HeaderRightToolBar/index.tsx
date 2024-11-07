@@ -22,6 +22,7 @@ import {
   EAppEventBusNames,
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
 import type { IConnectionAccountInfoWithNum } from '@onekeyhq/shared/types/dappConnection';
 
@@ -30,6 +31,9 @@ import { useHandleDiscoveryAccountChanged } from '../../../DAppConnection/hooks/
 import { useShouldUpdateConnectedAccount } from '../../hooks/useDAppNotifyChanges';
 import { useActiveTabId, useWebTabDataById } from '../../hooks/useWebTabs';
 import { withBrowserProvider } from '../../pages/Browser/WithBrowserProvider';
+import SyncDappAccountToHomeProvider from '../SyncDappAccountToHomeProvider';
+
+import { ShortcutsActionButton } from './ShortcutsActionButton.desktop';
 
 import type { IHandleAccountChangedParams } from '../../../DAppConnection/hooks/useHandleAccountChanged';
 
@@ -140,12 +144,6 @@ function AccountSelectorPopoverContent({
   accountsInfo: IConnectionAccountInfoWithNum[];
   afterChangeAccount: () => void;
 }) {
-  useEffect(() => {
-    console.log('Mounted AccountSelectorPopoverContent');
-    return () => {
-      console.log('Unmounted AccountSelectorPopoverContent');
-    };
-  }, []);
   const { handleAccountInfoChanged } = useShouldUpdateConnectedAccount();
   const { closePopover } = usePopoverContext();
   const beforeShowTrigger = useCallback(
@@ -244,16 +242,22 @@ function HeaderRightToolBar() {
       return <Spinner />;
     }
     if (!connectedAccountsInfo || !origin) {
-      return null;
+      return <ShortcutsActionButton />;
     }
     if (connectedAccountsInfo.length === 1) {
       return (
         <Stack
           $gtMd={{
-            width: '100%',
+            width: platformEnv.isNative ? undefined : '100%',
             flexDirection: 'row-reverse',
+            alignItems: 'center',
           }}
         >
+          <ShortcutsActionButton />
+          <SyncDappAccountToHomeProvider
+            dAppAccountInfos={connectedAccountsInfo}
+            origin={origin}
+          />
           {connectedAccountsInfo.map((accountInfo, index) => (
             <AccountSelectorProviderMirror
               key={index}
@@ -311,4 +315,24 @@ function HeaderRightToolBar() {
   return <>{content}</>;
 }
 
-export default withBrowserProvider(HeaderRightToolBar);
+function HeaderRightToolBarWrapper() {
+  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+
+  useEffect(() => {
+    const onSwitchNetwork = (event: { state: 'switching' | 'completed' }) => {
+      setIsSwitchingNetwork(event.state === 'switching');
+    };
+    appEventBus.on(EAppEventBusNames.OnSwitchDAppNetwork, onSwitchNetwork);
+    return () => {
+      appEventBus.off(EAppEventBusNames.OnSwitchDAppNetwork, onSwitchNetwork);
+    };
+  }, []);
+
+  if (isSwitchingNetwork) {
+    return null;
+  }
+
+  return <HeaderRightToolBar />;
+}
+
+export default withBrowserProvider(HeaderRightToolBarWrapper);

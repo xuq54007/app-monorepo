@@ -9,6 +9,7 @@ import {
   BlurView,
   Button,
   ConfirmHighlighter,
+  Dialog,
   Empty,
   Heading,
   Icon,
@@ -21,7 +22,6 @@ import {
   YStack,
   useClipboard,
 } from '@onekeyhq/components';
-import { Token } from '@onekeyhq/kit/src/components/Token';
 import {
   EHardwareUiStateAction,
   useHardwareUiStateAtom,
@@ -42,7 +42,6 @@ import { EConfirmOnDeviceType } from '@onekeyhq/shared/types/device';
 
 import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
 import { useAccountData } from '../../../hooks/useAccountData';
-import { usePromiseResult } from '../../../hooks/usePromiseResult';
 import { EAddressState } from '../types';
 
 import type { RouteProp } from '@react-navigation/core';
@@ -224,10 +223,12 @@ function ReceiveToken() {
         return (
           <Button
             mt="$5"
-            icon="Copy1Outline"
+            icon="Copy3Outline"
             disabled={isVerifying}
             loading={isVerifying}
-            onPress={() => copyText(account?.address ?? '')}
+            onPress={() => {
+              copyText(account?.address ?? '');
+            }}
           >
             {intl.formatMessage({
               id: ETranslations.global_copy_address,
@@ -246,7 +247,27 @@ function ReceiveToken() {
           <Button
             size="medium"
             variant="tertiary"
-            onPress={() => setAddressState(EAddressState.ForceShow)}
+            onPress={() => {
+              Dialog.confirm({
+                icon: 'ErrorOutline',
+                tone: 'warning',
+                title: intl.formatMessage({
+                  id: ETranslations.global_receive_address_confirmation,
+                }),
+                description: intl.formatMessage({
+                  id: ETranslations.global_receive_address_confirmation_desc,
+                }),
+                onConfirmText: intl.formatMessage({
+                  id: ETranslations.global_receive_address_confirmation_button,
+                }),
+                onConfirm: () => {
+                  setAddressState(EAddressState.ForceShow);
+                },
+                confirmButtonProps: {
+                  variant: 'secondary',
+                },
+              });
+            }}
           >
             {intl.formatMessage({
               id: ETranslations.skip_verify_text,
@@ -259,7 +280,7 @@ function ReceiveToken() {
     return (
       <Button
         mt="$5"
-        icon="Copy1Outline"
+        icon="Copy3Outline"
         onPress={() => copyText(account?.address ?? '')}
       >
         {intl.formatMessage({
@@ -314,21 +335,16 @@ function ReceiveToken() {
           p="$4"
         >
           <Stack position="relative">
-            <QRCode value={account.address} size={240} />
-            <Stack
-              position="absolute"
-              width="100%"
-              height="100%"
-              justifyContent="center"
-              alignItems="center"
-            >
-              <Stack p={5} borderRadius="$full" overflow="hidden" bg="$bgApp">
-                <Token
-                  size="lg"
-                  tokenImageUri={token?.logoURI || network.logoURI}
-                />
-              </Stack>
-            </Stack>
+            <QRCode
+              value={account.address}
+              size={240}
+              logo={
+                network.isCustomNetwork
+                  ? undefined
+                  : { uri: token?.logoURI || network.logoURI }
+              }
+              logoSize={network.isCustomNetwork ? undefined : 40}
+            />
           </Stack>
 
           {!isShowQRCode ? (

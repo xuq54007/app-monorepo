@@ -66,6 +66,8 @@ export type IServerNetwork = {
   isTestnet: boolean;
   extensions?: Record<string, unknown>;
   isAllNetworks?: boolean;
+  explorerURL?: string;
+  isCustomNetwork?: boolean;
 };
 
 export enum EOnekeyDomain {
@@ -78,6 +80,12 @@ export enum EAccountSelectorSceneName {
   swap = 'swap',
   discover = 'discover',
   addressInput = 'addressInput', // test Gallery AddressInput test
+}
+
+export enum EAccountSelectorAutoSelectTriggerBy {
+  removeWallet = 'removeWallet',
+  removeLastOthersAccount = 'removeLastOthersAccount',
+  removeAccount = 'removeAccount',
 }
 
 export type INotPromise<T> = T extends Promise<any> ? never : T;

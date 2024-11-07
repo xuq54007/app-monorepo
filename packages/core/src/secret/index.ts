@@ -18,6 +18,10 @@ import {
 } from './encryptors/aes256';
 import { hash160 } from './hash';
 import ecc from './nobleSecp256k1Wrapper';
+import {
+  tonMnemonicToRevealableSeed,
+  tonRevealEntropyToMnemonic,
+} from './ton-mnemonic';
 
 import type {
   IBip32ExtendedKey,
@@ -43,7 +47,13 @@ export * from './curves';
 export * from './encryptors/aes256';
 export * from './encryptors/rsa';
 export * from './hash';
+export * from './ton-mnemonic';
 export { ecc };
+
+export enum EMnemonicType {
+  BIP39 = 'bip39',
+  TON = 'ton',
+}
 
 const EncryptPrefixImportedCredential = '|PK|'; // private key
 const EncryptPrefixHdCredential = '|RP|'; // recovery phrase
@@ -392,7 +402,7 @@ async function batchGetPublicKeysAsync(
   params: IBatchGetPublicKeysAsyncParams,
 ): Promise<ISecretPublicKeyInfo[]> {
   if (platformEnv.isNative) {
-    const keys = await global.$webembedApiProxy.secret.batchGetPublicKeys(
+    const keys = await globalThis.$webembedApiProxy.secret.batchGetPublicKeys(
       params,
     );
     return keys.map((key) => ({
@@ -514,7 +524,7 @@ export function mnemonicFromEntropyAsync(
   params: IMnemonicFromEntropyAsyncParams,
 ): Promise<string> {
   if (platformEnv.isNative) {
-    return global.$webembedApiProxy.secret.mnemonicFromEntropyAsync(params);
+    return globalThis.$webembedApiProxy.secret.mnemonicFromEntropyAsync(params);
   }
   return Promise.resolve(
     mnemonicFromEntropy(params.hdCredential, params.password),
@@ -529,7 +539,7 @@ export async function mnemonicToSeedAsync(
   params: IMnemonicToSeedAsyncParams,
 ): Promise<Buffer> {
   if (platformEnv.isNative) {
-    const hex = await global.$webembedApiProxy.secret.mnemonicToSeedAsync(
+    const hex = await globalThis.$webembedApiProxy.secret.mnemonicToSeedAsync(
       params,
     );
     return Buffer.from(hex, 'hex');
@@ -548,7 +558,7 @@ export async function generateRootFingerprintHexAsync(
   params: IGenerateRootFingerprintHexAsyncParams,
 ): Promise<string> {
   if (platformEnv.isNative) {
-    return global.$webembedApiProxy.secret.generateRootFingerprintHexAsync(
+    return globalThis.$webembedApiProxy.secret.generateRootFingerprintHexAsync(
       params,
     );
   }
@@ -560,6 +570,37 @@ export async function generateRootFingerprintHexAsync(
   );
   const publicKey = publicFromPrivate(curveName, masterKey.key, password);
   return hash160(publicKey).slice(0, 4).toString('hex');
+}
+
+function revealableSeedFromTonMnemonic(
+  mnemonic: string,
+  password: string,
+): IBip39RevealableSeedEncryptHex {
+  const rs: IBip39RevealableSeed = tonMnemonicToRevealableSeed(mnemonic);
+  return encryptRevealableSeed({
+    rs,
+    password,
+  });
+}
+
+function tonMnemonicFromEntropy(
+  hdCredential: IBip39RevealableSeedEncryptHex,
+  password: string,
+): string {
+  defaultLogger.account.secretPerf.decryptHdCredential();
+  const rs: IBip39RevealableSeed = decryptRevealableSeed({
+    password,
+    rs: hdCredential,
+  });
+  defaultLogger.account.secretPerf.decryptHdCredentialDone();
+
+  defaultLogger.account.secretPerf.revealEntropyToMnemonic();
+  const r = tonRevealEntropyToMnemonic(
+    bufferUtils.toBuffer(rs.entropyWithLangPrefixed),
+  );
+  defaultLogger.account.secretPerf.revealEntropyToMnemonicDone();
+
+  return r;
 }
 
 export {
@@ -581,6 +622,8 @@ export {
   N,
   publicFromPrivate,
   revealableSeedFromMnemonic,
+  revealableSeedFromTonMnemonic,
+  tonMnemonicFromEntropy,
   sign,
   uncompressPublicKey,
   verify,

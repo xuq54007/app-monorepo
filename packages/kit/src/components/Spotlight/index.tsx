@@ -30,21 +30,23 @@ import {
   useBackHandler,
   useMedia,
 } from '@onekeyhq/components';
+import { useAppIsLockedAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { useSpotlightPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms/spotlight';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type { ESpotlightTour } from '@onekeyhq/shared/src/spotlight';
 
 import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
 import { useDeferredPromise } from '../../hooks/useDeferredPromise';
-import { useRouteIsFocused } from '../../hooks/useRouteIsFocused';
 
 import type { IDeferredPromise } from '../../hooks/useDeferredPromise';
 import type { View as NativeView } from 'react-native';
 
-export type ISpotlightProps = PropsWithChildren<{
+export type ISpotlightViewProps = PropsWithChildren<{
   containerProps?: IStackStyle;
   content: ReactElement;
-  childrenPadding?: number;
+  childrenPaddingVertical?: number;
+  childrenPaddingHorizontal?: number;
   floatingOffset?: number;
   visible: boolean;
   onConfirm?: () => void;
@@ -58,11 +60,24 @@ interface IFloatingPosition {
   height: number;
 }
 
-type ISpotlightContentEvent = ISpotlightProps & {
+type ISpotlightContentEvent = ISpotlightViewProps & {
   triggerRef: RefObject<NativeView>;
   floatingOffset: number;
-  childrenPadding: number;
+  childrenPaddingVertical?: number;
+  childrenPaddingHorizontal?: number;
 };
+
+export type ISpotlightProps = PropsWithChildren<{
+  containerProps?: ISpotlightViewProps['containerProps'];
+  isVisible?: boolean;
+  message: string;
+  tourName: ESpotlightTour;
+  delayMs?: number;
+  floatingOffset?: number;
+  childrenPaddingVertical?: number;
+  childrenPaddingHorizontal?: number;
+}>;
+
 function SpotlightContent({
   initProps,
   triggerPropsRef,
@@ -75,7 +90,6 @@ function SpotlightContent({
 }) {
   const intl = useIntl();
 
-  const IsFocused = useRouteIsFocused();
   const { gtMd } = useMedia();
   const [props, setProps] = useState(initProps);
   const [floatingPosition, setFloatingPosition] = useState<IFloatingPosition>({
@@ -128,10 +142,17 @@ function SpotlightContent({
     content,
     onConfirm,
     floatingOffset,
-    childrenPadding,
+    childrenPaddingHorizontal = 8,
+    childrenPaddingVertical = 8,
   } = props;
 
   const isRendered = floatingPosition.width > 0;
+
+  if (platformEnv.isDev && !isRendered) {
+    console.error(
+      'The Spotlight on the current page is not visible, so the measured width is 0. Please change the visibility to true when the page is focused',
+    );
+  }
 
   const floatingStyle = useMemo(
     () =>
@@ -141,8 +162,8 @@ function SpotlightContent({
               floatingPosition.y +
               floatingPosition.height +
               floatingOffset +
-              childrenPadding,
-            left: gtMd ? floatingPosition.x - childrenPadding : '$4',
+              childrenPaddingVertical,
+            left: gtMd ? floatingPosition.x - childrenPaddingHorizontal : '$4',
             right: gtMd ? undefined : '$4',
             maxWidth: gtMd ? 354 : undefined,
           }
@@ -153,17 +174,18 @@ function SpotlightContent({
       floatingPosition.height,
       floatingPosition.x,
       floatingOffset,
-      childrenPadding,
+      childrenPaddingVertical,
       gtMd,
+      childrenPaddingHorizontal,
     ],
   );
 
   const handleBackPress = useCallback(() => true, []);
   useBackHandler(handleBackPress);
-
-  if (visible && isRendered && IsFocused)
+  if (visible && isRendered)
     return (
       <Stack
+        testID="spotlight-content"
         animation="quick"
         bg="rgba(0,0,0,0.3)"
         position="absolute"
@@ -180,10 +202,11 @@ function SpotlightContent({
           position="absolute"
           pointerEvents="none"
           bg="$bg"
-          top={floatingPosition.y - childrenPadding}
-          left={floatingPosition.x - childrenPadding}
+          top={floatingPosition.y - childrenPaddingVertical}
+          left={floatingPosition.x - childrenPaddingHorizontal}
           borderRadius="$3"
-          padding={childrenPadding}
+          px={childrenPaddingHorizontal}
+          py={childrenPaddingVertical}
         >
           {children}
         </Stack>
@@ -223,11 +246,12 @@ export function SpotlightView({
   children,
   replaceChildren,
   content,
-  childrenPadding = 8,
+  childrenPaddingVertical,
+  childrenPaddingHorizontal,
   floatingOffset = 12,
   visible = false,
   onConfirm,
-}: ISpotlightProps) {
+}: ISpotlightViewProps) {
   const defer = useDeferredPromise();
   const triggerRef = useRef<IElement | null>(null);
   const triggerPropsRef = useRef<{
@@ -247,7 +271,8 @@ export function SpotlightView({
         onConfirm,
         triggerRef: triggerRef as any,
         floatingOffset,
-        childrenPadding,
+        childrenPaddingVertical,
+        childrenPaddingHorizontal,
       });
     });
   }, [
@@ -258,7 +283,8 @@ export function SpotlightView({
     onConfirm,
     replaceChildren,
     visible,
-    childrenPadding,
+    childrenPaddingVertical,
+    childrenPaddingHorizontal,
   ]);
 
   return (
@@ -279,7 +305,8 @@ export function SpotlightView({
               content,
               onConfirm,
               floatingOffset,
-              childrenPadding,
+              childrenPaddingVertical,
+              childrenPaddingHorizontal,
               triggerRef: triggerRef as any,
             }}
           />
@@ -292,41 +319,60 @@ export function SpotlightView({
 export const useSpotlight = (tourName: ESpotlightTour) => {
   const [{ data }] = useSpotlightPersistAtom();
   const times = data[tourName];
-  const tourVisited = useCallback(async () => {
-    void backgroundApiProxy.serviceSpotlight.updateTourTimes(tourName);
-  }, [tourName]);
+  const tourVisited = useCallback(
+    async (manualTimes?: number) => {
+      void backgroundApiProxy.serviceSpotlight.updateTourTimes({
+        tourName,
+        manualTimes,
+      });
+    },
+    [tourName],
+  );
   return useMemo(
     () => ({
       isFirstVisit: times === 0,
       tourVisited,
+      tourTimes: times,
     }),
     [times, tourVisited],
   );
 };
 
-export function Spotlight(props: {
-  containerProps?: ISpotlightProps['containerProps'];
-  isVisible?: boolean;
-  message: string;
-  tourName: ESpotlightTour;
-  children: ReactNode;
-}) {
+export function Spotlight(props: ISpotlightProps) {
   const {
-    isVisible = true,
+    isVisible,
     tourName,
     message,
     children,
     containerProps,
+    delayMs = 0,
+    floatingOffset,
+    childrenPaddingVertical,
+    childrenPaddingHorizontal,
   } = props;
+  const [isLocked] = useAppIsLockedAtom();
   const { isFirstVisit, tourVisited } = useSpotlight(tourName);
-  const visible = isFirstVisit && isVisible;
+  const [isShow, setIsShow] = useState(false);
+  useEffect(() => {
+    const timerId = setTimeout(
+      () => {
+        setIsShow(!!isVisible);
+      },
+      isVisible ? delayMs : 0,
+    );
+    return () => clearTimeout(timerId);
+  }, [delayMs, isVisible]);
+  const visible = isFirstVisit && isShow && !isLocked;
 
   return (
     <SpotlightView
       visible={visible}
       content={<SizableText size="$bodyMd">{message}</SizableText>}
-      onConfirm={tourVisited}
+      onConfirm={() => tourVisited()}
       containerProps={containerProps}
+      floatingOffset={floatingOffset}
+      childrenPaddingVertical={childrenPaddingVertical}
+      childrenPaddingHorizontal={childrenPaddingHorizontal}
     >
       {children}
     </SpotlightView>

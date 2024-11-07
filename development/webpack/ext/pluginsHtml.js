@@ -8,7 +8,6 @@ const devUtils = require('./devUtils');
 const { isDev } = require('../constant');
 
 const platform = developmentConsts.platforms.ext;
-const basePath = process.env.PWD;
 
 // https://github.com/facebook/create-react-app/blob/main/packages/react-dev-utils/InterpolateHtmlPlugin.js
 function createHtmlPlugin({ name, chunks }) {
@@ -23,8 +22,8 @@ function createHtmlPlugin({ name, chunks }) {
   const htmlWebpackPlugin = new HtmlWebpackPlugin({
     // MUST BE .shtml different with withExpo() builtin .html loader
     template: `${htmlLoader}${path.join(
-      basePath,
-      `../../packages/shared/src/web/index.html.ejs`,
+      __dirname,
+      `../../../packages/shared/src/web/index.html.ejs`,
     )}`,
     templateParameters: indexHtmlParameter.createEjsParams(createParamsOptions),
     // output filename
@@ -32,7 +31,7 @@ function createHtmlPlugin({ name, chunks }) {
     // chunks: [name],
     chunks: chunks || [name],
     cache: false,
-    hash: true,
+    hash: process.env.NODE_ENV === 'development',
   });
   const interpolateHtmlPlugin = new InterpolateHtmlPlugin(
     HtmlWebpackPlugin,
@@ -64,8 +63,14 @@ let offscreenHtml = [devUtils.consts.entry.offscreen].map((name) =>
 );
 offscreenHtml = lodash.flatten(offscreenHtml);
 
+let passkeyHtml = [devUtils.consts.entry['ui-passkey']].map((name) =>
+  createHtmlPlugin({ name }),
+);
+passkeyHtml = lodash.flatten(passkeyHtml);
+
 module.exports = {
   uiHtml,
+  passkeyHtml,
   backgroundHtml,
   offscreenHtml,
 };

@@ -81,6 +81,7 @@ test('formatBalance', () => {
   expect(formatDisplayNumber(formatBalance('0.1'))).toEqual('0,1');
   expect(formatDisplayNumber(formatBalance('0.9999'))).toEqual('0,9999');
   expect(formatDisplayNumber(formatBalance('0.99999'))).toEqual('1');
+  expect(formatDisplayNumber(formatBalance('40000'))).toEqual('40.000');
   expect(formatDisplayNumber(formatBalance('123456789.9999'))).toEqual(
     '123.456.789,9999',
   );
@@ -97,6 +98,11 @@ test('formatBalance', () => {
   expect(formatDisplayNumber(formatBalance('0'))).toEqual('0');
   expect(formatDisplayNumber(formatBalance('0.00'))).toEqual('0');
   expect(formatDisplayNumber(formatBalance('0.00000'))).toEqual('0');
+
+  expect(formatDisplayNumber(formatBalance('-4.49999454'))).toEqual('-4,5');
+  expect(formatDisplayNumber(formatBalance('4.49999454'))).toEqual('4,5');
+  expect(formatDisplayNumber(formatBalance('-4.99999454'))).toEqual('-5');
+  expect(formatDisplayNumber(formatBalance('4.99999454'))).toEqual('5');
 
   // hundred
   expect(formatBalance('451.124282313')).toEqual({
@@ -380,6 +386,9 @@ test('formatPrice', () => {
   expect(
     formatDisplayNumber(formatPrice('0.999999999', { currency: '$' })),
   ).toEqual('$1');
+  expect(formatDisplayNumber(formatPrice('40000', { currency: '$' }))).toEqual(
+    '$40.000,00',
+  );
   expect(
     formatDisplayNumber(formatPrice('123456789.99', { currency: '$' })),
   ).toEqual('$123.456.789,99');
@@ -424,7 +433,17 @@ test('formatPrice', () => {
         { currency: '$' },
       ),
     ),
-  ).toEqual('$∞,13');
+  ).toEqual(
+    '$13557362245700035555161495398047413998367933131241010410691763880119784559016062844916472252762015173133555676356423519969743085158179152633859513576266605508375167501289296167138332859964556394542868213514778276007018586151530368896935403362153851120149886761999054463554127943866078939583808923520112330553910779375966862567701643361707370405490856611696753232661556874041759.13',
+  );
+
+  expect(
+    formatDisplayNumber(
+      formatPrice('0.135573622457000355551614953980474139983679331312410109', {
+        currency: '$',
+      }),
+    ),
+  ).toEqual('$0,1356');
 
   // less then 1, but leading zeros is less then 4
   expect(formatDisplayNumber(formatPrice('0.1', { currency: '$' }))).toEqual(
@@ -474,6 +493,7 @@ test('formatPriceChange', () => {
     '123.456.790,00%',
   );
 
+  expect(formatDisplayNumber(formatPriceChange('40000'))).toEqual('40.000,00%');
   // eq 0
   expect(formatDisplayNumber(formatPriceChange('0'))).toEqual('0,00%');
   expect(formatDisplayNumber(formatPriceChange('0.00'))).toEqual('0,00%');
@@ -554,6 +574,9 @@ test('formatValue', () => {
     formatDisplayNumber(formatValue('123456789.999999999', { currency: '$' })),
   ).toEqual('$123.456.790,00');
 
+  expect(formatDisplayNumber(formatValue('40000', { currency: '$' }))).toEqual(
+    '$40.000,00',
+  );
   // eq 0
   expect(formatDisplayNumber(formatValue('-0', { currency: '$' }))).toEqual(
     '$0,00',
@@ -624,6 +647,8 @@ test('formatMarketCap', () => {
     '123,46M',
   );
 
+  expect(formatDisplayNumber(formatValue('40000'))).toEqual('40.000,00');
+  expect(formatDisplayNumber(formatValue('-40000'))).toEqual('< 0,01');
   // eq 0
   expect(formatDisplayNumber(formatMarketCap('0'))).toEqual('0');
   expect(formatDisplayNumber(formatMarketCap('0.00'))).toEqual('0');
