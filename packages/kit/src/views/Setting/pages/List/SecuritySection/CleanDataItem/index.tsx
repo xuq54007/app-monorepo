@@ -19,6 +19,19 @@ import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type { IClearCacheOnAppState } from '@onekeyhq/shared/types/setting';
 
+const showAppUpdateCacheInAndroid =
+  platformEnv.isNativeAndroid &&
+  !platformEnv.isNativeAndroidGooglePlay &&
+  !platformEnv.isNativeAndroidHuawei;
+
+const showAppUpdateCacheInDesktop =
+  platformEnv.isDesktop &&
+  !platformEnv.isDesktopLinuxSnap &&
+  !platformEnv.isDesktopWinMsStore &&
+  !platformEnv.isMas;
+
+const showAppUpdateCache =
+  showAppUpdateCacheInAndroid || showAppUpdateCacheInDesktop;
 const ClearCacheOnAppContent = () => {
   const intl = useIntl();
   return (
@@ -68,13 +81,15 @@ const ClearCacheOnAppContent = () => {
             })}
           />
         </Dialog.FormField>
-        <Dialog.FormField name="appUpdateCache">
-          <Checkbox
-            label={intl.formatMessage({
-              id: ETranslations.settings_app_update_cache,
-            })}
-          />
-        </Dialog.FormField>
+        {showAppUpdateCache ? (
+          <Dialog.FormField name="appUpdateCache">
+            <Checkbox
+              label={intl.formatMessage({
+                id: ETranslations.settings_app_update_cache,
+              })}
+            />
+          </Dialog.FormField>
+        ) : null}
         <Dialog.FormField name="browserHistory">
           <Checkbox
             label={intl.formatMessage({
