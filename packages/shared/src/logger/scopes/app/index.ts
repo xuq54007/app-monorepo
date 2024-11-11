@@ -8,6 +8,7 @@ import { EventBusScene } from './scenes/eventBus';
 import { InstallScene } from './scenes/install';
 import { NetworkScene } from './scenes/network';
 import { PageScene } from './scenes/page';
+import { PasswordScene } from './scenes/password';
 import { AppPerfScene } from './scenes/perf';
 
 export class AppScope extends BaseScope {
@@ -28,4 +29,6 @@ export class AppScope extends BaseScope {
   eventBus = this.createScene('eventBus', EventBusScene);
 
   perf = this.createScene('perf', AppPerfScene);
+
+  password = this.createScene('password', PasswordScene);
 }

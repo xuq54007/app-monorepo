@@ -14,6 +14,7 @@ import {
 } from '@onekeyhq/kit-bg/src/states/jotai/atoms/password';
 import { dismissKeyboard } from '@onekeyhq/shared/src/keyboard';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import { EPasswordVerifyStatus } from '@onekeyhq/shared/types/password';
@@ -232,15 +233,20 @@ const PasswordVerifyContainer = ({
         ...v,
         passwordVerifyStatus: { value: EPasswordVerifyStatus.VERIFYING },
       }));
+      defaultLogger.app.password.verifying();
       try {
+        defaultLogger.app.password.encodeSensitiveText();
         const encodePassword =
           await backgroundApiProxy.servicePassword.encodeSensitiveText({
             text: data.password,
           });
+        defaultLogger.app.password.verifyPassword();
         const verifiedPassword =
           await backgroundApiProxy.servicePassword.verifyPassword({
             password: encodePassword,
           });
+
+        defaultLogger.app.password.verifiedPassword();
         setPasswordAtom((v) => ({
           ...v,
           passwordVerifyStatus: { value: EPasswordVerifyStatus.VERIFIED },
@@ -249,7 +255,9 @@ const PasswordVerifyContainer = ({
           dismissKeyboard();
           await timerUtils.wait(0);
         }
+        defaultLogger.app.password.onVerifying();
         onVerifyRes(verifiedPassword);
+        defaultLogger.app.password.onVerified();
       } catch (e) {
         setPasswordAtom((v) => ({
           ...v,

@@ -235,13 +235,19 @@ export default class ServicePassword extends ServiceBase {
       await this.setBiologyAuthEnable(false);
       throw new Error('biologyAuth not support');
     }
+
+    defaultLogger.app.password.biologyAuthenticate();
     const authRes = await biologyAuthUtils.biologyAuthenticate();
+    defaultLogger.app.password.biologyAuthenticated();
     if (!authRes.success) {
       throw new OneKeyErrors.BiologyAuthFailed();
     }
     try {
+      defaultLogger.app.password.getPasswordInBiologyAuth();
       const pwd = await biologyAuthUtils.getPassword();
+      defaultLogger.app.password.ensureSensitiveTextEncodedInBiologyAuth();
       ensureSensitiveTextEncoded(pwd);
+      defaultLogger.app.password.getEnsureSensitiveTextEncodedInBiologyAuth();
       return pwd;
     } catch (e) {
       await this.setBiologyAuthEnable(false);
@@ -397,10 +403,15 @@ export default class ServicePassword extends ServiceBase {
   }): Promise<string> {
     let verifyingPassword = password;
     if (isBiologyAuth) {
+      defaultLogger.app.password.verifyingByBiologyAuth();
       verifyingPassword = await this.getBiologyAuthPassword();
+      defaultLogger.app.password.getBiologyAuthPassword();
     }
+    defaultLogger.app.password.ensureSensitiveTextEncoded();
     ensureSensitiveTextEncoded(verifyingPassword);
+    defaultLogger.app.password.validatePassword();
     await this.validatePassword({ password: verifyingPassword });
+    defaultLogger.app.password.setCachedPassword();
     await this.setCachedPassword(verifyingPassword);
     return verifyingPassword;
   }
