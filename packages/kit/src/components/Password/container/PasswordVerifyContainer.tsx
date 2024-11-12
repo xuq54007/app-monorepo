@@ -160,6 +160,8 @@ const PasswordVerifyContainer = ({
     ]);
 
   const onBiologyAuthenticate = useCallback(async () => {
+    defaultLogger.app.password.onBiologyAuthenticate();
+
     if (
       passwordVerifyStatus.value === EPasswordVerifyStatus.VERIFYING ||
       passwordVerifyStatus.value === EPasswordVerifyStatus.VERIFIED
@@ -170,6 +172,8 @@ const PasswordVerifyContainer = ({
       ...v,
       passwordVerifyStatus: { value: EPasswordVerifyStatus.VERIFYING },
     }));
+
+    defaultLogger.app.password.startBiologyAuth();
     try {
       let biologyAuthRes;
       if (!isEnable && isBiologyAuthEnable) {
@@ -187,7 +191,9 @@ const PasswordVerifyContainer = ({
           ...v,
           passwordVerifyStatus: { value: EPasswordVerifyStatus.VERIFIED },
         }));
+        defaultLogger.app.password.onVerifying();
         onVerifyRes(biologyAuthRes);
+        defaultLogger.app.password.onVerified();
       } else {
         setPasswordAtom((v) => ({
           ...v,
