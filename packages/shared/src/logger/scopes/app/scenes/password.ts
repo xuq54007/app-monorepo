@@ -49,4 +49,10 @@ export class PasswordScene extends BaseScene {
 
   @LogToLocal()
   public getEnsureSensitiveTextEncodedInBiologyAuth() {}
+
+  @LogToLocal()
+  public onBiologyAuthenticate() {}
+
+  @LogToLocal()
+  public startBiologyAuth() {}
 }
