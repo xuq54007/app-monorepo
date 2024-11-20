@@ -785,6 +785,8 @@ function TxFeeContainer(props: IProps) {
       }),
       isAsync: true,
       showFooter: false,
+      disableDrag: true,
+      dismissOnOverlayPress: false,
       renderContent: (
         <FeeEditor
           networkId={networkId}
