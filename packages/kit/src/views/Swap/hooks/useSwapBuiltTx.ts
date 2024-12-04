@@ -24,6 +24,7 @@ import {
   toBigIntHex,
 } from '@onekeyhq/shared/src/utils/numberUtils';
 import { equalTokenNoCaseSensitive } from '@onekeyhq/shared/src/utils/tokenUtils';
+import { EMessageTypesEth } from '@onekeyhq/shared/types/message';
 import { swapApproveResetValue } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
   IFetchQuoteResult,
@@ -735,6 +736,25 @@ export function useSwapBuildTx() {
     ) {
       setSwapBuildTxFetching(true);
       const createBuildTxRes = await createBuildTx();
+      if (
+        selectQuote.quoteResultCtx &&
+        selectQuote.info.provider === 'SwapCow' &&
+        swapFromAddressInfo.accountInfo?.account?.id
+      ) {
+        const { cowSwapQuote } = selectQuote.quoteResultCtx;
+        if (cowSwapQuote) {
+          const signHash =
+            await backgroundApiProxy.serviceDApp.openSignMessageModal({
+              accountId: swapFromAddressInfo.accountInfo?.account?.id,
+              networkId: swapFromAddressInfo.networkId,
+              request: { origin: '', scope: 'ethereum' },
+              unsignedMessage: {
+                type: EMessageTypesEth.ETH_SIGN,
+                message: JSON.stringify(cowSwapQuote),
+              },
+            });
+        }
+      }
       try {
         if (createBuildTxRes) {
           await navigationToSendConfirm({
@@ -783,6 +803,7 @@ export function useSwapBuildTx() {
     toToken,
     selectQuote?.fromAmount,
     selectQuote?.toAmount,
+    selectQuote?.quoteResultCtx,
     selectQuote?.info.provider,
     selectQuote?.info.providerName,
     selectQuote?.fee?.percentageFee,
@@ -790,6 +811,7 @@ export function useSwapBuildTx() {
     slippageItem,
     swapFromAddressInfo.address,
     swapFromAddressInfo.networkId,
+    swapFromAddressInfo.accountInfo?.account?.id,
     swapToAddressInfo.address,
     setSwapBuildTxFetching,
     createBuildTx,
