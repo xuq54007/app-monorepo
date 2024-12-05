@@ -735,26 +735,33 @@ export function useSwapBuildTx() {
       swapFromAddressInfo.networkId
     ) {
       setSwapBuildTxFetching(true);
-      const createBuildTxRes = await createBuildTx();
       if (
         selectQuote.quoteResultCtx &&
         selectQuote.info.provider === 'SwapCow' &&
         swapFromAddressInfo.accountInfo?.account?.id
       ) {
-        const { cowSwapQuote } = selectQuote.quoteResultCtx;
-        if (cowSwapQuote) {
+        const { cowSwapQuoteData } = selectQuote.quoteResultCtx;
+        if (cowSwapQuoteData) {
+          console.log('swap__cowSwapQuoteData');
           const signHash =
-            await backgroundApiProxy.serviceDApp.openSignMessageModal({
+            (await backgroundApiProxy.serviceDApp.openSignMessageModal({
               accountId: swapFromAddressInfo.accountInfo?.account?.id,
               networkId: swapFromAddressInfo.networkId,
-              request: { origin: '', scope: 'ethereum' },
+              request: { origin: 'https://www.onekey.so', scope: 'ethereum' },
               unsignedMessage: {
-                type: EMessageTypesEth.ETH_SIGN,
-                message: JSON.stringify(cowSwapQuote),
+                type: EMessageTypesEth.TYPED_DATA_V4,
+                message: cowSwapQuoteData,
+                payload: [swapFromAddressInfo.address, cowSwapQuoteData],
               },
-            });
+              walletInternalSign: true,
+            })) as string;
+          console.log('swap__signHash', signHash);
+          setSwapBuildTxFetching(false);
+          setSwapShouldRefreshQuote(true);
+          return;
         }
       }
+      const createBuildTxRes = await createBuildTx();
       try {
         if (createBuildTxRes) {
           await navigationToSendConfirm({

@@ -260,6 +260,12 @@ export interface IFetchQuoteResult {
   fromTokenInfo: ISwapTokenBase;
   toTokenInfo: ISwapTokenBase;
   quoteResultCtx?: any;
+  cowSwapQuoteResult?: {
+    cowSwapQuoteData: string;
+    cowSwapQuoteInfo: {
+      origin: string;
+    };
+  };
   protocolNoRouterInfo?: string;
   supportUrl?: string;
   isAntiMEV?: boolean;
