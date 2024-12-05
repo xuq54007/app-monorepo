@@ -148,6 +148,7 @@ class ServiceDiscovery extends ServiceBase {
         phishingSite: false,
         alert: '',
         projectName: url,
+        checkSources: [],
       } as IHostSecurity;
     }
     try {
@@ -163,6 +164,7 @@ class ServiceDiscovery extends ServiceBase {
           id: ETranslations.feedback_risk_detection_timed_out,
         }),
         projectName: url,
+        checkSources: [],
       } as IHostSecurity;
     }
   }

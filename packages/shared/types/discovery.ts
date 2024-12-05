@@ -62,11 +62,17 @@ export interface IAttackType {
   description: string;
 }
 
+export interface IHostSecurityCheckSources {
+  name: string;
+  riskLevel: EHostSecurityLevel;
+}
+
 export interface IHostSecurity {
   host: string;
   level: EHostSecurityLevel;
   attackTypes: IAttackType[];
   phishingSite: boolean;
+  checkSources: IHostSecurityCheckSources[];
   alert: string;
   detail?: {
     title: string;
