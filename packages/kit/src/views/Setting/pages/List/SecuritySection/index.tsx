@@ -179,7 +179,24 @@ const SignatureRecordItem = () => {
   );
 };
 
-export const SecuritySection = () => {
+function FloatingIcon() {
+  const intl = useIntl();
+  const navigation =
+    useAppNavigation<IPageNavigationProp<IModalSettingParamList>>();
+  const onPress = useCallback(() => {
+    navigation.push(EModalSettingRoutes.SettingSignatureRecordModal);
+  }, [navigation]);
+  return (
+    <ListItem
+      onPress={onPress}
+      icon="SidebarLeftArrow"
+      title="Floating icon"
+      drillIn
+    />
+  );
+}
+
+export function SecuritySection() {
   const intl = useIntl();
   return (
     <Section title={intl.formatMessage({ id: ETranslations.global_security })}>
@@ -191,7 +208,8 @@ export const SecuritySection = () => {
       {!platformEnv.isWebDappMode ? <ConnectedSitesItem /> : null}
       <SignatureRecordItem />
       <ProtectionItem />
+      {platformEnv.isExtension ? <FloatingIcon /> : null}
       <CleanDataItem />
     </Section>
   );
-};
+}
