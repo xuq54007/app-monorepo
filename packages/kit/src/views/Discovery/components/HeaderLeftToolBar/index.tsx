@@ -1,11 +1,11 @@
 import { useState } from 'react';
 
-import { Input, Popover, Stack, XStack } from '@onekeyhq/components';
 import { useIntl } from 'react-intl';
 
 import {
   Icon,
   Input,
+  Popover,
   SizableText,
   Stack,
   Tooltip,
@@ -52,7 +52,6 @@ function HeaderLeftToolBar({
   isPinned?: boolean;
   onPinnedPress?: (pinned: boolean) => void;
 }) {
-  const { hiddenHttpsUrl } = formatHiddenHttpsUrl(url);
   const { hostSecurity, iconConfig } = useUrlRiskConfig(url);
   const [dappInfoIsOpen, setDappInfoIsOpen] = useState(false);
   const intl = useIntl();
