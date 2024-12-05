@@ -151,6 +151,14 @@ function HeaderLeftToolBar({
             {
               iconName: isBookmark ? 'StarSolid' : 'StarOutline',
               onPress: () => onBookmarkPress?.(!isBookmark),
+              tooltipProps: {
+                shortcutKey: EShortcutEvents.AddOrRemoveBookmark,
+                renderContent: intl.formatMessage({
+                  id: isBookmark
+                    ? ETranslations.explore_remove_bookmark
+                    : ETranslations.explore_add_bookmark,
+                }),
+              },
               testID: `action-header-item-${
                 !isBookmark ? 'bookmark' : 'remove-bookmark'
               }`,
@@ -161,6 +169,14 @@ function HeaderLeftToolBar({
             {
               iconName: isPinned ? 'ThumbtackSolid' : 'ThumbtackOutline',
               onPress: () => onPinnedPress?.(!isPinned),
+              tooltipProps: {
+                shortcutKey: EShortcutEvents.PinOrUnpinTab,
+                renderContent: intl.formatMessage({
+                  id: isPinned
+                    ? ETranslations.explore_unpin
+                    : ETranslations.explore_pin,
+                }),
+              },
               testID: `action-header-item-${!isPinned ? 'pin' : 'un-pin'}`,
               ...(isPinned && {
                 iconColor: '$icon',
@@ -185,51 +201,6 @@ function HeaderLeftToolBar({
           />
         </Stack>
       </Stack>
-      <Input
-        containerProps={{ ml: '$6', w: '$80' } as any}
-        size="small"
-        leftIconName={isHttpsUrl ? 'LockSolid' : 'SearchSolid'}
-        value={hiddenHttpsUrl}
-        selectTextOnFocus
-        testID="explore-index-search-input"
-        addOns={[
-          {
-            iconName: isBookmark ? 'StarSolid' : 'StarOutline',
-            onPress: () => onBookmarkPress?.(!isBookmark),
-            tooltipProps: {
-              shortcutKey: EShortcutEvents.AddOrRemoveBookmark,
-              renderContent: intl.formatMessage({
-                id: isBookmark
-                  ? ETranslations.explore_remove_bookmark
-                  : ETranslations.explore_add_bookmark,
-              }),
-            },
-            testID: `action-header-item-${
-              !isBookmark ? 'bookmark' : 'remove-bookmark'
-            }`,
-            ...(isBookmark && {
-              iconColor: '$icon',
-            }),
-          },
-          {
-            iconName: isPinned ? 'ThumbtackSolid' : 'ThumbtackOutline',
-            onPress: () => onPinnedPress?.(!isPinned),
-            tooltipProps: {
-              shortcutKey: EShortcutEvents.PinOrUnpinTab,
-              renderContent: intl.formatMessage({
-                id: isPinned
-                  ? ETranslations.explore_unpin
-                  : ETranslations.explore_pin,
-              }),
-            },
-            testID: `action-header-item-${!isPinned ? 'pin' : 'un-pin'}`,
-            ...(isPinned && {
-              iconColor: '$icon',
-            }),
-          },
-        ]}
-        {...(inputProps as any)}
-      />
     </XStack>
   );
 }
