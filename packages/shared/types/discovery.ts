@@ -79,4 +79,5 @@ export interface IHostSecurity {
     content: string;
   };
   projectName: string;
+  updatedAt?: string;
 }

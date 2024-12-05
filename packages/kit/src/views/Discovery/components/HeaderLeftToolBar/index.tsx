@@ -75,11 +75,7 @@ function HeaderLeftToolBar({
           bg: '$bgActive',
         }}
       >
-        <Icon
-          size="$5"
-          color="$iconSubdued"
-          name={isHttpsUrl ? 'LockSolid' : 'SearchSolid'}
-        />
+        <Icon {...iconConfig} />
         <SizableText size="$bodyLg" flex={1} numberOfLines={1} ml="$2">
           {url}
         </SizableText>

@@ -15,6 +15,7 @@ import {
   YStack,
 } from '@onekeyhq/components';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { formatDistanceToNow } from '@onekeyhq/shared/src/utils/dateUtils';
 import type { IHostSecurity } from '@onekeyhq/shared/types/discovery';
 import { EHostSecurityLevel } from '@onekeyhq/shared/types/discovery';
 
@@ -95,52 +96,6 @@ export function DappInfoPopoverContent({
           </SizableText>
         </Stack>
       </XStack>
-      {hostSecurity?.checkSources ? (
-        <YStack gap="$3">
-          <SizableText size="$headingMd">
-            {intl.formatMessage({
-              id: ETranslations.browser_dapp_listed_by,
-            })}
-          </SizableText>
-          <XStack gap="$2" flexWrap="wrap">
-            {hostSecurity.checkSources
-              .filter((item) => item.riskLevel !== EHostSecurityLevel.Unknown)
-              .map((item) => (
-                <XStack
-                  key={item.name}
-                  gap="$1"
-                  px="$2"
-                  py="$1"
-                  bg="$bgSubdued"
-                  borderRadius="$2"
-                  borderColor="$borderSubdued"
-                  borderWidth={StyleSheet.hairlineWidth}
-                >
-                  <Image w="$5" h="$5" bg="$bgSubdued" borderRadius="$1">
-                    <Image.Source
-                      source={{
-                        uri: `https://uni.onekey-asset.com/static/logo/${item.name}.png`,
-                      }}
-                    />
-                    <Image.Fallback>
-                      <Icon
-                        size="$5"
-                        name="GlobusOutline"
-                        color="$iconSubdued"
-                      />
-                    </Image.Fallback>
-                    <Image.Loading>
-                      <Skeleton width="100%" height="100%" />
-                    </Image.Loading>
-                  </Image>
-                  <SizableText size="$bodyMdMedium">
-                    {upperFirst(item.name)}
-                  </SizableText>
-                </XStack>
-              ))}
-          </XStack>
-        </YStack>
-      ) : null}
       <YStack gap="$3">
         <SizableText size="$headingMd">
           {intl.formatMessage({
@@ -195,6 +150,59 @@ export function DappInfoPopoverContent({
           </XStack>
         </XStack>
       </YStack>
+      {hostSecurity?.checkSources ? (
+        <YStack>
+          <SizableText size="$headingMd">
+            {intl.formatMessage({
+              id: ETranslations.browser_dapp_listed_by,
+            })}
+          </SizableText>
+          <XStack gap="$2" pt="$3" flexWrap="wrap">
+            {hostSecurity.checkSources
+              .filter((item) => item.riskLevel !== EHostSecurityLevel.Unknown)
+              .map((item) => (
+                <XStack
+                  key={item.name}
+                  gap="$1"
+                  px="$2"
+                  py="$1"
+                  bg="$bgSubdued"
+                  borderRadius="$2"
+                  borderColor="$borderSubdued"
+                  borderWidth={StyleSheet.hairlineWidth}
+                >
+                  <Image w="$5" h="$5" bg="$bgSubdued" borderRadius="$1">
+                    <Image.Source
+                      source={{
+                        uri: `https://uni.onekey-asset.com/static/logo/${item.name}.png`,
+                      }}
+                    />
+                    <Image.Fallback>
+                      <Icon
+                        size="$5"
+                        name="GlobusOutline"
+                        color="$iconSubdued"
+                      />
+                    </Image.Fallback>
+                    <Image.Loading>
+                      <Skeleton width="100%" height="100%" />
+                    </Image.Loading>
+                  </Image>
+                  <SizableText size="$bodyMdMedium">
+                    {upperFirst(item.name)}
+                  </SizableText>
+                </XStack>
+              ))}
+          </XStack>
+          {hostSecurity.updatedAt ? (
+            <SizableText mt="$2" color="$textSubdued" size="$bodyMd">
+              {`Last verified at ${formatDistanceToNow(
+                new Date(hostSecurity.updatedAt),
+              )}`}
+            </SizableText>
+          ) : null}
+        </YStack>
+      ) : null}
     </YStack>
   );
 }
