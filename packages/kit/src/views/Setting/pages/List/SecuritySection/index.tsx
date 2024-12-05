@@ -184,12 +184,12 @@ function FloatingIcon() {
   const navigation =
     useAppNavigation<IPageNavigationProp<IModalSettingParamList>>();
   const onPress = useCallback(() => {
-    navigation.push(EModalSettingRoutes.SettingSignatureRecordModal);
+    navigation.push(EModalSettingRoutes.SettingFloatingIconModal);
   }, [navigation]);
   return (
     <ListItem
       onPress={onPress}
-      icon="SidebarLeftArrow"
+      icon="SidebarLeftArrowCustom"
       title="Floating icon"
       drillIn
     />
@@ -208,7 +208,7 @@ export function SecuritySection() {
       {!platformEnv.isWebDappMode ? <ConnectedSitesItem /> : null}
       <SignatureRecordItem />
       <ProtectionItem />
-      {platformEnv.isExtension ? <FloatingIcon /> : null}
+      {!platformEnv.isExtension ? <FloatingIcon /> : null}
       <CleanDataItem />
     </Section>
   );

@@ -41,6 +41,7 @@ export type ISettingsPersistAtom = {
   alignPrimaryAccountMode?: EAlignPrimaryAccountMode;
   isCustomNonceEnabled: boolean;
   isCustomTxMessageEnabled: boolean;
+  isFloatingIconAlwaysDisplay: boolean;
 };
 
 export const settingsAtomInitialValue: ISettingsPersistAtom = {
@@ -68,6 +69,7 @@ export const settingsAtomInitialValue: ISettingsPersistAtom = {
   alignPrimaryAccountMode: EAlignPrimaryAccountMode.AlignDappToWallet,
   isCustomNonceEnabled: false,
   isCustomTxMessageEnabled: false,
+  isFloatingIconAlwaysDisplay: true,
 };
 export const { target: settingsPersistAtom, use: useSettingsPersistAtom } =
   globalAtom<ISettingsPersistAtom>({
