@@ -399,7 +399,7 @@ const SwapHistoryDetailModal = () => {
       }),
       onConfirm: async () => {
         await backgroundApiProxy.serviceSwap.cleanOneSwapHistory(
-          txHistory.txInfo.txId,
+          txHistory.txInfo,
         );
         void backgroundApiProxy.serviceApp.showToast({
           method: 'success',
@@ -414,7 +414,7 @@ const SwapHistoryDetailModal = () => {
       }),
       onCancelText: intl.formatMessage({ id: ETranslations.global_cancel }),
     });
-  }, [intl, navigation, txHistory.txInfo.txId]);
+  }, [intl, navigation, txHistory.txInfo]);
 
   const headerRight = useCallback(
     () => (

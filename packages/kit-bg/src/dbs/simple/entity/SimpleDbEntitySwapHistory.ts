@@ -59,10 +59,18 @@ export class SimpleDbEntitySwapHistory extends SimpleDbEntityBase<ISwapTxHistory
   }
 
   @backgroundMethod()
-  async deleteOneSwapHistory(txId: string) {
+  async deleteOneSwapHistory(txInfo: {
+    txId?: string;
+    useOrderId?: boolean;
+    orderId?: string;
+  }) {
     const data = await this.getRawData();
     const histories = data?.histories ?? [];
-    const newHistories = histories.filter((i) => i.txInfo.txId !== txId);
+    const newHistories = histories.filter((i) =>
+      txInfo.useOrderId
+        ? i.swapInfo.orderId !== txInfo.orderId
+        : i.txInfo.txId !== txInfo.txId,
+    );
     await this.setRawData({ histories: newHistories });
   }
 

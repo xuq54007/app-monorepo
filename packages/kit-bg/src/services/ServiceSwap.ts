@@ -731,7 +731,7 @@ export default class ServiceSwap extends ServiceBase {
     orderId,
     ctx,
   }: {
-    txId: string;
+    txId?: string;
     toTokenAddress?: string;
     receivedAddress?: string;
     networkId: string;
@@ -856,8 +856,10 @@ export default class ServiceSwap extends ServiceBase {
     await this.backgroundApi.simpleDb.swapHistory.addSwapHistoryItem(item);
     await inAppNotificationAtom.set((pre) => {
       if (
-        !pre.swapHistoryPendingList.find(
-          (i) => i.txInfo.txId === item.txInfo.txId,
+        !pre.swapHistoryPendingList.find((i) =>
+          item.txInfo.useOrderId
+            ? i.swapInfo.orderId === item.swapInfo.orderId
+            : i.txInfo.txId === item.txInfo.txId,
         )
       ) {
         return {
@@ -917,8 +919,10 @@ export default class ServiceSwap extends ServiceBase {
   @backgroundMethod()
   async updateSwapHistoryItem(item: ISwapTxHistory) {
     const { swapHistoryPendingList } = await inAppNotificationAtom.get();
-    const index = swapHistoryPendingList.findIndex(
-      (i) => i.txInfo.txId === item.txInfo.txId,
+    const index = swapHistoryPendingList.findIndex((i) =>
+      item.txInfo.useOrderId
+        ? i.swapInfo.orderId === item.swapInfo.orderId
+        : i.txInfo.txId === item.txInfo.txId,
     );
     if (index !== -1) {
       const updated = Date.now();
@@ -1008,12 +1012,18 @@ export default class ServiceSwap extends ServiceBase {
   }
 
   @backgroundMethod()
-  async cleanOneSwapHistory(txId: string) {
-    await this.backgroundApi.simpleDb.swapHistory.deleteOneSwapHistory(txId);
+  async cleanOneSwapHistory(txInfo: {
+    txId?: string;
+    useOrderId?: boolean;
+    orderId?: string;
+  }) {
+    await this.backgroundApi.simpleDb.swapHistory.deleteOneSwapHistory(txInfo);
     await inAppNotificationAtom.set((pre) => ({
       ...pre,
-      swapHistoryPendingList: pre.swapHistoryPendingList.filter(
-        (item) => item.txInfo.txId !== txId,
+      swapHistoryPendingList: pre.swapHistoryPendingList.filter((item) =>
+        item.txInfo.useOrderId
+          ? item.swapInfo.orderId !== txInfo.orderId
+          : item.txInfo.txId !== txInfo.txId,
       ),
     }));
   }
@@ -1053,6 +1063,7 @@ export default class ServiceSwap extends ServiceBase {
           status: txStatusRes.state,
           txInfo: {
             ...swapTxHistory.txInfo,
+            txId: txStatusRes.txId ?? swapTxHistory.txInfo.txId,
             receiverTransactionId: txStatusRes.crossChainReceiveTxHash || '',
             gasFeeInNative: txStatusRes.gasFee
               ? txStatusRes.gasFee
@@ -1075,20 +1086,14 @@ export default class ServiceSwap extends ServiceBase {
       console.error('Swap History Status Fetch Error', error?.message);
     } finally {
       if (enableInterval) {
-        this.historyStateIntervalCountMap[swapTxHistory.txInfo.txId] =
-          (this.historyStateIntervalCountMap[swapTxHistory.txInfo.txId] ?? 0) +
-          1;
-        this.historyStateIntervals[swapTxHistory.txInfo.txId] = setTimeout(
-          () => {
-            void this.swapHistoryStatusRunFetch(swapTxHistory);
-          },
-          swapHistoryStateFetchInterval *
-            (Math.floor(
-              (this.historyStateIntervalCountMap[swapTxHistory.txInfo.txId] ??
-                0) / swapHistoryStateFetchRiceIntervalCount,
-            ) +
-              1),
-        );
+        const keyId = swapTxHistory.txInfo.useOrderId
+          ? swapTxHistory.swapInfo.orderId ?? ''
+          : swapTxHistory.txInfo.txId ?? '';
+        this.historyStateIntervalCountMap[keyId] =
+          (this.historyStateIntervalCountMap[keyId] ?? 0) + 1;
+        this.historyStateIntervals[keyId] = setTimeout(() => {
+          void this.swapHistoryStatusRunFetch(swapTxHistory);
+        }, swapHistoryStateFetchInterval * (Math.floor((this.historyStateIntervalCountMap[keyId] ?? 0) / swapHistoryStateFetchRiceIntervalCount) + 1));
       }
     }
   }
