@@ -2,6 +2,7 @@ import {
   format as fnsFormat,
   formatDistanceStrict as fnsFormatDistanceStrict,
   formatDistanceToNow as fnsFormatDistanceToNow,
+  formatDistanceToNowStrict as fnsFormatDistanceToNowStrict,
   formatDuration as fnsFormatDuration,
   intervalToDuration,
   isToday,
@@ -37,6 +38,7 @@ export type IFormatDateOptions = {
   hideTimeForever?: boolean;
   hideSeconds?: boolean;
   formatTemplate?: string;
+  hideMilliseconds?: boolean;
 };
 
 export type IFormatMonthOptions = {
@@ -59,6 +61,12 @@ export function formatDateFns(date: Date | string, _format?: string) {
   } catch (error) {
     return '-';
   }
+}
+
+export function formatLocaleDate(date: Date) {
+  return fnsFormat(date, 'PPP', {
+    locale: parseToDateFnsLocale(appLocale.getLocale()),
+  });
 }
 
 export function formatDate(date: Date | string, options?: IFormatDateOptions) {
@@ -133,13 +141,39 @@ export function formatDistanceStrict(
   return distance ?? '';
 }
 
-export function formatDistanceToNow(date: Date | number) {
+export function formatDistanceToNowStrict(
+  date: Date | number,
+  params?: {
+    addSuffix?: boolean;
+    unit?: 'second' | 'minute' | 'hour' | 'day' | 'month' | 'year';
+    roundingMethod?: 'floor' | 'ceil' | 'round';
+    locale?: Locale;
+  },
+) {
+  const { addSuffix = true, roundingMethod = 'ceil' } = params || {};
   const locale = appLocale.getLocale();
-  const distance = fnsFormatDistanceToNow(date, {
-    addSuffix: true,
+  const distance = fnsFormatDistanceToNowStrict(date, {
+    addSuffix,
+    roundingMethod,
     locale: parseToDateFnsLocale(locale),
   });
+  return distance ?? '';
+}
 
+export function formatDistanceToNow(
+  date: Date | number,
+  params?: {
+    includeSeconds?: boolean;
+    addSuffix?: boolean;
+    locale?: Locale;
+  },
+) {
+  const { addSuffix = true } = params || {};
+  const locale = appLocale.getLocale();
+  const distance = fnsFormatDistanceToNow(date, {
+    addSuffix,
+    locale: parseToDateFnsLocale(locale),
+  });
   return distance ?? '';
 }
 
@@ -184,10 +218,15 @@ export function formatTime(date: Date | string, options?: IFormatDateOptions) {
     parsedDate = date;
   }
 
-  let formatTemplate = options?.formatTemplate || 'HH:mm:ss';
+  // HH:mm:ss.SSS
+  let formatTemplate = options?.formatTemplate || 'HH:mm:ss.SSS';
 
   if (options?.hideSeconds) {
     formatTemplate = formatTemplate.replace('HH:mm:ss', 'HH:mm');
+  }
+
+  if (options?.hideMilliseconds) {
+    formatTemplate = formatTemplate.replace('.SSS', '');
   }
 
   return formatDateFns(parsedDate, formatTemplate) ?? '';
@@ -205,3 +244,9 @@ export function formatMillisecondsToBlocks(
   const seconds = millisecondsToSeconds(milliseconds);
   return Math.ceil(seconds / blockIntervalSeconds);
 }
+
+export default {
+  formatDate,
+  formatMonth,
+  formatTime,
+};

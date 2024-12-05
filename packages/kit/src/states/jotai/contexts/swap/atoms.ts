@@ -1,12 +1,8 @@
 import BigNumber from 'bignumber.js';
-import { isNil } from 'lodash';
 
 import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
 import { dangerAllNetworkRepresent } from '@onekeyhq/shared/src/config/presetNetworks';
-import {
-  ESwapProviderSort,
-  swapSlippageAutoValue,
-} from '@onekeyhq/shared/types/swap/SwapProvider.constants';
+import { ESwapProviderSort } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
   ESwapDirectionType,
   ESwapRateDifferenceUnit,
@@ -14,16 +10,11 @@ import type {
   ISwapAlertState,
   ISwapAutoSlippageSuggestedValue,
   ISwapNetwork,
-  ISwapSlippageSegmentItem,
   ISwapToken,
   ISwapTokenCatch,
   ISwapTokenMetadata,
 } from '@onekeyhq/shared/types/swap/types';
-import {
-  ESwapReceiveAddressType,
-  ESwapSlippageSegmentKey,
-  ESwapTabSwitchType,
-} from '@onekeyhq/shared/types/swap/types';
+import { ESwapTabSwitchType } from '@onekeyhq/shared/types/swap/types';
 
 import { createJotaiContext } from '../../utils/createJotaiContext';
 
@@ -243,6 +234,28 @@ export const {
   ) {
     sortedList = [...receivedSorted];
   }
+  sortedList = sortedList.slice().sort((a, b) => {
+    if (a.limit && b.limit) {
+      const aMin = new BigNumber(a.limit?.min || 0);
+      const aMax = new BigNumber(a.limit?.max || 0);
+      const bMin = new BigNumber(b.limit?.min || 0);
+      const bMax = new BigNumber(b.limit?.max || 0);
+      if (aMin.lt(bMin)) {
+        return -1;
+      }
+      if (aMin.gt(bMin)) {
+        return 1;
+      }
+
+      if (aMax.lt(bMax)) {
+        return -1;
+      }
+      if (aMax.gt(bMax)) {
+        return 1;
+      }
+    }
+    return 0;
+  });
   return sortedList.map((p) => {
     if (
       p.info.provider === receivedSorted?.[0]?.info?.provider &&
@@ -275,13 +288,15 @@ export const {
       item.info.providerName === manualSelectQuoteProviders?.info.providerName,
   );
   if (manualSelectQuoteProviders && manualSelectQuoteResult?.toAmount) {
-    return list.find(
-      (item) =>
-        item.info.provider === manualSelectQuoteProviders.info.provider &&
-        item.info.providerName === manualSelectQuoteProviders.info.providerName,
-    );
+    return manualSelectQuoteResult;
   }
   if (list?.length > 0) {
+    if (
+      manualSelectQuoteProviders &&
+      !manualSelectQuoteProviders?.unSupportReceiveAddressDifferent
+    ) {
+      return list.find((item) => !item.unSupportReceiveAddressDifferent);
+    }
     return list[0];
   }
   return undefined;
@@ -352,49 +367,10 @@ export const {
 } = contextAtom<boolean>(false);
 
 // swap slippage
-
-export const {
-  atom: swapSlippagePercentageModeAtom,
-  use: useSwapSlippagePercentageModeAtom,
-} = contextAtom<ESwapSlippageSegmentKey>(ESwapSlippageSegmentKey.AUTO);
-
 export const {
   atom: swapAutoSlippageSuggestedValueAtom,
   use: useSwapAutoSlippageSuggestedValueAtom,
 } = contextAtom<ISwapAutoSlippageSuggestedValue | undefined>(undefined);
-
-export const {
-  atom: swapSlippagePercentageCustomValueAtom,
-  use: useSwapSlippagePercentageCustomValueAtom,
-} = contextAtom<number>(swapSlippageAutoValue);
-
-export const {
-  atom: swapSlippagePercentageAtom,
-  use: useSwapSlippagePercentageAtom,
-} = contextAtomComputed<{
-  slippageItem: ISwapSlippageSegmentItem;
-  autoValue: number;
-}>((get) => {
-  const mode = get(swapSlippagePercentageModeAtom());
-  const quoteResult = get(swapQuoteCurrentSelectAtom());
-  let autoValue = swapSlippageAutoValue;
-  let value = swapSlippageAutoValue;
-  if (!isNil(quoteResult?.autoSuggestedSlippage)) {
-    autoValue = quoteResult.autoSuggestedSlippage;
-  }
-  if (mode === ESwapSlippageSegmentKey.AUTO) {
-    value = autoValue;
-  } else {
-    value = get(swapSlippagePercentageCustomValueAtom());
-  }
-  return {
-    slippageItem: {
-      key: mode,
-      value,
-    },
-    autoValue,
-  };
-});
 
 export const {
   atom: swapSlippageDialogOpeningAtom,
@@ -406,19 +382,3 @@ export const {
   atom: swapBuildTxFetchingAtom,
   use: useSwapBuildTxFetchingAtom,
 } = contextAtom<boolean>(false);
-
-// swap receiver address
-export const {
-  atom: swapReceiverAddressTypeAtom,
-  use: useSwapReceiverAddressTypeAtom,
-} = contextAtom<ESwapReceiveAddressType>(ESwapReceiveAddressType.USER_ACCOUNT);
-
-export const {
-  atom: swapReceiverAddressInputValueAtom,
-  use: useSwapReceiverAddressInputValueAtom,
-} = contextAtom<string>('');
-
-export const {
-  atom: swapReceiverAddressBookValueAtom,
-  use: useSwapReceiverAddressBookValueAtom,
-} = contextAtom<string>('');

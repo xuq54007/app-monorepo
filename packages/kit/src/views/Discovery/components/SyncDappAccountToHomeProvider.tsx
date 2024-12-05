@@ -1,9 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { AccountSelectorProviderMirror } from '@onekeyhq/kit/src/components/AccountSelector';
-import { useAccountSelectorActions } from '@onekeyhq/kit/src/states/jotai/contexts/accountSelector';
+import {
+  useAccountSelectorActions,
+  useAccountSelectorContextDataAtom,
+} from '@onekeyhq/kit/src/states/jotai/contexts/accountSelector';
+import type { IAccountSelectorSelectedAccount } from '@onekeyhq/kit-bg/src/dbs/simple/entity/SimpleDbEntityAccountSelector';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ESpotlightTour } from '@onekeyhq/shared/src/spotlight';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
@@ -12,35 +20,19 @@ import type { IConnectionAccountInfo } from '@onekeyhq/shared/types/dappConnecti
 
 import { useSpotlight } from '../../../components/Spotlight';
 
-function SyncDappAccountToHomeCmp({
-  dAppAccountInfos,
-}: {
-  origin: string;
-  dAppAccountInfos: IConnectionAccountInfo[] | null;
-}) {
+export function useSyncDappAccountToHomeAccount() {
   const actions = useAccountSelectorActions();
-  const [settings] = useSettingsPersistAtom();
-  const { isFirstVisit, tourVisited } = useSpotlight(
-    ESpotlightTour.switchDappAccount,
-  );
-  const isFirstVisitRef = useRef(isFirstVisit);
 
-  useEffect(() => {
-    isFirstVisitRef.current = isFirstVisit;
-  }, [isFirstVisit]);
-
-  // Sync dApp account to home page
-  useEffect(() => {
-    const sync = async () => {
-      if (
-        settings.alignPrimaryAccountMode !==
-        EAlignPrimaryAccountMode.AlignDappToWallet
-      ) {
-        return;
-      }
+  const syncDappAccountToWallet = useCallback(
+    async ({
+      dAppAccountInfos,
+    }: {
+      dAppAccountInfos: IConnectionAccountInfo[] | null;
+    }) => {
       if (!Array.isArray(dAppAccountInfos) || dAppAccountInfos.length !== 1) {
         return;
       }
+
       const { serviceAccount } = backgroundApiProxy;
       const dAppAccount = dAppAccountInfos[0];
       const { indexedAccountId, accountId, networkId } = dAppAccount;
@@ -51,6 +43,7 @@ function SyncDappAccountToHomeCmp({
       const isOtherWallet = accountUtils.isOthersAccount({
         accountId,
       });
+
       if (isOtherWallet) {
         await actions.current.confirmAccountSelect({
           num: 0,
@@ -70,6 +63,43 @@ function SyncDappAccountToHomeCmp({
           forceSelectToNetworkId: networkId,
         });
       }
+    },
+    [actions],
+  );
+
+  return { syncDappAccountToWallet };
+}
+
+function SyncDappAccountToHomeCmp({
+  dAppAccountInfos,
+}: {
+  origin: string;
+  dAppAccountInfos: IConnectionAccountInfo[] | null;
+}) {
+  const actions = useAccountSelectorActions();
+  const [settings] = useSettingsPersistAtom();
+  const { syncDappAccountToWallet } = useSyncDappAccountToHomeAccount();
+  const { isFirstVisit, tourVisited } = useSpotlight(
+    ESpotlightTour.switchDappAccount,
+  );
+  const isFirstVisitRef = useRef(isFirstVisit);
+
+  useEffect(() => {
+    isFirstVisitRef.current = isFirstVisit;
+  }, [isFirstVisit]);
+
+  // Sync dApp account to home page
+  useEffect(() => {
+    const sync = async () => {
+      if (
+        settings.alignPrimaryAccountMode !==
+        EAlignPrimaryAccountMode.AlignDappToWallet
+      ) {
+        return;
+      }
+      await syncDappAccountToWallet({
+        dAppAccountInfos,
+      });
       if (isFirstVisitRef.current) {
         void tourVisited(1);
       }
@@ -80,7 +110,37 @@ function SyncDappAccountToHomeCmp({
     actions,
     settings.alignPrimaryAccountMode,
     tourVisited,
+    syncDappAccountToWallet,
   ]);
+
+  return null;
+}
+
+function SyncHomeAccountPageToDappAccount() {
+  const [accountSelectorContextData] = useAccountSelectorContextDataAtom();
+  const actions = useAccountSelectorActions();
+  useEffect(() => {
+    const fn = async (params: {
+      selectedAccount: IAccountSelectorSelectedAccount;
+    }) => {
+      if (
+        accountSelectorContextData?.sceneName !== EAccountSelectorSceneName.home
+      ) {
+        return;
+      }
+      await actions.current.updateSelectedAccount({
+        num: 0,
+        builder: () => params.selectedAccount,
+      });
+      void backgroundApiProxy.serviceDApp.setIsAlignPrimaryAccountProcessing({
+        processing: false,
+      });
+    };
+    appEventBus.on(EAppEventBusNames.SyncDappAccountToHomeAccount, fn);
+    return () => {
+      appEventBus.off(EAppEventBusNames.SyncDappAccountToHomeAccount, fn);
+    };
+  }, [actions, accountSelectorContextData?.sceneName]);
 
   return null;
 }
@@ -107,4 +167,17 @@ function SyncDappAccountToHomeProvider({
   );
 }
 
-export default SyncDappAccountToHomeProvider;
+function SyncHomeAccountToDappAccountProvider() {
+  return (
+    <AccountSelectorProviderMirror
+      config={{
+        sceneName: EAccountSelectorSceneName.home,
+      }}
+      enabledNum={[0]}
+    >
+      <SyncHomeAccountPageToDappAccount />
+    </AccountSelectorProviderMirror>
+  );
+}
+
+export { SyncHomeAccountToDappAccountProvider, SyncDappAccountToHomeProvider };

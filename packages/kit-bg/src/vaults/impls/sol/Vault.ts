@@ -41,7 +41,7 @@ import {
 } from '@solana/web3.js';
 import BigNumber from 'bignumber.js';
 import bs58 from 'bs58';
-import { isEmpty, isNative, isNil } from 'lodash';
+import { isEmpty, isNil } from 'lodash';
 
 import type {
   IEncodedTxSol,
@@ -73,6 +73,7 @@ import type {
   IMeasureRpcStatusResult,
 } from '@onekeyhq/shared/types/customRpc';
 import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
+import type { ISwapTxInfo } from '@onekeyhq/shared/types/swap/types';
 import {
   EDecodedTxActionType,
   EDecodedTxStatus,
@@ -98,6 +99,7 @@ import {
   CREATE_TOKEN_ACCOUNT_RENT,
   MIN_PRIORITY_FEE,
   TOKEN_AUTH_RULES_ID,
+  isTxOverSize,
   masterEditionAddress,
   metadataAddress,
   parseComputeUnitLimit,
@@ -115,6 +117,7 @@ import type {
   IBuildAccountAddressDetailParams,
   IBuildDecodedTxParams,
   IBuildEncodedTxParams,
+  IBuildOkxSwapEncodedTxParams,
   IBuildUnsignedTxParams,
   IGetPrivateKeyFromImportedParams,
   IGetPrivateKeyFromImportedResult,
@@ -677,7 +680,7 @@ export default class Vault extends VaultBase {
   override async buildDecodedTx(
     params: IBuildDecodedTxParams,
   ): Promise<IDecodedTx> {
-    const { unsignedTx, transferPayload } = params;
+    const { unsignedTx, transferPayload, saveToLocalHistory } = params;
     const encodedTx = unsignedTx.encodedTx as IEncodedTxSol;
     const nativeTx = (await parseToNativeTx(encodedTx)) as INativeTxSol;
 
@@ -711,7 +714,11 @@ export default class Vault extends VaultBase {
       });
     }
 
+    // to be consistent with onChain tx,
+    // also filter create token account instruction when saving tx locally
     if (
+      !saveToLocalHistory &&
+      !unsignedTx.swapInfo &&
       instructions.some(
         (instruction) =>
           instruction.programId.toString() ===
@@ -992,7 +999,14 @@ export default class Vault extends VaultBase {
       }
     }
     if (actions.length === 0) {
-      actions.push({ type: EDecodedTxActionType.UNKNOWN });
+      const accountAddress = await this.getAccountAddress();
+      actions.push({
+        type: EDecodedTxActionType.UNKNOWN,
+        unknownAction: {
+          from: accountAddress,
+          to: '',
+        },
+      });
     }
 
     return actions;
@@ -1003,26 +1017,57 @@ export default class Vault extends VaultBase {
   ): Promise<IUnsignedTxPro> {
     const encodedTx = params.encodedTx ?? (await this.buildEncodedTx(params));
     if (encodedTx) {
-      return this._buildUnsignedTxFromEncodedTx(encodedTx as IEncodedTxSol);
+      return this._buildUnsignedTxFromEncodedTx({
+        encodedTx: encodedTx as IEncodedTxSol,
+        swapInfo: params.swapInfo,
+      });
     }
     throw new OneKeyInternalError();
   }
 
-  async _buildUnsignedTxFromEncodedTx(encodedTx: IEncodedTxSol) {
+  async _buildUnsignedTxFromEncodedTx({
+    encodedTx,
+    swapInfo,
+  }: {
+    encodedTx: IEncodedTxSol;
+    swapInfo?: ISwapTxInfo;
+  }) {
     const accountAddress = await this.getAccountAddress();
+
+    let newEncodedTx = encodedTx;
+
+    // internal okx sol swap tx need to replace recentBlockhash
+    if (swapInfo && swapInfo.swapBuildResData.OKXTxObject) {
+      const nativeTx = (await parseToNativeTx(encodedTx)) as INativeTxSol;
+      const { recentBlockhash, lastValidBlockHeight } =
+        await this._getRecentBlockHash();
+
+      if (nativeTx instanceof Transaction) {
+        nativeTx.recentBlockhash = recentBlockhash;
+        nativeTx.lastValidBlockHeight = lastValidBlockHeight;
+      } else if (nativeTx instanceof VersionedTransaction) {
+        nativeTx.message.recentBlockhash = recentBlockhash;
+      }
+
+      newEncodedTx = bs58.encode(
+        nativeTx.serialize({
+          requireAllSignatures: false,
+        }),
+      );
+    }
 
     return {
       payload: {
         feePayer: accountAddress,
       },
-      encodedTx,
+      encodedTx: newEncodedTx,
     };
   }
 
   override async updateUnsignedTx(
     params: IUpdateUnsignedTxParams,
   ): Promise<IUnsignedTxPro> {
-    const { unsignedTx, nativeAmountInfo, feeInfo } = params;
+    const { unsignedTx, nativeAmountInfo, feeInfo, feeInfoEditable } = params;
     let encodedTxNew = unsignedTx.encodedTx as IEncodedTxSol;
 
     if (nativeAmountInfo) {
@@ -1031,7 +1076,8 @@ export default class Vault extends VaultBase {
         nativeAmountInfo,
       });
     }
-    if (feeInfo) {
+
+    if (feeInfo && feeInfoEditable !== false) {
       encodedTxNew = await this._attachFeeInfoToEncodedTx({
         encodedTx: encodedTxNew,
         feeInfo,
@@ -1295,6 +1341,11 @@ export default class Vault extends VaultBase {
 
     const nativeTx = (await parseToNativeTx(encodedTx)) as INativeTxSol;
 
+    // check if the tx is partially signed
+    if (nativeTx.signatures && nativeTx.signatures.length > 1) {
+      return '';
+    }
+
     const { instructions } = await parseNativeTxDetail({
       nativeTx,
       client: await this.getClient(),
@@ -1329,7 +1380,7 @@ export default class Vault extends VaultBase {
       computeUnitPrice = feeInfo.feeSol.computeUnitPrice;
     }
 
-    return this._attachFeeInfoToEncodedTx({
+    const encodedTxWithFee = await this._attachFeeInfoToEncodedTx({
       encodedTx,
       feeInfo: {
         ...feeInfo,
@@ -1338,6 +1389,12 @@ export default class Vault extends VaultBase {
         },
       },
     });
+
+    if (isTxOverSize(encodedTxWithFee)) {
+      return '';
+    }
+
+    return encodedTxWithFee;
   }
 
   override async getCustomRpcEndpointStatus(
@@ -1387,5 +1444,9 @@ export default class Vault extends VaultBase {
     }
 
     return true;
+  }
+
+  override async buildOkxSwapEncodedTx(params: IBuildOkxSwapEncodedTxParams) {
+    return Promise.resolve(params.okxTx.data);
   }
 }

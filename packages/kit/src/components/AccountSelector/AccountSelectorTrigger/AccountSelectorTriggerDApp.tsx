@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useIntl } from 'react-intl';
 
@@ -7,7 +7,6 @@ import {
   Icon,
   SizableText,
   Skeleton,
-  Tooltip,
   View,
   XStack,
   YStack,
@@ -141,9 +140,13 @@ export const AccountSelectorTriggerDappConnectionCmp = ({
 
   let addressText = '';
   if (account?.address) {
-    addressText = accountUtils.shortenAddress({
+    addressText = accountUtils.isAllNetworkMockAddress({
       address: account.address || '',
-    });
+    })
+      ? account.address
+      : accountUtils.shortenAddress({
+          address: account.address || '',
+        });
   } else if (!account?.address && account?.addressDetail.isValid) {
     addressText = '';
   } else {
@@ -282,73 +285,87 @@ export function AccountSelectorTriggerBrowserSingle({ num }: { num: number }) {
 
   useShortcutsOnRouteFocused(EShortcutEvents.AccountSelector, handlePress);
 
-  const trigger = useMemo(
-    () => (
-      <XStack
-        role="button"
-        p="$1.5"
-        borderRadius="$2"
-        alignItems="center"
-        hoverStyle={{
-          bg: '$bgHover',
-        }}
-        pressStyle={{
-          bg: '$bgActive',
-        }}
-        focusable
-        focusVisibleStyle={{
-          outlineWidth: 2,
-          outlineColor: '$focusRing',
-          outlineStyle: 'solid',
-        }}
-        onPress={handlePress}
-        maxWidth="$40"
-        minWidth={0}
-      >
-        <AccountAvatar
-          size="small"
-          account={account}
-          indexedAccount={indexedAccount}
-        />
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const isFirstLoad = useRef(true);
+
+  useEffect(() => {
+    if (account?.name) {
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+        isFirstLoad.current = false;
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+    if (isFirstLoad.current) {
+      setShowSkeleton(true);
+    }
+  }, [account?.name]);
+
+  if (showSkeleton && isFirstLoad.current) {
+    return (
+      <>
         {media.gtMd ? (
-          <>
-            <View pl="$2" pr="$1" minWidth={0} maxWidth="$24">
-              <SizableText
-                size="$bodySm"
-                color="$textSubdued"
-                numberOfLines={1}
-              >
-                {wallet?.name}
-              </SizableText>
-              <SizableText size="$bodyMdMedium" numberOfLines={1}>
-                {accountName}
-              </SizableText>
-            </View>
-            <Icon
-              name="ChevronDownSmallOutline"
-              color="$iconSubdued"
-              size="$5"
-            />
-          </>
-        ) : null}
-      </XStack>
-    ),
-    [
-      account,
-      accountName,
-      handlePress,
-      indexedAccount,
-      media.gtMd,
-      wallet?.name,
-    ],
-  );
+          <Skeleton.Group show>
+            <XStack gap="$2" alignItems="center">
+              <Skeleton w="$6" h="$6" borderRadius="$2" />
+              <YStack>
+                <Skeleton.BodySm />
+                <Skeleton.BodyMd />
+              </YStack>
+            </XStack>
+          </Skeleton.Group>
+        ) : (
+          <Skeleton w="$6" h="$6" borderRadius="$2" />
+        )}
+      </>
+    );
+  }
+
   return (
-    <Tooltip
-      shortcutKey={EShortcutEvents.AccountSelector}
-      renderTrigger={trigger}
-      renderContent={intl.formatMessage({ id: ETranslations.global_account })}
-      placement="bottom"
-    />
+    <XStack
+      role="button"
+      p="$1.5"
+      mx="$-1.5"
+      $gtMd={{
+        py: '$0.5',
+      }}
+      borderRadius="$2"
+      alignItems="center"
+      hoverStyle={{
+        bg: '$bgHover',
+      }}
+      pressStyle={{
+        bg: '$bgActive',
+      }}
+      focusable
+      focusVisibleStyle={{
+        outlineWidth: 2,
+        outlineColor: '$focusRing',
+        outlineStyle: 'solid',
+      }}
+      onPress={handlePress}
+      maxWidth="$40"
+      minWidth={0}
+    >
+      <AccountAvatar
+        size="small"
+        account={account}
+        indexedAccount={indexedAccount}
+      />
+      {media.gtMd ? (
+        <>
+          <View pl="$2" pr="$1" minWidth={0} maxWidth="$24">
+            <SizableText size="$bodySm" color="$textSubdued" numberOfLines={1}>
+              {wallet?.name}
+            </SizableText>
+            <SizableText size="$bodyMdMedium" numberOfLines={1}>
+              {accountName}
+            </SizableText>
+          </View>
+          <Icon name="ChevronDownSmallOutline" color="$iconSubdued" size="$5" />
+        </>
+      ) : null}
+    </XStack>
   );
 }
 

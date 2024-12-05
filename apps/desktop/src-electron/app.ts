@@ -44,11 +44,14 @@ import * as store from './libs/store';
 import { parseContentPList } from './libs/utils';
 import initProcess, { restartBridge } from './process';
 import { resourcesPath, staticPath } from './resoucePath';
+import { initSentry } from './sentry';
 import {
   checkAvailabilityAsync,
   requestVerificationAsync,
   startServices,
 } from './service';
+
+initSentry();
 
 logger.initialize();
 logger.transports.file.maxSize = 1024 * 1024 * 10;
@@ -154,7 +157,7 @@ const initMenu = () => {
           },
         },
         { type: 'separator' },
-        {
+        isMac && {
           role: 'hide',
           accelerator: 'Alt+CmdOrCtrl+H',
           label: i18nText(ETranslations.menu_hide_onekey_wallet),
@@ -166,6 +169,7 @@ const initMenu = () => {
         { type: 'separator' },
         {
           role: 'quit',
+          accelerator: 'CmdOrCtrl+Q',
           label: i18nText(ETranslations.menu_quit_onekey_wallet),
         },
       ].filter(Boolean),
@@ -201,9 +205,26 @@ const initMenu = () => {
               { type: 'separator' },
             ]
           : []),
-        { role: 'resetZoom', label: i18nText(ETranslations.menu_actual_size) },
-        { role: 'zoomIn', label: i18nText(ETranslations.menu_zoom_in) },
-        { role: 'zoomOut', label: i18nText(ETranslations.menu_zoom_out) },
+        {
+          role: 'resetZoom',
+          label: i18nText(ETranslations.menu_actual_size),
+          accelerator: 'CmdOrCtrl+0',
+        },
+        isMac
+          ? {
+              role: 'zoomIn',
+              label: i18nText(ETranslations.menu_zoom_in),
+            }
+          : {
+              role: 'zoomIn',
+              label: i18nText(ETranslations.menu_zoom_in),
+              accelerator: 'CmdOrCtrl+Shift+]',
+            },
+        {
+          role: 'zoomOut',
+          label: i18nText(ETranslations.menu_zoom_out),
+          accelerator: isMac ? 'CmdOrCtrl+-' : 'CmdOrCtrl+Shift+[',
+        },
         { type: 'separator' },
         {
           role: 'togglefullscreen',
@@ -308,8 +329,6 @@ function handleDeepLinkUrl(
     isColdStartup,
     platform: process.platform,
   };
-
-  console.log('handleDeepLinkUrl >>>> ', eventData);
 
   const sendEventData = () => {
     isAppReady = true;
@@ -693,6 +712,10 @@ function createMainWindow() {
     void shell.openPath(path.dirname(logger.transports.file.getFile().path));
   });
 
+  ipcMain.on(ipcMessageKeys.APP_TEST_CRASH, () => {
+    throw new Error('Test Electron Native crash');
+  });
+
   ipcMain.on(ipcMessageKeys.CLEAR_WEBVIEW_CACHE, () => {
     void session.defaultSession.clearStorageData({
       storages: ['cookies', 'cachestorage'],
@@ -998,8 +1021,3 @@ app.on('will-finish-launching', () => {
   // @ts-expect-error
   app.on('open-url', handleDeepLinkUrl);
 });
-
-logger.info(' ========= Desktop main app start!!!!!!!!!!!!!  ========== ');
-const userDataPath = app.getPath('userData');
-console.log(JSON.stringify({ userDataPath }, null, 2));
-logger.info(' =================== ');

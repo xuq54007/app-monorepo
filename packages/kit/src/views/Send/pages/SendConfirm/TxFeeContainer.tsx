@@ -12,7 +12,9 @@ import {
   Stack,
   XStack,
 } from '@onekeyhq/components';
+import type { IEncodedTxAptos } from '@onekeyhq/core/src/chains/aptos/types';
 import type { IEncodedTxBtc } from '@onekeyhq/core/src/chains/btc/types';
+import type { IEncodedTxDot } from '@onekeyhq/core/src/chains/dot/types';
 import type { IEncodedTxEvm } from '@onekeyhq/core/src/chains/evm/types';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { usePromiseResult } from '@onekeyhq/kit/src/hooks/usePromiseResult';
@@ -34,17 +36,20 @@ import {
   getFeeLabel,
 } from '@onekeyhq/kit/src/utils/gasFee';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
+import { ALGO_TX_MIN_FEE } from '@onekeyhq/kit-bg/src/vaults/impls/algo/utils';
 import {
   BATCH_SEND_TXS_FEE_DOWN_RATIO_FOR_TOTAL,
   BATCH_SEND_TXS_FEE_UP_RATIO_FOR_APPROVE,
   BATCH_SEND_TXS_FEE_UP_RATIO_FOR_SWAP,
 } from '@onekeyhq/shared/src/consts/walletConsts';
+import { IMPL_APTOS } from '@onekeyhq/shared/src/engine/engineConsts';
 import type { IOneKeyRpcError } from '@onekeyhq/shared/src/errors/types/errorTypes';
 import {
   EAppEventBusNames,
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import chainValueUtils from '@onekeyhq/shared/src/utils/chainValueUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import { EFeeType, ESendFeeStatus } from '@onekeyhq/shared/types/fee';
@@ -167,9 +172,10 @@ function TxFeeContainer(props: IProps) {
               gasEIP1559: r.gasEIP1559 ? [r.gasEIP1559] : undefined,
               feeUTXO: r.feeUTXO ? [r.feeUTXO] : undefined,
               feeTron: r.feeTron ? [r.feeTron] : undefined,
-              gasFil: r.gasFil ? [r.gasFil] : undefined,
               feeSol: r.feeSol ? [r.feeSol] : undefined,
               feeCkb: r.feeCkb ? [r.feeCkb] : undefined,
+              feeAlgo: r.feeAlgo ? [r.feeAlgo] : undefined,
+              feeDot: r.feeDot ? [r.feeDot] : undefined,
             },
             e,
           };
@@ -250,9 +256,10 @@ function TxFeeContainer(props: IProps) {
         txFee.gas?.length ||
         txFee.feeUTXO?.length ||
         txFee.feeTron?.length ||
-        txFee.gasFil?.length ||
         txFee.feeSol?.length ||
         txFee.feeCkb?.length ||
+        txFee.feeAlgo?.length ||
+        txFee.feeDot?.length ||
         0;
 
       for (let i = 0; i < feeLength; i += 1) {
@@ -262,10 +269,52 @@ function TxFeeContainer(props: IProps) {
           gasEIP1559: txFee.gasEIP1559?.[i],
           feeUTXO: txFee.feeUTXO?.[i],
           feeTron: txFee.feeTron?.[i],
-          gasFil: txFee.gasFil?.[i],
           feeSol: txFee.feeSol?.[i],
           feeCkb: txFee.feeCkb?.[i],
+          feeAlgo: txFee.feeAlgo?.[i],
+          feeDot: txFee.feeDot?.[i],
         };
+
+        const useDappFeeAndNotEditFee =
+          vaultSettings?.editFeeEnabled && !feeInfoEditable && useFeeInTx;
+        if (useDappFeeAndNotEditFee && network) {
+          const { tip } = unsignedTxs[0].encodedTx as IEncodedTxDot;
+          const feeDecimals = feeInfo.common?.feeDecimals;
+          if (feeInfo.feeDot && tip && typeof feeDecimals === 'number') {
+            // Only the fee display is affected on sendConfirm page
+            feeInfo.feeDot = {
+              ...feeInfo.feeDot,
+              extraTipInDot: new BigNumber(tip)
+                .shiftedBy(-feeDecimals)
+                .toFixed(),
+            };
+          }
+
+          if (
+            network &&
+            network.impl === IMPL_APTOS &&
+            unsignedTxs.length > 0
+          ) {
+            const {
+              gas_unit_price: aptosGasPrice,
+              max_gas_amount: aptosMaxGasLimit,
+            } = unsignedTxs[0].encodedTx as IEncodedTxAptos;
+            // use dApp fee
+            if (aptosGasPrice && aptosMaxGasLimit) {
+              const gasPrice = chainValueUtils.convertChainValueToGwei({
+                value: aptosGasPrice,
+                network,
+              });
+
+              feeInfo.gas = {
+                ...feeInfo.gas,
+                gasLimit: aptosMaxGasLimit,
+                gasPrice,
+                gasLimitForDisplay: aptosMaxGasLimit,
+              };
+            }
+          }
+        }
 
         items.push({
           label: intl.formatMessage({
@@ -340,6 +389,23 @@ function TxFeeContainer(props: IProps) {
           customFeeInfo.feeCkb = {
             ...txFee.feeCkb[sendSelectedFee.presetIndex],
             ...(customFee?.feeCkb ?? {}),
+          };
+        }
+
+        if (txFee.feeAlgo && !isEmpty(txFee.feeAlgo)) {
+          customFeeInfo.feeAlgo = {
+            ...txFee.feeAlgo[sendSelectedFee.presetIndex],
+            ...(customFee?.feeAlgo ?? {
+              minFee: ALGO_TX_MIN_FEE,
+              baseFee: ALGO_TX_MIN_FEE,
+            }),
+          };
+        }
+
+        if (txFee.feeDot && !isEmpty(txFee.feeDot)) {
+          customFeeInfo.feeDot = {
+            ...txFee.feeDot[sendSelectedFee.presetIndex],
+            ...(customFee?.feeDot ?? { extraTipInDot: '0' }),
           };
         }
 
@@ -494,6 +560,8 @@ function TxFeeContainer(props: IProps) {
     customFee?.feeUTXO,
     customFee?.feeSol,
     customFee?.feeCkb,
+    customFee?.feeAlgo,
+    customFee?.feeDot,
     unsignedTxs,
     updateSendSelectedFee,
     updateCustomFee,
@@ -745,6 +813,8 @@ function TxFeeContainer(props: IProps) {
       }),
       isAsync: true,
       showFooter: false,
+      disableDrag: platformEnv.isNative,
+      dismissOnOverlayPress: !platformEnv.isNative,
       renderContent: (
         <FeeEditor
           networkId={networkId}

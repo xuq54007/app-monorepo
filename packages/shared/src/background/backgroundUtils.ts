@@ -12,13 +12,14 @@ import {
   isUndefined,
 } from 'lodash';
 
-// import { getFiatEndpoint } from '@onekeyhq/engine/src/endpoint';
+import { memoizee } from '@onekeyhq/shared/src/utils/cacheUtils';
 
 import {
   IMPL_ADA,
   IMPL_ALGO,
   IMPL_ALPH,
   IMPL_APTOS,
+  IMPL_BFC,
   IMPL_BTC,
   IMPL_CFX,
   IMPL_COSMOS,
@@ -30,14 +31,12 @@ import {
   IMPL_NOSTR,
   IMPL_SCDO,
   IMPL_SOL,
-  IMPL_STC,
   IMPL_SUI,
   IMPL_TBTC,
   IMPL_TON,
   IMPL_TRON,
 } from '../engine/engineConsts';
 import { NotAutoPrintError } from '../errors';
-// import debugLogger from '../logger/debugLogger';
 import errorUtils from '../errors/utils/errorUtils';
 import platformEnv from '../platformEnv';
 
@@ -300,6 +299,7 @@ export const scopeNetworks: Record<
   'algo': [IMPL_ALGO],
   'alephium': [IMPL_ALPH],
   'sui': [IMPL_SUI],
+  'bfc': [IMPL_BFC],
   'ton': [IMPL_TON],
   'scdo': [IMPL_SCDO],
   'cardano': [IMPL_ADA],
@@ -309,7 +309,6 @@ export const scopeNetworks: Record<
   'nostr': [IMPL_NOSTR],
   '$hardware_sdk': undefined,
   '$private': undefined,
-  '$privateExternalAccount': [IMPL_BTC, IMPL_TBTC],
   '$walletConnect': undefined,
 };
 
@@ -330,6 +329,7 @@ export const ENABLED_DAPP_SCOPE: IInjectedProviderNamesStrings[] = [
   IInjectedProviderNames.cosmos,
   IInjectedProviderNames.polkadot,
   IInjectedProviderNames.webln,
+  IInjectedProviderNames.bfc,
 ];
 
 export function getNetworkImplsFromDappScope(
@@ -337,6 +337,18 @@ export function getNetworkImplsFromDappScope(
 ) {
   return scopeNetworks[scope];
 }
+
+export const getScopeFromImpl = memoizee(
+  ({ impl }: { impl: string }): IInjectedProviderNamesStrings[] => {
+    const scopes: IInjectedProviderNamesStrings[] = [];
+    Object.entries(scopeNetworks).forEach(([scope, impls]) => {
+      if (impls?.includes(impl)) {
+        scopes.push(scope as IInjectedProviderNamesStrings);
+      }
+    });
+    return scopes;
+  },
+);
 
 export const GLOBAL_STATES_SYNC_BROADCAST_METHOD_NAME =
   'globaStatesSyncBroadcast';

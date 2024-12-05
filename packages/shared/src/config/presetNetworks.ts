@@ -877,18 +877,18 @@ const linea: IServerNetwork = {
   'defaultEnabled': true,
   'backendIndex': false,
 };
-const klaytn: IServerNetwork = {
+const kaia: IServerNetwork = {
   'impl': 'evm',
   'chainId': '8217',
   'id': 'evm--8217',
-  'name': 'Klaytn',
-  'symbol': 'KLAY',
-  'code': 'klaytn',
-  'shortcode': 'klaytn',
-  'shortname': 'Cypress',
+  'name': 'Kaia',
+  'symbol': 'KAIA',
+  'code': 'Kaia',
+  'shortcode': 'kaia',
+  'shortname': 'kaia',
   'decimals': 18,
   'feeMeta': {
-    'code': 'klay',
+    'code': 'kaia',
     'decimals': 9,
     'symbol': 'Gwei',
   },
@@ -899,7 +899,7 @@ const klaytn: IServerNetwork = {
     'isTokenSupported': true,
     'isNFTEnabled': false,
   },
-  'logoURI': 'https://uni.onekey-asset.com/static/chain/klaytn.png',
+  'logoURI': 'https://uni.onekey-asset.com/static/chain/kaia.png',
   'defaultEnabled': true,
   'backendIndex': false,
 };
@@ -2528,6 +2528,27 @@ const alph: IServerNetwork = {
   'status': ENetworkStatus.LISTED,
 };
 
+const benfen: IServerNetwork = {
+  'chainId': 'mainnet',
+  'code': 'bfc',
+  'decimals': 9,
+  'id': 'bfc--mainnet',
+  'impl': 'bfc',
+  'isTestnet': false,
+  'logoURI': 'https://uni.onekey-asset.com/static/chain/bfc.png',
+  'name': 'BenFen',
+  'shortcode': 'bfc',
+  'shortname': 'BFC',
+  'symbol': 'BFC',
+  'feeMeta': {
+    'code': 'bfc',
+    'decimals': 9,
+    'symbol': 'BFC',
+  },
+  'defaultEnabled': true,
+  'status': ENetworkStatus.LISTED,
+};
+
 const chainsOnlyEnabledInDev = [
   tatom, // Cosmos Testnet
 ];
@@ -2574,7 +2595,7 @@ export const presetNetworksMap = {
   mantle,
   mantapacific,
   linea,
-  klaytn,
+  kaia,
   kava,
   iotex,
   harmony,
@@ -2640,7 +2661,34 @@ export const presetNetworksMap = {
   alph,
   ton,
   scdo,
+  benfen,
 };
+
+// top 20 tvl evm networks
+export const getDefaultEnabledEVMNetworksInAllNetworks = memoFn(
+  (): IServerNetwork[] => [
+    eth,
+    bsc,
+    base,
+    arbitrum,
+    avalanche,
+    polygon,
+    core,
+    optimism,
+    blast,
+    mantle,
+    cronos,
+    linea,
+    btr,
+    pulse,
+    scr,
+    mode,
+    xdai,
+    b2,
+    bob,
+    zircuit,
+  ],
+);
 
 export const getPresetNetworks = memoFn((): IServerNetwork[] => [
   dangerAllNetworkRepresent,
@@ -2684,7 +2732,7 @@ export const getPresetNetworks = memoFn((): IServerNetwork[] => [
   mantle,
   mantapacific,
   linea,
-  klaytn,
+  kaia,
   kava,
   iotex,
   harmony,
@@ -2748,5 +2796,6 @@ export const getPresetNetworks = memoFn((): IServerNetwork[] => [
   alph,
   ton,
   scdo,
+  benfen,
   ...(platformEnv.isDev ? chainsOnlyEnabledInDev : []),
 ]);

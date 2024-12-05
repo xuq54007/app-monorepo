@@ -20,6 +20,9 @@ const SettingAppAutoLockModal = LazyLoadPage(
 const SettingCurrencyModal = LazyLoadPage(
   () => import('@onekeyhq/kit/src/views/Setting/pages/Currency'),
 );
+const SettingClearAppCacheModal = LazyLoadPage(
+  () => import('@onekeyhq/kit/src/views/Setting/pages/ClearAppCache'),
+);
 const SettingListModal = LazyLoadPage(
   () => import('@onekeyhq/kit/src/views/Setting/pages/List'),
 );
@@ -72,8 +75,8 @@ const AlignPrimaryAccountModal = LazyLoadPage(
   () => import('@onekeyhq/kit/src/views/Setting/pages/AlignPrimaryAccount'),
 );
 
-const CustomNonceModal = LazyLoadPage(
-  () => import('@onekeyhq/kit/src/views/Setting/pages/CustomNonce'),
+const CustomTransactionModal = LazyLoadPage(
+  () => import('@onekeyhq/kit/src/views/Setting/pages/CustomTransaction'),
 );
 
 export const ModalSettingStack: IModalFlowNavigatorConfig<
@@ -113,6 +116,10 @@ export const ModalSettingStack: IModalFlowNavigatorConfig<
     component: SettingProtectionModal,
   },
   {
+    name: EModalSettingRoutes.SettingClearAppCache,
+    component: SettingClearAppCacheModal,
+  },
+  {
     name: EModalSettingRoutes.SettingSignatureRecordModal,
     component: SettingSignatureRecordModal,
   },
@@ -141,8 +148,8 @@ export const ModalSettingStack: IModalFlowNavigatorConfig<
     component: AlignPrimaryAccountModal,
   },
   {
-    name: EModalSettingRoutes.SettingCustomNonce,
-    component: CustomNonceModal,
+    name: EModalSettingRoutes.SettingCustomTransaction,
+    component: CustomTransactionModal,
   },
   ...(ModalAddressBookRouter as IModalFlowNavigatorConfig<
     EModalSettingRoutes | EModalAddressBookRoutes,

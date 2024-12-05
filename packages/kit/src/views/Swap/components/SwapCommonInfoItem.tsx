@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 
 import {
   Icon,
@@ -16,9 +16,49 @@ interface ISwapCommonInfoItemProps {
   value?: string;
   valueComponent?: ReactNode;
   onPress?: () => void;
-  questionMarkContent?: string;
+  questionMarkContent?: ReactNode;
   isLoading?: boolean;
 }
+
+const SwapCommonInfoItemTitleContent = ({
+  title,
+  questionMarkContent,
+}: {
+  title: string;
+  questionMarkContent?: ReactNode;
+}) => {
+  const questionMarkComponent = useMemo(
+    () => (
+      <Popover
+        title={title}
+        renderTrigger={
+          <IconButton
+            variant="tertiary"
+            size="small"
+            icon="InfoCircleOutline"
+          />
+        }
+        renderContent={<Stack>{questionMarkContent}</Stack>}
+      />
+    ),
+    [questionMarkContent, title],
+  );
+  return (
+    <XStack>
+      <SizableText
+        userSelect="none"
+        mr="$1"
+        size="$bodyMd"
+        color="$textSubdued"
+      >
+        {title}
+      </SizableText>
+      {questionMarkContent ? questionMarkComponent : null}
+    </XStack>
+  );
+};
+
+const SwapCommonInfoItemTitleContentMemo = memo(SwapCommonInfoItemTitleContent);
 
 const SwapCommonInfoItem = ({
   title,
@@ -28,32 +68,6 @@ const SwapCommonInfoItem = ({
   valueComponent,
   questionMarkContent,
 }: ISwapCommonInfoItemProps) => {
-  const questionMarkComponent = useMemo(
-    () => (
-      <Popover
-        title={title}
-        renderTrigger={
-          <IconButton
-            variant="tertiary"
-            size="small"
-            icon="QuestionmarkOutline"
-          />
-        }
-        renderContent={
-          <SizableText
-            p="$5"
-            $gtMd={{
-              size: '$bodyMd',
-            }}
-          >
-            {questionMarkContent}
-          </SizableText>
-        }
-      />
-    ),
-    [questionMarkContent, title],
-  );
-
   const rightTrigger = useMemo(
     () => (
       <XStack
@@ -83,17 +97,10 @@ const SwapCommonInfoItem = ({
 
   return (
     <XStack justifyContent="space-between" alignItems="center">
-      <XStack>
-        <SizableText
-          userSelect="none"
-          mr="$1"
-          size="$bodyMd"
-          color="$textSubdued"
-        >
-          {title}
-        </SizableText>
-        {questionMarkContent ? questionMarkComponent : null}
-      </XStack>
+      <SwapCommonInfoItemTitleContentMemo
+        title={title}
+        questionMarkContent={questionMarkContent}
+      />
 
       <XStack gap="$2">
         {isLoading ? (
@@ -108,4 +115,4 @@ const SwapCommonInfoItem = ({
   );
 };
 
-export default SwapCommonInfoItem;
+export default memo(SwapCommonInfoItem);

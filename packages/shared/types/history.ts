@@ -3,7 +3,7 @@ import type { ETranslations } from '@onekeyhq/shared/src/locale';
 import type { IAccountNFT } from './nft';
 import type { IStakingInfo } from './staking';
 import type { IToken } from './token';
-import type { EReplaceTxType, IDecodedTx } from './tx';
+import type { EDecodedTxStatus, EReplaceTxType, IDecodedTx } from './tx';
 
 export enum EHistoryTxDetailsBlock {
   Flow = 'Flow',
@@ -71,6 +71,7 @@ export type IOnChainHistoryTxUTXOOutput = {
 };
 
 export type IOnChainHistoryTx = {
+  key: string;
   networkId: string;
   tx: string;
   riskLevel: number;
@@ -184,6 +185,7 @@ export type IFetchHistoryTxDetailsParams = {
   withUTXOs?: boolean;
   accountAddress?: string;
   xpub?: string;
+  fixConfirmedTxStatus?: boolean;
 };
 
 export type IFetchTxDetailsParams = {
@@ -225,6 +227,13 @@ export interface IServerFetchAccountHistoryDetailParams {
   txid: string;
   accountAddress?: string;
   xpub?: string;
+}
+
+export interface IChangedPendingTxInfo {
+  accountId: string;
+  networkId: string;
+  txId: string;
+  status: EDecodedTxStatus;
 }
 
 export interface IServerFetchAccountHistoryDetailResp {

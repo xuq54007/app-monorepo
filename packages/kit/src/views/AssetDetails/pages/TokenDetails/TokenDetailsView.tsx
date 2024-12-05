@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 
 import { useIntl } from 'react-intl';
 
@@ -6,6 +6,7 @@ import { Empty, Stack } from '@onekeyhq/components';
 import { AccountSelectorCreateAddressButton } from '@onekeyhq/kit/src/components/AccountSelector/AccountSelectorCreateAddressButton';
 import type { IDBAccount } from '@onekeyhq/kit-bg/src/dbs/local/types';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import debugUtils from '@onekeyhq/shared/src/utils/debug/debugUtils';
 
 import TokenDetailsHeader from './TokenDetailsHeader';
 import TokenDetailsHistory from './TokenDetailsHistory';
@@ -17,6 +18,12 @@ const num = 0;
 function TokenDetailsViews(props: IProps) {
   const { accountId, networkId, walletId, deriveType, indexedAccountId } =
     props;
+
+  const depsChecker =
+    debugUtils.useDebugHooksDepsChangedChecker('TokenDetailsViews');
+  useEffect(() => {
+    depsChecker.checkDeps(props);
+  }, [props, depsChecker]);
 
   const intl = useIntl();
   const [overviewInit, setOverviewInit] = useState(false);
@@ -61,21 +68,21 @@ function TokenDetailsViews(props: IProps) {
     );
   }
   return (
-    <>
-      <TokenDetailsHeader
-        {...props}
-        accountId={currentAccountId}
-        setOverviewInit={setOverviewInit}
-        overviewInit={overviewInit}
-        historyInit={historyInit}
-      />
-      <TokenDetailsHistory
-        {...props}
-        accountId={currentAccountId}
-        setHistoryInit={setHistoryInit}
-        historyInit={historyInit}
-      />
-    </>
+    <TokenDetailsHistory
+      {...props}
+      accountId={currentAccountId}
+      setHistoryInit={setHistoryInit}
+      historyInit={historyInit}
+      ListHeaderComponent={
+        <TokenDetailsHeader
+          {...props}
+          accountId={currentAccountId}
+          setOverviewInit={setOverviewInit}
+          overviewInit={overviewInit}
+          historyInit={historyInit}
+        />
+      }
+    />
   );
 }
 

@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useIntl } from 'react-intl';
 
@@ -13,7 +13,12 @@ import {
   YStack,
   useMedia,
 } from '@onekeyhq/components';
+import type { ITabInstance } from '@onekeyhq/components/src/layouts/TabView/StickyTabComponent/types';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type {
@@ -134,15 +139,6 @@ function BasicTokenDetailTabs({
     () =>
       pools
         ? [
-            pools.length && token
-              ? {
-                  title: intl.formatMessage({ id: ETranslations.global_pools }),
-                  // eslint-disable-next-line react/no-unstable-nested-components
-                  page: (props: ITabPageProps) => (
-                    <MarketDetailPools {...props} pools={pools} />
-                  ),
-                }
-              : undefined,
             md && token
               ? {
                   title: intl.formatMessage({
@@ -151,6 +147,19 @@ function BasicTokenDetailTabs({
                   // eslint-disable-next-line react/no-unstable-nested-components
                   page: (props: ITabPageProps) => (
                     <MarketDetailOverview {...props} token={token} />
+                  ),
+                }
+              : undefined,
+            (pools.length || token?.tickers?.length) && token
+              ? {
+                  title: intl.formatMessage({ id: ETranslations.global_pools }),
+                  // eslint-disable-next-line react/no-unstable-nested-components
+                  page: (props: ITabPageProps) => (
+                    <MarketDetailPools
+                      {...props}
+                      pools={pools}
+                      tickers={token.tickers}
+                    />
                   ),
                 }
               : undefined,
@@ -167,8 +176,34 @@ function BasicTokenDetailTabs({
         : [],
     [intl, md, pools, token],
   );
+
+  const tabRef = useRef<ITabInstance | null>(null);
+
+  const changeTabVerticalScrollEnabled = useCallback(
+    ({ enabled }: { enabled: boolean }) => {
+      tabRef?.current?.setVerticalScrollEnabled(enabled);
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!platformEnv.isNative) {
+      return;
+    }
+    appEventBus.on(
+      EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
+      changeTabVerticalScrollEnabled,
+    );
+    return () => {
+      appEventBus.off(
+        EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
+        changeTabVerticalScrollEnabled,
+      );
+    };
+  }, [changeTabVerticalScrollEnabled]);
+
   return (
     <Tab
+      ref={tabRef}
       refreshControl={
         <RefreshControl refreshing={!!isRefreshing} onRefresh={onRefresh} />
       }

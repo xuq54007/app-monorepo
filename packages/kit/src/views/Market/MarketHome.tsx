@@ -26,9 +26,12 @@ import {
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
 import type { IMarketCategory } from '@onekeyhq/shared/types/market';
 
 import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
+import { AccountSelectorProviderMirror } from '../../components/AccountSelector';
+import { usePromiseResult } from '../../hooks/usePromiseResult';
 import useHomePageWidth from '../Home/hooks/useHomePageWidth';
 
 import { MarketHomeHeader } from './components/MarketHomeHeader';
@@ -88,12 +91,14 @@ function MarketHome() {
       useNativeDriver: false,
     }).start();
   }, [pageWidth]);
-  const [categories, setCategories] = useState<IMarketCategory[]>([]);
-  useEffect(() => {
-    void backgroundApiProxy.serviceMarket.fetchCategories().then((response) => {
-      setCategories(response);
-    });
-  }, []);
+
+  const { result: categories } = usePromiseResult(
+    () => backgroundApiProxy.serviceMarket.fetchCategories(),
+    [],
+    {
+      revalidateOnReconnect: true,
+    },
+  );
 
   const { gtMd } = useMedia();
 
@@ -179,10 +184,18 @@ function MarketHome() {
 
 export default function MarketHomeWithProvider() {
   return (
-    <MarketWatchListProviderMirror
-      storeName={EJotaiContextStoreNames.marketWatchList}
+    <AccountSelectorProviderMirror
+      config={{
+        sceneName: EAccountSelectorSceneName.home,
+        sceneUrl: '',
+      }}
+      enabledNum={[0]}
     >
-      <MarketHome />
-    </MarketWatchListProviderMirror>
+      <MarketWatchListProviderMirror
+        storeName={EJotaiContextStoreNames.marketWatchList}
+      >
+        <MarketHome />
+      </MarketWatchListProviderMirror>
+    </AccountSelectorProviderMirror>
   );
 }

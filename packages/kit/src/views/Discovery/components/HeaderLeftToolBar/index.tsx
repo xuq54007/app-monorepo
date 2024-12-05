@@ -102,6 +102,7 @@ function HeaderLeftToolBar({
               {intl.formatMessage({ id: ETranslations.shortcut_go_back })}
             </Tooltip.Text>
           }
+          titlePlacement="bottom"
           icon="ChevronLeftOutline"
           disabled={!canGoBack}
           onPress={goBack}
@@ -113,6 +114,7 @@ function HeaderLeftToolBar({
               {intl.formatMessage({ id: ETranslations.shortcut_go_forward })}
             </Tooltip.Text>
           }
+          titlePlacement="bottom"
           icon="ChevronRightOutline"
           disabled={!canGoForward}
           onPress={goForward}
@@ -124,6 +126,7 @@ function HeaderLeftToolBar({
               {intl.formatMessage({ id: ETranslations.global_refresh })}
             </Tooltip.Text>
           }
+          titlePlacement="bottom"
           icon={loading ? 'CrossedLargeOutline' : 'RotateClockwiseOutline'}
           onPress={loading ? stopLoading : reload}
           testID={`action-header-item-${loading ? 'stop-loading' : 'reload'}`}

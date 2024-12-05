@@ -10,6 +10,7 @@ import { IconButton } from '../../actions';
 import { type IRenderPaginationParams, Swiper } from '../../layouts';
 import { Image, SizableText, Stack, XStack } from '../../primitives';
 
+import type { IIconButtonProps } from '../../actions';
 import type {
   IImageSourceProps,
   ISizableTextProps,
@@ -96,11 +97,19 @@ export function Banner<T extends IBannerData>({
   emptyComponent,
   itemContainerStyle,
   itemTitleContainerStyle,
+  indicatorContainerStyle,
+  leftIconButtonStyle,
+  rightIconButtonStyle,
+  showPaginationButton = false,
   ...props
 }: {
   data: T[];
   itemContainerStyle?: IStackStyle;
+  leftIconButtonStyle?: Omit<IIconButtonProps, 'icon'>;
+  rightIconButtonStyle?: Omit<IIconButtonProps, 'icon'>;
+  indicatorContainerStyle?: IStackStyle;
   itemTitleContainerStyle?: IStackStyle;
+  showPaginationButton?: boolean;
   size?: 'small' | 'large';
   onItemPress: (item: T) => void;
   isLoading?: boolean;
@@ -127,7 +136,7 @@ export function Banner<T extends IBannerData>({
       gotToPrevIndex,
     }: IRenderPaginationParams) => (
       <>
-        {media.gtMd ? (
+        {showPaginationButton || media.gtMd ? (
           <>
             {currentIndex !== 0 ? (
               <IconButton
@@ -144,6 +153,7 @@ export function Banner<T extends IBannerData>({
                       : '$iconSubduedDark',
                 }}
                 onPress={gotToPrevIndex}
+                {...leftIconButtonStyle}
               />
             ) : null}
 
@@ -163,12 +173,19 @@ export function Banner<T extends IBannerData>({
                 }}
                 onPress={goToNextIndex}
                 disabled={currentIndex === data.length - 1}
+                {...rightIconButtonStyle}
               />
             ) : null}
           </>
         ) : null}
         {data.length > 1 ? (
-          <XStack gap="$1" position="absolute" right="$10" bottom="$10">
+          <XStack
+            gap="$1"
+            position="absolute"
+            right="$10"
+            bottom="$10"
+            {...indicatorContainerStyle}
+          >
             {data.map((_, index) => (
               <Stack
                 key={index}
@@ -186,7 +203,14 @@ export function Banner<T extends IBannerData>({
         ) : null}
       </>
     ),
-    [media.gtMd, data],
+    [
+      showPaginationButton,
+      media.gtMd,
+      data,
+      leftIconButtonStyle,
+      rightIconButtonStyle,
+      indicatorContainerStyle,
+    ],
   );
 
   const keyExtractor = useCallback((item: T) => item.bannerId, []);

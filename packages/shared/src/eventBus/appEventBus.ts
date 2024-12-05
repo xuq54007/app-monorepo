@@ -7,6 +7,7 @@ import type { IAccountSelectorSelectedAccount } from '@onekeyhq/kit-bg/src/dbs/s
 import type { IAccountDeriveTypes } from '@onekeyhq/kit-bg/src/vaults/types';
 import type { IAirGapUrJson } from '@onekeyhq/qr-wallet-sdk';
 
+import appGlobals from '../appGlobals';
 import { defaultLogger } from '../logger/logger';
 import platformEnv from '../platformEnv';
 
@@ -41,7 +42,9 @@ export enum EAppEventBusNames {
   OnSwitchDAppNetwork = 'OnSwitchDAppNetwork',
   DAppNetworkUpdate = 'DAppNetworkUpdate',
   DAppLastFocusUrlUpdate = 'DAppLastFocusUrlUpdate',
+  SyncDappAccountToHomeAccount = 'SyncDappAccountToHomeAccount',
   GlobalDeriveTypeUpdate = 'GlobalDeriveTypeUpdate',
+  NetworkDeriveTypeChanged = 'NetworkDeriveTypeChanged',
   AccountSelectorSelectedAccountUpdate = 'AccountSelectorSelectedAccountUpdate',
   FinalizeWalletSetupStep = 'FinalizeWalletSetupStep',
   FinalizeWalletSetupError = 'FinalizeWalletSetupError',
@@ -80,6 +83,8 @@ export enum EAppEventBusNames {
   SidePanel_UIToBg = 'SidePanel_UIToBg',
   SwapQuoteEvent = 'SwapQuoteEvent',
   AddedCustomNetwork = 'AddedCustomNetwork',
+  ShowFindInWebPage = 'ShowFindInWebPage',
+  ChangeTokenDetailTabVerticalScrollEnabled = 'ChangeTokenDetailTabVerticalScrollEnabled',
   // AccountNameChanged = 'AccountNameChanged',
   // CurrencyChanged = 'CurrencyChanged',
   // BackupRequired = 'BackupRequired',
@@ -112,6 +117,7 @@ export interface IAppEventBusPayload {
   [EAppEventBusNames.DAppConnectUpdate]: undefined;
   [EAppEventBusNames.DAppLastFocusUrlUpdate]: undefined;
   [EAppEventBusNames.GlobalDeriveTypeUpdate]: undefined;
+  [EAppEventBusNames.NetworkDeriveTypeChanged]: undefined;
   [EAppEventBusNames.AccountSelectorSelectedAccountUpdate]: {
     selectedAccount: IAccountSelectorSelectedAccount;
     sceneName: EAccountSelectorSceneName;
@@ -242,6 +248,15 @@ export interface IAppEventBusPayload {
     tokenPairs: { fromToken: ISwapToken; toToken: ISwapToken };
   };
   [EAppEventBusNames.AddedCustomNetwork]: undefined;
+  [EAppEventBusNames.SyncDappAccountToHomeAccount]: {
+    selectedAccount: IAccountSelectorSelectedAccount;
+  };
+  [EAppEventBusNames.ShowFindInWebPage]: {
+    tabId: string;
+  };
+  [EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled]: {
+    enabled: boolean;
+  };
 }
 
 export enum EEventBusBroadcastMethodNames {
@@ -377,7 +392,7 @@ class AppEventBus extends CrossEventEmitter {
 const appEventBus = new AppEventBus();
 
 if (process.env.NODE_ENV !== 'production') {
-  globalThis.$$appEventBus = appEventBus;
+  appGlobals.$$appEventBus = appEventBus;
 }
 
 export { appEventBus };

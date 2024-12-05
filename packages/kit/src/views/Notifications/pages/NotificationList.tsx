@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { noop } from 'lodash';
 import { useIntl } from 'react-intl';
 
 import {
+  Alert,
   Dialog,
   Empty,
   HeaderButtonGroup,
@@ -16,6 +17,7 @@ import {
   XStack,
   useSafeAreaInsets,
 } from '@onekeyhq/components';
+import { NOTIFICATION_ACCOUNT_ACTIVITY_DEFAULT_MAX_ACCOUNT_COUNT } from '@onekeyhq/kit-bg/src/dbs/simple/entity/SimpleDbEntityNotificationSettings';
 import {
   useNotificationsAtom,
   useNotificationsReadedAtom,
@@ -33,6 +35,8 @@ import useFormatDate from '../../../hooks/useFormatDate';
 import { usePromiseResult } from '../../../hooks/usePromiseResult';
 
 import type { IListItemProps } from '../../../components/ListItem';
+
+let maxAccountLimitWarningDismissed = false;
 
 function HeaderRight() {
   const intl = useIntl();
@@ -120,6 +124,8 @@ function NotificationItem({
   );
 }
 
+const NotificationItemMemo = memo(NotificationItem);
+
 function groupNotificationsByDate(
   notifications: INotificationPushMessageListItem[],
 ): {
@@ -135,6 +141,80 @@ function groupNotificationsByDate(
       data: notifications,
     },
   ];
+}
+
+function MaxAccountLimitWarning() {
+  const navigation = useAppNavigation();
+  const intl = useIntl();
+
+  const [
+    {
+      lastSettingsUpdateTime,
+      maxAccountCount = NOTIFICATION_ACCOUNT_ACTIVITY_DEFAULT_MAX_ACCOUNT_COUNT,
+    },
+  ] = useNotificationsAtom();
+
+  const { result } = usePromiseResult(async () => {
+    noop(lastSettingsUpdateTime);
+    const serverSettings =
+      await backgroundApiProxy.serviceNotification.fetchServerNotificationSettings();
+    const enabledAccountCount =
+      await backgroundApiProxy.simpleDb.notificationSettings.getEnabledAccountCount();
+    return {
+      serverSettings,
+      enabledAccountCount,
+    };
+  }, [lastSettingsUpdateTime]);
+
+  const shouldShowMaxAccountLimitWarning = useMemo(
+    () =>
+      !maxAccountLimitWarningDismissed &&
+      result?.serverSettings?.pushEnabled &&
+      result?.serverSettings?.accountActivityPushEnabled &&
+      result?.enabledAccountCount &&
+      result?.enabledAccountCount >= maxAccountCount,
+    [
+      result?.enabledAccountCount,
+      maxAccountCount,
+      result?.serverSettings?.accountActivityPushEnabled,
+      result?.serverSettings?.pushEnabled,
+    ],
+  );
+
+  if (!shouldShowMaxAccountLimitWarning) {
+    return null;
+  }
+
+  return (
+    <Alert
+      mx="$5"
+      mb="$2"
+      type="warning"
+      title={intl.formatMessage(
+        {
+          id: ETranslations.notifications_account_reached_limit_alert_title,
+        },
+        {
+          count: maxAccountCount,
+        },
+      )}
+      description={intl.formatMessage({
+        id: ETranslations.notifications_account_reached_limit_alert_desc,
+      })}
+      closable
+      onClose={() => {
+        maxAccountLimitWarningDismissed = true;
+      }}
+      action={{
+        primary: intl.formatMessage({ id: ETranslations.global_manage }),
+        onPrimaryPress: () => {
+          navigation.pushModal(EModalRoutes.SettingModal, {
+            screen: EModalSettingRoutes.SettingManageAccountActivity,
+          });
+        },
+      }}
+    />
+  );
 }
 
 function NotificationList() {
@@ -181,6 +261,81 @@ function NotificationList() {
     () => groupNotificationsByDate(result),
     [result],
   );
+
+  const contentView = useMemo(() => {
+    if (isLoading || isLoading === undefined) {
+      return (
+        <Stack gap="$1.5" px="$5">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Stack key={index} gap="$1" py="$2">
+              <Stack py="$1">
+                <Skeleton h="$3" w="$16" />
+              </Stack>
+              <Stack py="$1">
+                <Skeleton h="$3" w="$48" />
+              </Stack>
+            </Stack>
+          ))}
+        </Stack>
+      );
+    }
+    return (
+      <>
+        <SectionList
+          sections={sectionsData}
+          renderSectionHeader={
+            ({ section: { title } }) => null // <SectionList.SectionHeader title={title} />
+          }
+          renderItem={({
+            item,
+            index,
+          }: {
+            item: INotificationPushMessageListItem;
+            index: number;
+          }) => {
+            const itemView = (
+              <NotificationItemMemo
+                key={item.msgId || index}
+                item={item}
+                {...(index !== 0 && {
+                  mt: '$2.5',
+                })}
+                onPress={() => {
+                  void notificationsUtils.navigateToNotificationDetail({
+                    navigation,
+                    message: item.body,
+                    notificationAccountId:
+                      item?.body?.extras?.params?.accountId,
+                    notificationId:
+                      item?.msgId ||
+                      item?.body?.extras?.params?.msgId ||
+                      item?.body?.extras?.msgId ||
+                      '',
+                  });
+                }}
+              />
+            );
+            return itemView;
+          }}
+          estimatedItemSize="$20"
+          ListEmptyComponent={
+            <Empty
+              pt={170}
+              icon="BellOutline"
+              title={intl.formatMessage({
+                id: ETranslations.notifications_empty_title,
+              })}
+              description={intl.formatMessage({
+                id: ETranslations.notifications_empty_desc,
+              })}
+            />
+          }
+          ListFooterComponent={<Stack h={bottom || '$5'} />}
+        />
+      </>
+    );
+  }, [isLoading, bottom, intl, navigation, sectionsData]);
+
   return (
     <Page scrollEnabled safeAreaEnabled={false}>
       <Page.Header
@@ -188,69 +343,8 @@ function NotificationList() {
         headerRight={renderHeaderRight}
       />
       <Page.Body pb={bottom || '$5'}>
-        {isLoading && !result?.length ? (
-          <Stack gap="$1.5" px="$5">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Stack key={index} gap="$1" py="$2">
-                <Stack py="$1">
-                  <Skeleton h="$3" w="$16" />
-                </Stack>
-                <Stack py="$1">
-                  <Skeleton h="$3" w="$48" />
-                </Stack>
-              </Stack>
-            ))}
-          </Stack>
-        ) : (
-          <>
-            <SectionList
-              sections={sectionsData}
-              renderSectionHeader={
-                ({ section: { title } }) => null // <SectionList.SectionHeader title={title} />
-              }
-              renderItem={({
-                item,
-                index,
-              }: {
-                item: INotificationPushMessageListItem;
-                index: number;
-              }) => (
-                <NotificationItem
-                  key={index}
-                  item={item}
-                  {...(index !== 0 && {
-                    mt: '$2.5',
-                  })}
-                  onPress={() => {
-                    void notificationsUtils.navigateToNotificationDetail({
-                      navigation,
-                      message: item.body,
-                      notificationId:
-                        item?.msgId ||
-                        item?.body?.extras?.params?.msgId ||
-                        item?.body?.extras?.msgId ||
-                        '',
-                    });
-                  }}
-                />
-              )}
-              estimatedItemSize="$20"
-              ListEmptyComponent={
-                <Empty
-                  pt={170}
-                  icon="BellOutline"
-                  title={intl.formatMessage({
-                    id: ETranslations.notifications_empty_title,
-                  })}
-                  description={intl.formatMessage({
-                    id: ETranslations.notifications_empty_desc,
-                  })}
-                />
-              }
-              ListFooterComponent={<Stack h={bottom || '$5'} />}
-            />
-          </>
-        )}
+        <MaxAccountLimitWarning />
+        {contentView}
       </Page.Body>
     </Page>
   );

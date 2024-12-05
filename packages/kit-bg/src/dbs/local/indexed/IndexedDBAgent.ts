@@ -1,6 +1,7 @@
 import { isNil, isNumber } from 'lodash';
 
 import errorUtils from '@onekeyhq/shared/src/errors/utils/errorUtils';
+import dbPerfMonitor from '@onekeyhq/shared/src/utils/debug/dbPerfMonitor';
 import { noopObject } from '@onekeyhq/shared/src/utils/miscUtils';
 import resetUtils from '@onekeyhq/shared/src/utils/resetUtils';
 
@@ -97,10 +98,13 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
     readOnly?: boolean;
   }) {
     if (!this.txPair || alwaysCreate) {
+      // eslint-disable-next-line spellcheck/spell-checker
+      // type IDBTransactionMode = "readonly" | "readwrite" | "versionchange";
+      const mode: 'readwrite' = readOnly ? ('readonly' as any) : 'readwrite';
       const dbTx = db.transaction(
         ALL_LOCAL_DB_STORE_NAMES,
         // 'readwrite',
-        readOnly ? ('readonly' as any) : 'readwrite',
+        mode,
       );
 
       const contextStore = this._getOrCreateObjectStore(
@@ -270,6 +274,7 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
   async getRecordById<T extends ELocalDBStoreNames>(
     params: ILocalDBGetRecordByIdParams<T>,
   ): Promise<ILocalDBGetRecordByIdResult<T>> {
+    // logLocalDbCall(`getRecordById`, params.name, [params.id]);
     return this.withTransaction(
       async (tx) => {
         const [record] = await this.txGetRecordById({
@@ -288,6 +293,7 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
     params: ILocalDBTxGetRecordsCountParams<T>,
   ): Promise<ILocalDBGetRecordsCountResult> {
     const { tx: paramsTx, name } = params;
+    dbPerfMonitor.logLocalDbCall(`txGetRecordsCount`, name, [true]);
     const fn = async (tx: ILocalDBTransaction) => {
       const store = this._getObjectStoreFromTx(tx, name);
       const count = await store.count();
@@ -302,6 +308,9 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
     params: ILocalDBTxGetAllRecordsParams<T>,
   ): Promise<ILocalDBTxGetAllRecordsResult<T>> {
     const { tx: paramsTx, name, ids, limit, offset } = params;
+    dbPerfMonitor.logLocalDbCall(`txGetAllRecords`, name, [
+      `records: ${ids?.length || ''}`,
+    ]);
     const fn = async (tx: ILocalDBTransaction) => {
       const store = this._getObjectStoreFromTx<T>(tx, name);
       // TODO add query support
@@ -363,6 +372,7 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
       tx: ILocalDBTransaction,
     ) => {
       const store = this._getObjectStoreFromTx(tx, name);
+      dbPerfMonitor.logLocalDbCall(`txGetRecordById`, name, [id]);
       const record = await store.get(id);
       if (!record) {
         const error = new Error(`record not found: ${name} ${id}`);
@@ -380,12 +390,16 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
     resetUtils.checkNotInResetting();
     const { name, tx, updater } = params;
     const pairs = await this.buildRecordPairsFromIds(params);
+    dbPerfMonitor.logLocalDbCall(`txUpdateRecords`, name, [
+      `records: ${pairs.length}`,
+    ]);
     await Promise.all(
       pairs.map((pair) =>
         this._executeUpdateRecord({
           name,
           tx,
           updater,
+          // TODO only update first record?
           oldRecord: pair[0],
         }),
       ),
@@ -403,6 +417,9 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
       skipped: 0,
       addedIds: [],
     };
+    dbPerfMonitor.logLocalDbCall(`txAddRecords`, name, [
+      `records: ${records.length}`,
+    ]);
     for (const record of records) {
       let shouldAdd = true;
       if (skipIfExists) {
@@ -429,8 +446,12 @@ export class IndexedDBAgent extends LocalDbAgentBase implements ILocalDBAgent {
     const { name, tx } = params;
     const store = this._getObjectStoreFromTx(tx, name);
     const pairs = await this.buildRecordPairsFromIds(params);
+    dbPerfMonitor.logLocalDbCall(`txRemoveRecords`, name, [
+      `records: ${pairs.length}`,
+    ]);
     await Promise.all(
       pairs.map(async (pair) => {
+        // TODO only remove first record?
         const recordId = pair[0]?.id;
         if (isNil(recordId)) {
           throw new Error('dbRemoveRecord ERROR: recordId not found');

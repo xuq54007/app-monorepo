@@ -1,3 +1,7 @@
+import { isNil } from 'lodash';
+
+import type { IAccountDeriveTypes } from '@onekeyhq/kit-bg/src/vaults/types';
+
 import {
   BtcDappNetworkTypes,
   BtcDappUniSetChainTypes,
@@ -5,6 +9,7 @@ import {
   EBtcDappUniSetChainTypeEnum,
 } from '../../types/ProviderApis/ProviderApiBtc.type';
 import { getNetworkIdsMap } from '../config/networkIds';
+import { getDefaultEnabledEVMNetworksInAllNetworks } from '../config/presetNetworks';
 import {
   COINTYPE_LIGHTNING,
   COINTYPE_LIGHTNING_TESTNET,
@@ -18,6 +23,9 @@ import platformEnv from '../platformEnv';
 import numberUtils from './numberUtils';
 
 import type { IServerNetwork } from '../../types';
+
+const defaultEnabledEVMNetworks = getDefaultEnabledEVMNetworksInAllNetworks();
+const defaultEnabledEVMNetworkIds = defaultEnabledEVMNetworks.map((n) => n.id);
 
 function parseNetworkId({ networkId }: { networkId: string }) {
   const [impl, chainId] = networkId.split(SEPERATOR);
@@ -106,6 +114,31 @@ export function getBtcDappUniSetChainName(network: IServerNetwork) {
       BtcDappUniSetChainTypes[EBtcDappUniSetChainTypeEnum.BITCOIN_MAINNET],
     );
   }
+}
+
+export function isEnabledNetworksInAllNetworks({
+  networkId,
+  disabledNetworks,
+  enabledNetworks,
+  isTestnet,
+}: {
+  networkId: string;
+  disabledNetworks: Record<string, boolean>;
+  enabledNetworks: Record<string, boolean>;
+  isTestnet: boolean;
+}) {
+  if (isTestnet) {
+    return !!enabledNetworks[networkId];
+  }
+
+  if (getNetworkImpl({ networkId }) === IMPL_EVM) {
+    if (defaultEnabledEVMNetworkIds.includes(networkId)) {
+      return !disabledNetworks[networkId];
+    }
+
+    return !!enabledNetworks[networkId];
+  }
+  return !disabledNetworks[networkId];
 }
 
 function isAllNetwork({

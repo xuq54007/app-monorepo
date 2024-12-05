@@ -251,6 +251,58 @@ export function AssetItem({
   );
 }
 
+function NotificationAccountInfo({
+  notificationAccountId,
+  networkId,
+  allowClickAccountNameSwitch,
+}: {
+  notificationAccountId: string;
+  networkId: string;
+  allowClickAccountNameSwitch: boolean | undefined;
+}) {
+  const { account: notificationAccount } = useAccountData({
+    networkId,
+    accountId: notificationAccountId,
+  });
+  const notificationAccountAddress = useMemo(
+    () =>
+      notificationAccount?.addressDetail?.normalizedAddress ||
+      notificationAccount?.address,
+    [notificationAccount],
+  );
+  const intl = useIntl();
+
+  // account may be deleted
+  if (!notificationAccountAddress) {
+    return null;
+  }
+
+  return (
+    <>
+      <Divider mx="$5" />
+      <InfoItemGroup>
+        <InfoItem
+          label={intl.formatMessage({
+            id: ETranslations.history_notification_receiver_label,
+          })}
+          renderContent={notificationAccountAddress}
+          compact
+          description={
+            notificationAccountAddress ? (
+              <AddressInfo
+                address={notificationAccountAddress}
+                accountId={notificationAccount?.id}
+                networkId={networkId}
+                allowClickAccountNameSwitch={allowClickAccountNameSwitch}
+              />
+            ) : null
+          }
+        />
+      </InfoItemGroup>
+    </>
+  );
+}
+
 function HistoryDetails() {
   const intl = useIntl();
   const route =
@@ -266,6 +318,8 @@ function HistoryDetails() {
     networkId,
     transactionHash,
     notificationId,
+    notificationAccountId,
+    allowClickAccountNameSwitch,
     historyTx: historyTxParam,
     isAllNetworks,
     checkIsFocused = true,
@@ -301,6 +355,7 @@ function HistoryDetails() {
         networkId,
         accountAddress,
         txid,
+        fixConfirmedTxStatus: vaultSettings?.fixConfirmedTxEnabled,
       });
       historyInit.current = true;
       if (
@@ -332,7 +387,14 @@ function HistoryDetails() {
       };
     },
 
-    [accountId, networkId, accountAddress, txid, historyTxParam],
+    [
+      accountAddress,
+      accountId,
+      networkId,
+      txid,
+      vaultSettings?.fixConfirmedTxEnabled,
+      historyTxParam,
+    ],
     {
       watchLoading: true,
       pollingInterval: POLLING_INTERVAL_FOR_HISTORY,
@@ -742,6 +804,7 @@ function HistoryDetails() {
                   address={to}
                   networkId={networkId}
                   accountId={accountId}
+                  allowClickAccountNameSwitch={allowClickAccountNameSwitch}
                 />
               }
             />
@@ -757,6 +820,7 @@ function HistoryDetails() {
                 address={from}
                 networkId={networkId}
                 accountId={accountId}
+                allowClickAccountNameSwitch={allowClickAccountNameSwitch}
               />
             }
           />
@@ -771,6 +835,7 @@ function HistoryDetails() {
                 address={swapReceivedAddress ?? ''}
                 networkId={swapReceivedNetworkId ?? ''}
                 accountId={accountId}
+                allowClickAccountNameSwitch={allowClickAccountNameSwitch}
               />
             }
           />
@@ -779,7 +844,6 @@ function HistoryDetails() {
     }
 
     if (vaultSettings?.isUtxo && !txAddresses?.isSingleTransfer) return null;
-
     if (txAddresses?.from && txAddresses?.to && txAddresses?.isSingleTransfer) {
       return (
         <>
@@ -792,6 +856,7 @@ function HistoryDetails() {
                 address={txAddresses.from}
                 networkId={networkId}
                 accountId={accountId}
+                allowClickAccountNameSwitch={allowClickAccountNameSwitch}
               />
             }
           />
@@ -804,6 +869,7 @@ function HistoryDetails() {
                 address={txAddresses.to}
                 networkId={networkId}
                 accountId={accountId}
+                allowClickAccountNameSwitch={allowClickAccountNameSwitch}
               />
             }
           />
@@ -831,6 +897,7 @@ function HistoryDetails() {
     intl,
     networkId,
     accountId,
+    allowClickAccountNameSwitch,
   ]);
 
   const renderTxApproveFor = useCallback(() => {
@@ -932,7 +999,7 @@ function HistoryDetails() {
     return (
       <>
         {/* Part 1: What change */}
-        <Stack>
+        <Stack testID="history-details-what-assets-change">
           {transfersToRender?.map((block) =>
             renderAssetsChange({
               transfers: block.transfers,
@@ -943,7 +1010,7 @@ function HistoryDetails() {
         </Stack>
 
         {/* Part 2: Details */}
-        <Stack>
+        <Stack testID="history-details-main-content">
           {/* Primary */}
           <InfoItemGroup>
             <InfoItem
@@ -957,6 +1024,16 @@ function HistoryDetails() {
               compact
             />
           </InfoItemGroup>
+
+          {/* Notification account */}
+          {notificationAccountId ? (
+            <NotificationAccountInfo
+              notificationAccountId={notificationAccountId}
+              networkId={networkId}
+              allowClickAccountNameSwitch={allowClickAccountNameSwitch}
+            />
+          ) : null}
+
           {/* Secondary */}
           <Divider mx="$5" />
           <InfoItemGroup>
@@ -1054,6 +1131,9 @@ function HistoryDetails() {
     txInfo?.blockHeight,
     txInfo?.nonce,
     txInfo?.confirmations,
+    notificationAccountId,
+    networkId,
+    allowClickAccountNameSwitch,
     renderTxMetaInfo,
     txid,
     vaultSettings?.hideBlockExplorer,
@@ -1078,4 +1158,4 @@ function HistoryDetails() {
   );
 }
 
-export { HistoryDetails };
+export default HistoryDetails;

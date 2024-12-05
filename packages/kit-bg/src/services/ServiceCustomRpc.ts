@@ -65,13 +65,16 @@ class ServiceCustomRpc extends ServiceBase {
   public async getAllCustomRpc(): Promise<ICustomRpcItem[]> {
     const result =
       await this.backgroundApi.simpleDb.customRpc.getAllCustomRpc();
-    return Promise.all(
+    const itemsWithNetwork = await Promise.all(
       result.map(async (r) => ({
         ...r,
         network: await this.backgroundApi.serviceNetwork.getNetwork({
           networkId: r.networkId,
         }),
       })),
+    );
+    return itemsWithNetwork.sort((a, b) =>
+      (a.network?.name ?? '').localeCompare(b.network?.name ?? ''),
     );
   }
 
@@ -91,6 +94,7 @@ class ServiceCustomRpc extends ServiceBase {
     });
     const result = await vault.getCustomRpcEndpointStatus({
       rpcUrl: params.rpcUrl,
+      validateChainId: params.validateChainId,
     });
     return result;
   }
@@ -184,6 +188,7 @@ class ServiceCustomRpc extends ServiceBase {
       networkInfo,
     });
 
+    void this.backgroundApi.serviceNetwork.clearAllNetworksCache();
     setTimeout(() => {
       void this.backgroundApi.serviceNetwork.clearNetworkVaultSettingsCache();
       appEventBus.emit(EAppEventBusNames.AddedCustomNetwork, undefined);
@@ -204,6 +209,7 @@ class ServiceCustomRpc extends ServiceBase {
       await this.deleteCustomRpc(params.networkId);
     }
     await this.backgroundApi.simpleDb.customNetwork.deleteCustomNetwork(params);
+    void this.backgroundApi.serviceNetwork.clearAllNetworksCache();
     setTimeout(() => {
       appEventBus.emit(EAppEventBusNames.AddedCustomNetwork, undefined);
     }, 300);
@@ -211,7 +217,11 @@ class ServiceCustomRpc extends ServiceBase {
 
   @backgroundMethod()
   public async getAllCustomNetworks(): Promise<IServerNetwork[]> {
-    return this.backgroundApi.simpleDb.customNetwork.getAllCustomNetworks();
+    try {
+      return await this.backgroundApi.simpleDb.customNetwork.getAllCustomNetworks();
+    } catch {
+      return [];
+    }
   }
 
   /*= ===============================
@@ -220,18 +230,25 @@ class ServiceCustomRpc extends ServiceBase {
   @backgroundMethod()
   public async getServerNetworks(): Promise<IServerNetwork[]> {
     return this.semaphore.runExclusive(async () => {
-      const { networks, lastFetchTime } =
-        await this.backgroundApi.simpleDb.serverNetwork.getAllServerNetworks();
-      const now = Date.now();
+      try {
+        const { networks, lastFetchTime } =
+          await this.backgroundApi.simpleDb.serverNetwork.getAllServerNetworks();
+        const now = Date.now();
 
-      if (
-        !lastFetchTime ||
-        now - lastFetchTime >= timerUtils.getTimeDurationMs({ hour: 1 })
-      ) {
-        return this.fetchNetworkFromServer();
+        if (
+          !lastFetchTime ||
+          now - lastFetchTime >= timerUtils.getTimeDurationMs({ hour: 1 })
+        ) {
+          this.fetchNetworkFromServer().catch((error) => {
+            defaultLogger.account.wallet.getServerNetworksError(error);
+          });
+        }
+        defaultLogger.account.wallet.getServerNetworks(networks);
+        return networks || [];
+      } catch (error) {
+        defaultLogger.account.wallet.getServerNetworksError(error);
+        return [];
       }
-      defaultLogger.account.wallet.getServerNetworks(networks);
-      return networks;
     });
   }
 
@@ -271,6 +288,9 @@ class ServiceCustomRpc extends ServiceBase {
         });
       }
     }
+
+    // If the server network is updated, clear the getAllNetworks cache
+    await this.backgroundApi.serviceNetwork.clearAllNetworksCache();
 
     defaultLogger.account.wallet.insertServerNetwork(usedNetworks);
     return usedNetworks;

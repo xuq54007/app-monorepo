@@ -105,8 +105,7 @@ export type INotificationPushSyncAccount = {
 };
 export enum ENotificationPushSyncMethod {
   override = 'override',
-  append = 'append',
-  replace = 'replace',
+  append = 'append', // append or replace
 }
 export enum ENotificationPushTopicTypes {
   accountActivity = 'accountActivity',
@@ -124,6 +123,12 @@ export type INotificationPushRegisterParams = {
 export type INotificationPushSettings = {
   pushEnabled?: boolean;
   accountActivityPushEnabled?: boolean;
+  maxAccount?: number;
+  supportNetworks?: {
+    networkId: string;
+    impl: string;
+    chainId: string;
+  }[];
   // announcementEnabled?: boolean;
   // coinPriceAlertEnabled?: boolean;
   // coinVolatilityAlertEnabled?: boolean;

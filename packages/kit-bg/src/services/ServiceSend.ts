@@ -2,6 +2,7 @@ import BigNumber from 'bignumber.js';
 import { cloneDeep, isNil } from 'lodash';
 
 import type {
+  IEncodedTx,
   IUnsignedMessage,
   IUnsignedTxPro,
 } from '@onekeyhq/core/src/types';
@@ -20,7 +21,10 @@ import type {
   IFeeInfoUnit,
   ISendSelectedFeeInfo,
 } from '@onekeyhq/shared/types/fee';
-import type { ESendPreCheckTimingEnum } from '@onekeyhq/shared/types/send';
+import type {
+  ESendPreCheckTimingEnum,
+  IParseTransactionResp,
+} from '@onekeyhq/shared/types/send';
 import { EReasonForNeedPassword } from '@onekeyhq/shared/types/setting';
 import type { IFetchTokenDetailItem } from '@onekeyhq/shared/types/token';
 import type {
@@ -56,12 +60,19 @@ class ServiceSend extends ServiceBase {
   async buildDecodedTx(
     params: ISendTxBaseParams & IBuildDecodedTxParams,
   ): Promise<IDecodedTx> {
-    const { networkId, accountId, unsignedTx, feeInfo, transferPayload } =
-      params;
+    const {
+      networkId,
+      accountId,
+      unsignedTx,
+      feeInfo,
+      transferPayload,
+      saveToLocalHistory,
+    } = params;
     const vault = await vaultFactory.getVault({ networkId, accountId });
     const decodedTx = await vault.buildDecodedTx({
       unsignedTx,
       transferPayload,
+      saveToLocalHistory,
     });
 
     if (feeInfo) {
@@ -89,6 +100,7 @@ class ServiceSend extends ServiceBase {
       specifiedFeeRate,
       prevNonce,
       feeInfo,
+      swapInfo,
     } = params;
     const vault = await vaultFactory.getVault({ networkId, accountId });
     return vault.buildUnsignedTx({
@@ -99,6 +111,7 @@ class ServiceSend extends ServiceBase {
       specifiedFeeRate,
       prevNonce,
       feeInfo,
+      swapInfo,
     });
   }
 
@@ -308,12 +321,14 @@ class ServiceSend extends ServiceBase {
     unsignedTxs,
     tokenApproveInfo,
     nonceInfo,
+    feeInfoEditable,
   }: ISendTxBaseParams & {
     unsignedTxs: IUnsignedTxPro[];
     tokenApproveInfo?: ITokenApproveInfo;
     feeInfos?: ISendSelectedFeeInfo[];
     nativeAmountInfo?: INativeAmountInfo;
     nonceInfo?: { nonce: number };
+    feeInfoEditable?: boolean;
   }) {
     const newUnsignedTxs = [];
     for (let i = 0, len = unsignedTxs.length; i < len; i += 1) {
@@ -328,6 +343,7 @@ class ServiceSend extends ServiceBase {
         nativeAmountInfo,
         tokenApproveInfo,
         nonceInfo,
+        feeInfoEditable,
       });
 
       newUnsignedTxs.push(newUnsignedTx);
@@ -382,6 +398,7 @@ class ServiceSend extends ServiceBase {
           unsignedTx,
           feeInfo,
           transferPayload,
+          saveToLocalHistory: true,
         });
 
         const data = {
@@ -502,6 +519,7 @@ class ServiceSend extends ServiceBase {
       specifiedFeeRate,
       prevNonce,
       feeInfo,
+      isInternalSwap,
     } = params;
 
     let newUnsignedTx = unsignedTx;
@@ -519,11 +537,15 @@ class ServiceSend extends ServiceBase {
         approveInfo,
         transfersInfo,
         wrappedInfo,
+        swapInfo,
         specifiedFeeRate,
         prevNonce,
         feeInfo,
       });
     }
+
+    newUnsignedTx.isInternalSwap = isInternalSwap;
+
     if (swapInfo) {
       newUnsignedTx.swapInfo = swapInfo;
     }
@@ -675,6 +697,52 @@ class ServiceSend extends ServiceBase {
         feeInfo: params.feeInfos?.[i]?.feeInfo,
       });
     }
+  }
+
+  @backgroundMethod()
+  async parseTransaction(params: {
+    networkId: string;
+    accountId: string;
+    encodedTx: IEncodedTx;
+    accountAddress?: string;
+  }) {
+    const { networkId, accountId, encodedTx } = params;
+    const vault = await vaultFactory.getVault({
+      networkId,
+      accountId,
+    });
+    let accountAddress = params.accountAddress;
+    if (!accountAddress) {
+      accountAddress =
+        await this.backgroundApi.serviceAccount.getAccountAddressForApi({
+          accountId,
+          networkId,
+        });
+    }
+
+    const { encodedTx: encodedTxToParse } =
+      await vault.buildParseTransactionParams({
+        encodedTx,
+      });
+
+    const client = await this.backgroundApi.serviceGas.getClient(
+      EServiceEndpointEnum.Wallet,
+    );
+    const resp = await client.post<{ data: IParseTransactionResp }>(
+      '/wallet/v1/account/parse-transaction',
+      {
+        networkId,
+        accountAddress,
+        encodedTx: encodedTxToParse,
+      },
+      {
+        headers:
+          await this.backgroundApi.serviceAccountProfile._getWalletTypeHeader({
+            accountId,
+          }),
+      },
+    );
+    return resp.data.data;
   }
 }
 

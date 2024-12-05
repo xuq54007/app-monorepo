@@ -1,20 +1,27 @@
+import BigNumber from 'bignumber.js';
+
 import { isTaprootAddress } from '@onekeyhq/core/src/chains/btc/sdkBtc';
 import {
   backgroundClass,
   backgroundMethod,
 } from '@onekeyhq/shared/src/background/backgroundDecorators';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 import { memoizee } from '@onekeyhq/shared/src/utils/cacheUtils';
 import earnUtils from '@onekeyhq/shared/src/utils/earnUtils';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import type { INetworkAccount } from '@onekeyhq/shared/types/account';
+import type { IDiscoveryBanner } from '@onekeyhq/shared/types/discovery';
 import type {
   EEarnProviderEnum,
   ISupportedSymbol,
 } from '@onekeyhq/shared/types/earn';
 import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
-import type { IAccountHistoryTx } from '@onekeyhq/shared/types/history';
+import type {
+  IAccountHistoryTx,
+  IChangedPendingTxInfo,
+} from '@onekeyhq/shared/types/history';
 import type {
   IAllowanceOverview,
   IAvailableAsset,
@@ -22,12 +29,14 @@ import type {
   IClaimRecordParams,
   IClaimableListResponse,
   IEarnAccountResponse,
+  IEarnAccountToken,
   IEarnAccountTokenResponse,
   IEarnBabylonTrackingItem,
   IEarnEstimateAction,
   IEarnEstimateFeeResp,
   IEarnFAQList,
   IEarnInvestmentItem,
+  IEarnUnbondingDelegationList,
   IGetPortfolioParams,
   IStakeBaseParams,
   IStakeClaimBaseParams,
@@ -36,15 +45,22 @@ import type {
   IStakeProtocolDetails,
   IStakeProtocolListItem,
   IStakeTag,
+  IStakeTx,
   IStakeTxResponse,
   IUnstakePushParams,
   IWithdrawBaseParams,
 } from '@onekeyhq/shared/types/staking';
+import { EDecodedTxStatus } from '@onekeyhq/shared/types/tx';
 
 import simpleDb from '../dbs/simple/simpleDb';
 import { vaultFactory } from '../vaults/factory';
 
 import ServiceBase from './ServiceBase';
+
+import type {
+  IAddEarnOrderParams,
+  IEarnOrderItem,
+} from '../dbs/simple/entity/SimpleDbEntityEarnOrders';
 
 @backgroundClass()
 class ServiceStaking extends ServiceBase {
@@ -160,7 +176,7 @@ class ServiceStaking extends ServiceBase {
     }
     const resp = await client.post<{
       data: IStakeTxResponse;
-    }>(`/earn/v1/stake`, {
+    }>(`/earn/v2/stake`, {
       accountAddress: account.address,
       publicKey: stakingConfig.usePublicKey ? account.pub : undefined,
       term: params.term,
@@ -189,7 +205,7 @@ class ServiceStaking extends ServiceBase {
     }
     const resp = await client.post<{
       data: IStakeTxResponse;
-    }>(`/earn/v1/unstake`, {
+    }>(`/earn/v2/unstake`, {
       accountAddress: account.address,
       networkId,
       publicKey: stakingConfig.usePublicKey ? account.pub : undefined,
@@ -248,7 +264,7 @@ class ServiceStaking extends ServiceBase {
 
     const resp = await client.post<{
       data: IStakeTxResponse;
-    }>(`/earn/v1/claim`, {
+    }>(`/earn/v2/claim`, {
       accountAddress: account.address,
       networkId,
       publicKey: stakingConfig.usePublicKey ? account.pub : undefined,
@@ -478,28 +494,27 @@ class ServiceStaking extends ServiceBase {
     }[],
   ) {
     const client = await this.getClient(EServiceEndpointEnum.Earn);
-    const response = await client.post<{
-      data: IEarnAccountResponse;
-    }>(`/earn/v1/account/list`, { accounts: params });
-    const resp = response.data.data;
     const result: IEarnAccountTokenResponse = {
-      totalFiatValue: resp.totalFiatValue,
-      earnings24h: resp.earnings24h,
       accounts: [],
     };
+    const tokensResponse = await client.post<{
+      data: { tokens: IEarnAccountToken[] };
+    }>(`/earn/v1/recommend`, { accounts: params });
 
     for (const account of params) {
       result.accounts.push({
         ...account,
         tokens:
-          resp.tokens?.filter((i) => i.networkId === account.networkId) || [],
+          tokensResponse.data.data.tokens?.filter(
+            (i) => i.networkId === account.networkId,
+          ) || [],
       });
     }
     return result;
   }
 
   @backgroundMethod()
-  async fetchAllNetworkAssets({
+  async getEarnAvailableAccountsParams({
     accountId,
     networkId,
     assets,
@@ -537,7 +552,64 @@ class ServiceStaking extends ServiceBase {
         ]),
       ).values(),
     );
-    return this.getAccountAsset(uniqueAccountParams);
+    return uniqueAccountParams;
+  }
+
+  @backgroundMethod()
+  async fetchAccountOverview(params: {
+    accountId: string;
+    networkId: string;
+    assets: IAvailableAsset[];
+  }) {
+    const accounts = await this.getEarnAvailableAccountsParams(params);
+    const client = await this.getClient(EServiceEndpointEnum.Earn);
+    const overviewData = await Promise.all(
+      accounts.map((account) =>
+        client.get<{
+          data: IEarnAccountResponse;
+        }>(`/earn/v1/overview`, { params: account }),
+      ),
+    );
+
+    const { totalFiatValue, earnings24h } = overviewData.reduce(
+      (prev, item) => {
+        prev.totalFiatValue = prev.totalFiatValue.plus(
+          BigNumber(item.data.data.totalFiatValue || 0),
+        );
+        prev.earnings24h = prev.earnings24h.plus(
+          BigNumber(item.data.data.earnings24h || 0),
+        );
+        return prev;
+      },
+      {
+        totalFiatValue: BigNumber(0),
+        earnings24h: BigNumber(0),
+      },
+    );
+    // const resp = response.data.data;
+
+    return {
+      totalFiatValue: totalFiatValue.toFixed(),
+      earnings24h: earnings24h.toFixed(),
+    };
+  }
+
+  @backgroundMethod()
+  async fetchAllNetworkAssets({
+    accountId,
+    networkId,
+    assets,
+  }: {
+    accountId: string;
+    networkId: string;
+    assets: IAvailableAsset[];
+  }) {
+    const accounts = await this.getEarnAvailableAccountsParams({
+      accountId,
+      networkId,
+      assets,
+    });
+    return this.getAccountAsset(accounts);
   }
 
   @backgroundMethod()
@@ -639,8 +711,9 @@ class ServiceStaking extends ServiceBase {
       return null;
     }
 
-    if (providerConfig.supportedSymbols.includes(symbol as ISupportedSymbol)) {
-      return providerConfig.configs[symbol as ISupportedSymbol];
+    const tokenSymbol = symbol.toUpperCase() as ISupportedSymbol;
+    if (providerConfig.supportedSymbols.includes(tokenSymbol)) {
+      return providerConfig.configs[tokenSymbol];
     }
 
     return null;
@@ -772,6 +845,43 @@ class ServiceStaking extends ServiceBase {
   }
 
   @backgroundMethod()
+  async getUnbondingDelegationList(params: {
+    accountAddress: string;
+    provider: string;
+    networkId: string;
+    symbol: string;
+  }) {
+    const client = await this.getClient(EServiceEndpointEnum.Earn);
+    const resp = await client.get<{
+      data: {
+        delegations: IEarnUnbondingDelegationList;
+      };
+    }>(`/earn/v1/unbonding-delegation/list`, {
+      params,
+    });
+    return resp.data.data.delegations;
+  }
+
+  @backgroundMethod()
+  fetchEarnHomePageData() {
+    return this._fetchEarnHomePageData();
+  }
+
+  _fetchEarnHomePageData = memoizee(
+    async () => {
+      const client = await this.getClient(EServiceEndpointEnum.Utility);
+      const res = await client.get<{ data: IDiscoveryBanner[] }>(
+        '/utility/v1/earn-banner/list',
+      );
+      return res.data.data;
+    },
+    {
+      promise: true,
+      maxAge: timerUtils.getTimeDurationMs({ seconds: 60 }),
+    },
+  );
+
+  @backgroundMethod()
   async getEarnAvailableAccounts(params: {
     accountId: string;
     networkId: string;
@@ -815,7 +925,7 @@ class ServiceStaking extends ServiceBase {
   }: {
     accountId: string;
     networkId: string;
-    tx: IStakeTxResponse;
+    tx: IStakeTx;
   }) {
     const vault = await vaultFactory.getVault({ networkId, accountId });
     const encodedTx = await vault.buildStakeEncodedTx(tx as any);
@@ -899,6 +1009,76 @@ class ServiceStaking extends ServiceBase {
       }
       return item;
     });
+  }
+
+  @backgroundMethod()
+  async addEarnOrder(order: IAddEarnOrderParams) {
+    defaultLogger.staking.order.addOrder(order);
+    return simpleDb.earnOrders.addOrder(order);
+  }
+
+  @backgroundMethod()
+  async updateEarnOrder({ txs }: { txs: IChangedPendingTxInfo[] }) {
+    for (const tx of txs) {
+      try {
+        const order =
+          await this.backgroundApi.simpleDb.earnOrders.getOrderByTxId(tx.txId);
+        if (order && tx.status !== EDecodedTxStatus.Pending) {
+          order.status = tx.status;
+          await this.updateEarnOrderStatusToServer({ order });
+          await this.backgroundApi.simpleDb.earnOrders.updateOrderStatusByTxId({
+            currentTxId: tx.txId,
+            status: tx.status,
+          });
+          defaultLogger.staking.order.updateOrderStatus({
+            txId: tx.txId,
+            status: tx.status,
+          });
+        }
+      } catch (e) {
+        // ignore error, continue loop
+        defaultLogger.staking.order.updateOrderStatusError({
+          txId: tx.txId,
+          status: tx.status,
+        });
+      }
+    }
+  }
+
+  @backgroundMethod()
+  async updateEarnOrderStatusToServer({ order }: { order: IEarnOrderItem }) {
+    const maxRetries = 3;
+    let lastError;
+
+    for (let i = 0; i < maxRetries; i += 1) {
+      try {
+        const client = await this.getClient(EServiceEndpointEnum.Earn);
+        await client.post('/earn/v1/orders', {
+          orderId: order.orderId,
+          networkId: order.networkId,
+          txId: order.txId,
+        });
+        return; // Return early on success
+      } catch (error) {
+        lastError = error;
+        if (i === maxRetries - 1) break; // Exit loop on final retry
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1))); // 1s, 2s, 3s
+      }
+    }
+
+    throw lastError; // Throw last error after all retries fail
+  }
+
+  @backgroundMethod()
+  async updateOrderStatusByTxId(params: {
+    currentTxId: string;
+    newTxId?: string;
+    status: EDecodedTxStatus;
+  }) {
+    defaultLogger.staking.order.updateOrderStatusByTxId(params);
+    await this.backgroundApi.simpleDb.earnOrders.updateOrderStatusByTxId(
+      params,
+    );
   }
 }
 

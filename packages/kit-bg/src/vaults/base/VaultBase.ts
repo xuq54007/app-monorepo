@@ -3,6 +3,7 @@
 
 import qs from 'querystring';
 
+import { Semaphore } from 'async-mutex';
 import BigNumber from 'bignumber.js';
 import { isEmpty, isNil, omit, omitBy } from 'lodash';
 
@@ -58,6 +59,7 @@ import type {
 } from '@onekeyhq/shared/types/fee';
 import type {
   IAccountHistoryTx,
+  IAllNetworkHistoryExtraItem,
   IFetchHistoryTxDetailsResp,
   IOnChainHistoryTx,
   IOnChainHistoryTxApprove,
@@ -76,10 +78,7 @@ import type {
   IFetchServerTokenListParams,
   IFetchServerTokenListResponse,
 } from '@onekeyhq/shared/types/serverToken';
-import type {
-  IStakeTxResponse,
-  IStakingInfo,
-} from '@onekeyhq/shared/types/staking';
+import type { IStakeTx, IStakingInfo } from '@onekeyhq/shared/types/staking';
 import type { ISwapTxInfo } from '@onekeyhq/shared/types/swap/types';
 import type {
   IAccountToken,
@@ -115,6 +114,7 @@ import type {
   IBuildDecodedTxParams,
   IBuildEncodedTxParams,
   IBuildHistoryTxParams,
+  IBuildOkxSwapEncodedTxParams,
   IBuildUnsignedTxParams,
   IGetPrivateKeyFromImportedParams,
   IGetPrivateKeyFromImportedResult,
@@ -443,6 +443,18 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     });
   }
 
+  async buildParseTransactionParams({
+    encodedTx,
+  }: {
+    encodedTx: IEncodedTx | undefined;
+  }): Promise<{
+    encodedTx: Partial<IEncodedTx> | undefined;
+  }> {
+    return Promise.resolve({
+      encodedTx,
+    });
+  }
+
   async buildFetchHistoryListParams(params: {
     accountId: string;
     networkId: string;
@@ -452,6 +464,7 @@ export abstract class VaultBase extends VaultBaseChainOnly {
   }
 
   async buildHistoryTx(params: {
+    dbAccount?: IDBAccount;
     historyTxToMerge?: IAccountHistoryTx;
     decodedTx: IDecodedTx;
     signedTx?: ISignedTxPro;
@@ -460,8 +473,14 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     accountAddress?: string;
     xpub?: string;
   }): Promise<IAccountHistoryTx> {
-    const { historyTxToMerge, decodedTx, signedTx, isSigner, isLocalCreated } =
-      params;
+    const {
+      historyTxToMerge,
+      decodedTx,
+      signedTx,
+      isSigner,
+      isLocalCreated,
+      dbAccount,
+    } = params;
 
     let accountAddress = params.accountAddress || '';
     let xpub = params.xpub;
@@ -476,10 +495,12 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     try {
       const [a, x] = await Promise.all([
         this.backgroundApi.serviceAccount.getAccountAddressForApi({
+          dbAccount,
           accountId,
           networkId,
         }),
         this.backgroundApi.serviceAccount.getAccountXpub({
+          dbAccount,
           accountId,
           networkId,
         }),
@@ -516,32 +537,100 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     return Promise.resolve(historyTx);
   }
 
-  async buildOnChainHistoryTx(
-    params: IBuildHistoryTxParams,
-  ): Promise<IAccountHistoryTx | null> {
+  fixOnChainHistoryAccountData(params: {
+    accountId: string;
+    networkId: string;
+    accountAddress: string;
+    xpub: string | undefined;
+    onChainHistoryTx: IOnChainHistoryTx;
+    allNetworkHistoryExtraItems?: IAllNetworkHistoryExtraItem[];
+  }) {
     const {
       accountId: originAccountId,
       networkId: originNetworkId,
-      onChainHistoryTx,
-      tokens,
-      nfts,
       accountAddress: originAccountAddress,
-      xpub,
+      xpub: originXpub,
+      onChainHistoryTx,
       allNetworkHistoryExtraItems,
     } = params;
     let accountId = originAccountId;
     let networkId = originNetworkId;
     let accountAddress = originAccountAddress;
-
+    let xpub = originXpub;
     if (originNetworkId === getNetworkIdsMap().onekeyall) {
-      const allNetworkAccount = allNetworkHistoryExtraItems?.find(
-        (i) => i.networkId === onChainHistoryTx.networkId,
-      );
+      const allNetworkAccount = allNetworkHistoryExtraItems?.find((i) => {
+        const [_, txXpub] = onChainHistoryTx.key.split('_');
+        if (!isNil(i.accountXpub)) {
+          return (
+            i.networkId === onChainHistoryTx.networkId &&
+            i.accountXpub === txXpub
+          );
+        }
+        return i.networkId === onChainHistoryTx.networkId;
+      });
       if (allNetworkAccount) {
         accountId = allNetworkAccount.accountId;
         networkId = allNetworkAccount.networkId;
         accountAddress = allNetworkAccount.accountAddress;
+        xpub = allNetworkAccount.accountXpub;
       }
+    }
+    return {
+      accountId,
+      networkId,
+      accountAddress,
+      xpub,
+    };
+  }
+
+  mutexBuildOnChainHistoryTxGetDBAccount = new Semaphore(1);
+
+  async buildOnChainHistoryTx(
+    params: IBuildHistoryTxParams,
+  ): Promise<IAccountHistoryTx | null> {
+    const {
+      onChainHistoryTx,
+      tokens,
+      nfts,
+      allNetworkHistoryExtraItems,
+      dbAccountCache,
+    } = params;
+
+    const { accountId, networkId, accountAddress, xpub } =
+      this.fixOnChainHistoryAccountData({
+        accountId: params.accountId,
+        networkId: params.networkId,
+        accountAddress: params.accountAddress,
+        xpub: params.xpub,
+        onChainHistoryTx,
+        allNetworkHistoryExtraItems,
+      });
+
+    if (params.accountId !== accountId) {
+      console.log(
+        'buildOnChainHistoryTx accountId mismatch',
+        params.accountId,
+        accountId,
+      );
+    }
+
+    const key = `${accountId}`;
+    let dbAccount: IDBAccount | undefined;
+    if (dbAccountCache) {
+      await this.mutexBuildOnChainHistoryTxGetDBAccount.runExclusive(
+        async () => {
+          dbAccount = dbAccountCache?.[key];
+          if (!dbAccount) {
+            dbAccount =
+              await this.backgroundApi.serviceAccount.getDBAccountSafe({
+                accountId,
+              });
+            if (dbAccount) {
+              dbAccountCache[key] = dbAccount;
+            }
+          }
+        },
+      );
     }
 
     const vaultSettings =
@@ -592,6 +681,7 @@ export abstract class VaultBase extends VaultBaseChainOnly {
       decodedTx.isFinal = true;
 
       return await this.buildHistoryTx({
+        dbAccount,
         decodedTx,
         accountAddress,
         xpub,
@@ -855,6 +945,58 @@ export abstract class VaultBase extends VaultBaseChainOnly {
     const swapSendToken = swapInfo.sender.token;
     const swapReceiveToken = swapInfo.receiver.token;
     const providerInfo = swapInfo.swapBuildResData.result.info;
+    const otherFeeInfos = swapInfo.swapBuildResData.result.fee?.otherFeeInfos;
+    const otherFeeInfoTransfers: IDecodedTxTransferInfo[] = [];
+
+    let transfers: IDecodedTxTransferInfo[] = [
+      {
+        from: swapInfo.accountAddress,
+        to: '',
+        tokenIdOnNetwork: swapSendToken.contractAddress,
+        icon: swapSendToken.logoURI ?? '',
+        name: swapSendToken.name ?? '',
+        symbol: swapSendToken.symbol,
+        amount: swapInfo.sender.amount,
+        isNFT: false,
+        isNative: swapSendToken.isNative,
+      },
+      {
+        from: '',
+        to: swapInfo.receivingAddress,
+        tokenIdOnNetwork: swapReceiveToken.contractAddress,
+        icon: swapReceiveToken.logoURI ?? '',
+        name: swapReceiveToken.name ?? '',
+        symbol: swapReceiveToken.symbol,
+        amount: swapInfo.receiver.amount,
+        isNFT: false,
+        isNative: swapReceiveToken.isNative,
+      },
+    ];
+
+    if (otherFeeInfos) {
+      otherFeeInfos.forEach((feeInfo) => {
+        if (feeInfo.token.contractAddress === transfers[0].tokenIdOnNetwork) {
+          transfers[0].amount = new BigNumber(transfers[0].amount)
+            .plus(feeInfo.amount)
+            .toFixed();
+        } else {
+          otherFeeInfoTransfers.push({
+            from: swapInfo.accountAddress,
+            to: '',
+            tokenIdOnNetwork: feeInfo.token.contractAddress,
+            icon: feeInfo.token.logoURI ?? '',
+            name: feeInfo.token.name ?? '',
+            symbol: feeInfo.token.symbol,
+            amount: feeInfo.amount,
+            isNFT: false,
+            isNative: feeInfo.token.isNative,
+          });
+        }
+      });
+    }
+
+    transfers = [...otherFeeInfoTransfers, ...transfers];
+
     const action = await this.buildTxTransferAssetAction({
       from: swapInfo.accountAddress,
       to: swapToAddress ?? '',
@@ -866,30 +1008,7 @@ export abstract class VaultBase extends VaultBaseChainOnly {
       isInternalSwap: true,
       swapReceivedAddress: swapInfo.receivingAddress,
       swapReceivedNetworkId: swapInfo.receiver.token.networkId,
-      transfers: [
-        {
-          from: swapInfo.accountAddress,
-          to: '',
-          tokenIdOnNetwork: swapSendToken.contractAddress,
-          icon: swapSendToken.logoURI ?? '',
-          name: swapSendToken.name ?? '',
-          symbol: swapSendToken.symbol,
-          amount: swapInfo.sender.amount,
-          isNFT: false,
-          isNative: swapSendToken.isNative,
-        },
-        {
-          from: '',
-          to: swapInfo.receivingAddress,
-          tokenIdOnNetwork: swapReceiveToken.contractAddress,
-          icon: swapReceiveToken.logoURI ?? '',
-          name: swapReceiveToken.name ?? '',
-          symbol: swapReceiveToken.symbol,
-          amount: swapInfo.receiver.amount,
-          isNFT: false,
-          isNative: swapReceiveToken.isNative,
-        },
-      ],
+      transfers,
     });
     return action;
   }
@@ -1120,7 +1239,7 @@ export abstract class VaultBase extends VaultBaseChainOnly {
   }
 
   // Staking
-  buildStakeEncodedTx(params: IStakeTxResponse): Promise<IEncodedTx> {
+  buildStakeEncodedTx(params: IStakeTx): Promise<IEncodedTx> {
     return Promise.resolve(params as IEncodedTx);
   }
 
@@ -1289,6 +1408,12 @@ export abstract class VaultBase extends VaultBaseChainOnly {
   async fetchAccountHistoryDetailByRpc(
     params: IServerFetchAccountHistoryDetailParams,
   ): Promise<IServerFetchAccountHistoryDetailResp> {
+    throw new NotImplemented();
+  }
+
+  async buildOkxSwapEncodedTx(
+    params: IBuildOkxSwapEncodedTxParams,
+  ): Promise<IEncodedTx> {
     throw new NotImplemented();
   }
 }

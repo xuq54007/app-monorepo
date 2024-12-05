@@ -91,21 +91,24 @@ export const AdvancedSection = () => {
     navigation.push(EModalSettingRoutes.SettingAlignPrimaryAccount);
   }, [navigation]);
 
-  const onCustomNonce = useCallback(() => {
-    defaultLogger.setting.page.enterCustomNonce();
-    navigation.push(EModalSettingRoutes.SettingCustomNonce);
+  const onCustomizeTransaction = useCallback(() => {
+    defaultLogger.setting.page.enterCustomizeTransaction();
+    navigation.push(EModalSettingRoutes.SettingCustomTransaction);
   }, [navigation]);
 
   return (
     <Section title={intl.formatMessage({ id: ETranslations.global_advanced })}>
-      <ListItem
-        onPress={onAlignPrimaryAccount}
-        icon="RefreshCcwOutline"
-        title={intl.formatMessage({
-          id: ETranslations.settings_account_sync_modal_title,
-        })}
-        drillIn
-      />
+      {platformEnv.isWeb ? null : (
+        <ListItem
+          onPress={onAlignPrimaryAccount}
+          icon="RefreshCcwOutline"
+          title={intl.formatMessage({
+            id: ETranslations.settings_account_sync_modal_title,
+          })}
+          drillIn
+        />
+      )}
+
       <ListItem
         onPress={onAddCustomNetwork}
         icon="GlobusOutline"
@@ -129,9 +132,11 @@ export const AdvancedSection = () => {
         drillIn
       />
       <ListItem
-        onPress={onCustomNonce}
+        onPress={onCustomizeTransaction}
         icon="LabOutline"
-        title={intl.formatMessage({ id: ETranslations.global_customize_nonce })}
+        title={intl.formatMessage({
+          id: ETranslations.global_customize_transaction,
+        })}
         drillIn
       />
       {/* <SpendDustUTXOItem />  Hide the spendDustUTXO function; it's not ready yet. */}

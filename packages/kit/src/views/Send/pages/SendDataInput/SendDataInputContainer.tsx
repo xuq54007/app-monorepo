@@ -3,15 +3,19 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useRoute } from '@react-navigation/core';
 import BigNumber from 'bignumber.js';
+import { utils } from 'ethers';
 import { isNaN, isNil } from 'lodash';
 import { useIntl } from 'react-intl';
 
 import {
+  Button,
+  Dialog,
   Form,
   Input,
   Page,
   SizableText,
   TextArea,
+  TextAreaInput,
   XStack,
   useForm,
   useMedia,
@@ -38,8 +42,8 @@ import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms'
 import type { ITransferInfo } from '@onekeyhq/kit-bg/src/vaults/types';
 import { OneKeyError, OneKeyInternalError } from '@onekeyhq/shared/src/errors';
 import errorToastUtils from '@onekeyhq/shared/src/errors/utils/errorToastUtils';
-import errorUtils from '@onekeyhq/shared/src/errors/utils/errorUtils';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
 import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import {
   EAssetSelectorRoutes,
@@ -64,7 +68,29 @@ import type { IToken, ITokenFiat } from '@onekeyhq/shared/types/token';
 import { showBalanceDetailsDialog } from '../../../Home/components/BalanceDetailsDialog';
 import { HomeTokenListProviderMirror } from '../../../Home/components/HomeTokenListProvider/HomeTokenListProviderMirror';
 
+import { showContractWarningDialog } from './ContractWarningDialog';
+
 import type { RouteProp } from '@react-navigation/core';
+
+const showTxMessageFaq = (isContractTo: boolean) => {
+  Dialog.show({
+    title: isContractTo
+      ? appLocale.intl.formatMessage({
+          id: ETranslations.global_hex_data_default,
+        })
+      : appLocale.intl.formatMessage({
+          id: ETranslations.global_hex_data,
+        }),
+    icon: 'ConsoleOutline',
+    description: appLocale.intl.formatMessage({
+      id: ETranslations.global_hex_data_faq_desc,
+    }),
+    showCancelButton: false,
+    onConfirmText: appLocale.intl.formatMessage({
+      id: ETranslations.global_ok,
+    }),
+  });
+};
 
 function SendDataInputContainer() {
   const intl = useIntl();
@@ -107,6 +133,9 @@ function SendDataInputContainer() {
     networkId,
   });
 
+  const [isHexTxMessage, setIsHexTxMessage] = useState(false);
+  const [txMessageLinkedString, setTxMessageLinkedString] = useState('');
+
   const { account, network } = useAccountData({
     accountId: currentAccount.accountId,
     networkId: currentAccount.networkId,
@@ -138,6 +167,7 @@ function SendDataInputContainer() {
       numericOnlyMemo,
       displayNoteForm,
       noteMaxLength,
+      displayTxMessageForm,
     ] = [],
     isLoading: isLoadingAssets,
   } = usePromiseResult(
@@ -205,6 +235,7 @@ function SendDataInputContainer() {
         vs.numericOnlyMemo,
         vs.withNote,
         vs.noteMaxLength,
+        vs.withTxMessage,
       ];
     },
     [
@@ -247,6 +278,7 @@ function SendDataInputContainer() {
       memo: '',
       paymentId: '',
       note: '',
+      txMessage: '',
     },
     mode: 'onChange',
     reValidateMode: 'onBlur',
@@ -257,6 +289,7 @@ function SendDataInputContainer() {
   const toPending = form.watch('to.pending');
   const toResolved = form.watch('to.resolved');
   const nftAmount = form.watch('nftAmount');
+  const toIsContract = form.watch('to.isContract');
 
   const linkedAmount = useMemo(() => {
     let amountBN = new BigNumber(amount ?? 0);
@@ -303,7 +336,8 @@ function SendDataInputContainer() {
       };
     }
     if (toResolved) {
-      const toRaw = form.getValues('to').raw;
+      const formTo = form.getValues('to');
+      const toRaw = formTo.raw;
       const validation =
         await backgroundApiProxy.serviceValidator.validateAmountInputShown({
           networkId,
@@ -417,7 +451,13 @@ function SendDataInputContainer() {
         try {
           if (!account) return;
           const toAddress = form.getValues('to').resolved;
+          const isToContract = form.getValues('to').isContract;
           if (!toAddress) return;
+
+          if (isToContract && !(await showContractWarningDialog())) {
+            return;
+          }
+
           let realAmount = amount;
 
           setIsSubmitting(true);
@@ -443,6 +483,10 @@ function SendDataInputContainer() {
           const memoValue = form.getValues('memo');
           const paymentIdValue = form.getValues('paymentId');
           const noteValue = form.getValues('note');
+          const txMessageValue = form.getValues('txMessage');
+          const hexData = isHexTxMessage
+            ? txMessageValue
+            : txMessageLinkedString;
           const transfersInfo: ITransferInfo[] = [
             {
               from: account.address,
@@ -460,6 +504,7 @@ function SendDataInputContainer() {
               memo: memoValue,
               paymentId: paymentIdValue,
               note: noteValue,
+              hexData: tokenDetails?.info.isNative ? hexData : undefined,
             },
           ];
 
@@ -488,6 +533,7 @@ function SendDataInputContainer() {
               isMaxSend,
               isNFT,
               originalRecipient: toAddress,
+              isToContract,
             },
           });
           setIsSubmitting(false);
@@ -514,6 +560,7 @@ function SendDataInputContainer() {
       amount,
       form,
       intl,
+      isHexTxMessage,
       isMaxSend,
       isNFT,
       isUseFiat,
@@ -529,6 +576,7 @@ function SendDataInputContainer() {
       sendConfirm,
       tokenDetails,
       tokenInfo?.address,
+      txMessageLinkedString,
     ],
   );
   const handleValidateTokenAmount = useCallback(
@@ -941,6 +989,135 @@ function SendDataInputContainer() {
     );
   }, [displayNoteForm, intl, media.gtMd, noteMaxLength]);
 
+  const handleTxMessageOnChange = useCallback(
+    (e: { target: { name: string; value: string } }) => {
+      const value = e.target?.value;
+      if (!value) {
+        setTxMessageLinkedString('');
+        return;
+      }
+
+      if (utils.isHexString(value)) {
+        setIsHexTxMessage(true);
+        setTxMessageLinkedString(hexUtils.hexStringToUtf8String(value));
+      } else {
+        setIsHexTxMessage(false);
+        setTxMessageLinkedString(hexUtils.utf8StringToHexString(value));
+      }
+    },
+    [],
+  );
+
+  const handleValidateTxMessage = useCallback(
+    (value: string) => {
+      if (!value) return undefined;
+
+      const toAddress = form.getValues('to');
+      if (toAddress.isContract) {
+        if (!utils.isHexString(value)) {
+          return intl.formatMessage({
+            id: ETranslations.global_hex_data_error,
+          });
+        }
+      }
+    },
+    [form, intl],
+  );
+
+  const txMessageDescription = useMemo(() => {
+    const toAddress = form.getValues('to');
+    if (toAddress.isContract) {
+      return '';
+    }
+    if (form.getValues('txMessage') === '') return '';
+    const description = isHexTxMessage
+      ? intl.formatMessage(
+          {
+            id: ETranslations.global_hex_data_input_desc_hex,
+          },
+          {
+            utf: txMessageLinkedString,
+          },
+        )
+      : intl.formatMessage(
+          {
+            id: ETranslations.global_hex_data_input_desc_utf,
+          },
+          {
+            data: txMessageLinkedString,
+          },
+        );
+    return description;
+  }, [form, intl, isHexTxMessage, txMessageLinkedString]);
+
+  const renderTxMessageForm = useCallback(() => {
+    const toAddress = form.getValues('to');
+    if (
+      !settings.isCustomTxMessageEnabled ||
+      !displayTxMessageForm ||
+      !tokenInfo?.isNative ||
+      toAddress.raw === ''
+    ) {
+      return null;
+    }
+
+    return (
+      <Form.Field
+        label={intl.formatMessage({
+          id: toAddress.isContract
+            ? ETranslations.global_contract_call
+            : ETranslations.global_hex_data,
+        })}
+        optional
+        name="txMessage"
+        rules={{
+          onChange: handleTxMessageOnChange,
+          validate: handleValidateTxMessage,
+        }}
+        description={toAddress.isContract ? '' : txMessageDescription}
+        labelAddon={
+          <Button
+            size="small"
+            variant="tertiary"
+            onPress={() => showTxMessageFaq(!!toAddress.isContract)}
+          >
+            {toAddress.isContract
+              ? intl.formatMessage({
+                  id: ETranslations.global_hex_data_default_faq,
+                })
+              : intl.formatMessage({
+                  id: ETranslations.global_hex_data_faq,
+                })}
+          </Button>
+        }
+      >
+        <TextAreaInput
+          numberOfLines={2}
+          size={media.gtMd ? 'medium' : 'large'}
+          placeholder={
+            toAddress.isContract
+              ? intl.formatMessage({
+                  id: ETranslations.global_hex_data_default,
+                })
+              : intl.formatMessage({
+                  id: ETranslations.global_hex_data_input_default,
+                })
+          }
+        />
+      </Form.Field>
+    );
+  }, [
+    displayTxMessageForm,
+    form,
+    handleTxMessageOnChange,
+    handleValidateTxMessage,
+    intl,
+    media.gtMd,
+    settings.isCustomTxMessageEnabled,
+    tokenInfo?.isNative,
+    txMessageDescription,
+  ]);
+
   const renderDataInput = useCallback(() => {
     if (isNFT) {
       return renderNFTDataInputForm();
@@ -952,6 +1129,7 @@ function SendDataInputContainer() {
           {renderMemoForm()}
           {renderPaymentIdForm()}
           {renderNoteForm()}
+          {renderTxMessageForm()}
         </>
       );
     }
@@ -964,6 +1142,7 @@ function SendDataInputContainer() {
     renderMemoForm,
     renderPaymentIdForm,
     renderNoteForm,
+    renderTxMessageForm,
   ]);
 
   useEffect(() => {
@@ -987,6 +1166,10 @@ function SendDataInputContainer() {
       void form.trigger('amount');
     }
   }, [form, tokenDetails?.balance]);
+
+  useEffect(() => {
+    void form.trigger('txMessage');
+  }, [form, toIsContract]);
 
   const addressInputAccountSelectorArgs = useMemo<{ num: number } | undefined>(
     () =>

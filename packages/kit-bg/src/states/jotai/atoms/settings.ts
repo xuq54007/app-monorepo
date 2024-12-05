@@ -2,6 +2,8 @@ import type { ILocaleSymbol } from '@onekeyhq/shared/src/locale';
 import { generateUUID } from '@onekeyhq/shared/src/utils/miscUtils';
 import { EOnekeyDomain } from '@onekeyhq/shared/types';
 import { EAlignPrimaryAccountMode } from '@onekeyhq/shared/types/dappConnection';
+import { swapSlippageAutoValue } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
+import { ESwapSlippageSegmentKey } from '@onekeyhq/shared/types/swap/types';
 
 import { EAtomNames } from '../atomNames';
 import { globalAtom } from '../utils';
@@ -38,6 +40,7 @@ export type ISettingsPersistAtom = {
   };
   alignPrimaryAccountMode?: EAlignPrimaryAccountMode;
   isCustomNonceEnabled: boolean;
+  isCustomTxMessageEnabled: boolean;
 };
 
 export const settingsAtomInitialValue: ISettingsPersistAtom = {
@@ -64,6 +67,7 @@ export const settingsAtomInitialValue: ISettingsPersistAtom = {
   },
   alignPrimaryAccountMode: EAlignPrimaryAccountMode.AlignDappToWallet,
   isCustomNonceEnabled: false,
+  isCustomTxMessageEnabled: false,
 };
 export const { target: settingsPersistAtom, use: useSettingsPersistAtom } =
   globalAtom<ISettingsPersistAtom>({
@@ -88,6 +92,8 @@ export const {
 
 type ISettingsAtom = {
   swapToAnotherAccountSwitchOn: boolean;
+  swapSlippagePercentageMode: ESwapSlippageSegmentKey;
+  swapSlippagePercentageCustomValue: number;
 };
 
 export const { target: settingsAtom, use: useSettingsAtom } =
@@ -95,6 +101,8 @@ export const { target: settingsAtom, use: useSettingsAtom } =
     name: EAtomNames.settingsAtom,
     initialValue: {
       swapToAnotherAccountSwitchOn: false,
+      swapSlippagePercentageMode: ESwapSlippageSegmentKey.AUTO,
+      swapSlippagePercentageCustomValue: swapSlippageAutoValue,
     },
   });
 

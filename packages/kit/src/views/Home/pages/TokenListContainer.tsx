@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { CanceledError } from 'axios';
 import BigNumber from 'bignumber.js';
-import { isEmpty } from 'lodash';
+import { isEmpty, isNil, uniqBy } from 'lodash';
 import { useThrottledCallback } from 'use-debounce';
 
 import type { ITabPageProps } from '@onekeyhq/components';
@@ -13,11 +13,10 @@ import {
 } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { useFiatCrypto } from '@onekeyhq/kit/src/views/FiatCrypto/hooks';
-import type {
-  IDBAccount,
-  IDBUtxoAccount,
-} from '@onekeyhq/kit-bg/src/dbs/local/types';
+import type { IDBAccount } from '@onekeyhq/kit-bg/src/dbs/local/types';
+import type { ICustomTokenDBStruct } from '@onekeyhq/kit-bg/src/dbs/simple/entity/SimpleDbEntityCustomTokens';
 import type { ISimpleDBLocalTokens } from '@onekeyhq/kit-bg/src/dbs/simple/entity/SimpleDbEntityLocalTokens';
+import type { IAllNetworkAccountInfo } from '@onekeyhq/kit-bg/src/services/ServiceAllNetwork/ServiceAllNetwork';
 import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
 import { WALLET_TYPE_WATCHING } from '@onekeyhq/shared/src/consts/dbConsts';
 import {
@@ -40,7 +39,7 @@ import {
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 import perfUtils, {
   EPerformanceTimerLogNames,
-} from '@onekeyhq/shared/src/utils/perfUtils';
+} from '@onekeyhq/shared/src/utils/debug/perfUtils';
 import {
   getEmptyTokenData,
   mergeDeriveTokenList,
@@ -57,6 +56,7 @@ import type {
 } from '@onekeyhq/shared/types/token';
 
 import { TokenListView } from '../../../components/TokenListView';
+import { perfTokenListView } from '../../../components/TokenListView/perfTokenListView';
 import { useAccountData } from '../../../hooks/useAccountData';
 import { useAllNetworkRequests } from '../../../hooks/useAllNetwork';
 import useAppNavigation from '../../../hooks/useAppNavigation';
@@ -86,6 +86,9 @@ function TokenListContainer(props: ITabPageProps) {
     },
   } = useActiveAccount({ num: 0 });
   const [shouldAlwaysFetch, setShouldAlwaysFetch] = useState(false);
+  const [allNetworkAccounts, setAllNetworkAccounts] = useState<
+    IAllNetworkAccountInfo[] | undefined
+  >(undefined);
 
   const tokenListRef = useRef<{
     keys: string;
@@ -173,8 +176,11 @@ function TokenListContainer(props: ITabPageProps) {
     updateSearchKey,
   } = useTokenListActions().current;
 
-  const { updateAccountWorth, updateAccountOverviewState } =
-    useAccountOverviewActions().current;
+  const {
+    updateAccountWorth,
+    updateAccountOverviewState,
+    updateAllNetworksState,
+  } = useAccountOverviewActions().current;
 
   const { run } = usePromiseResult(
     async () => {
@@ -261,6 +267,9 @@ function TokenListContainer(props: ITabPageProps) {
             });
           }
 
+          perfTokenListView.markEnd(
+            'tokenListRefreshing_tokenListContainerRefreshList',
+          );
           updateTokenListState({
             initialized: true,
             isRefreshing: false,
@@ -349,11 +358,13 @@ function TokenListContainer(props: ITabPageProps) {
       networkId,
       dbAccount,
       allNetworkDataInit,
+      customTokensRawData,
     }: {
       accountId: string;
       networkId: string;
       dbAccount?: IDBAccount;
       allNetworkDataInit?: boolean;
+      customTokensRawData?: ICustomTokenDBStruct;
     }) => {
       const r = await backgroundApiProxy.serviceToken.fetchAccountTokens({
         dbAccount,
@@ -366,6 +377,7 @@ function TokenListContainer(props: ITabPageProps) {
         allNetworksAccountId: account?.id,
         allNetworksNetworkId: network?.id,
         saveToLocal: true,
+        customTokensRawData,
       });
 
       if (!allNetworkDataInit && r.isSameAllNetworksAccountData) {
@@ -376,6 +388,7 @@ function TokenListContainer(props: ITabPageProps) {
           .plus(r.riskTokens.fiatValue ?? '0')
           .plus(r.smallBalanceTokens.fiatValue ?? '0');
 
+        perfTokenListView.markEnd('tokenListRefreshing_allNetworkRequests');
         updateTokenListState({
           initialized: true,
           isRefreshing: false,
@@ -586,9 +599,9 @@ function TokenListContainer(props: ITabPageProps) {
       accountAddress: string;
       simpleDbLocalTokensRawData?: ISimpleDBLocalTokens;
     }) => {
-      const perf = perfUtils.createPerf(
-        EPerformanceTimerLogNames.allNetwork__handleAllNetworkCacheRequests,
-      );
+      const perf = perfUtils.createPerf({
+        name: EPerformanceTimerLogNames.allNetwork__handleAllNetworkCacheRequests,
+      });
 
       perf.markStart('getAccountLocalTokens', {
         networkId,
@@ -648,6 +661,8 @@ function TokenListContainer(props: ITabPageProps) {
       accountId: string;
       networkId: string;
     }) => {
+      perfTokenListView.markStart('handleAllNetworkCacheData');
+
       const tokenList: IAccountToken[] = [];
       const riskyTokenList: IAccountToken[] = [];
       let tokenListMap: {
@@ -737,10 +752,13 @@ function TokenListContainer(props: ITabPageProps) {
           isRefreshing: false,
           initialized: true,
         });
+        perfTokenListView.markEnd('tokenListRefreshing_allNetworkCacheData');
         updateTokenListState({
           initialized: true,
           isRefreshing: false,
         });
+
+        perfTokenListView.markEnd('handleAllNetworkCacheData');
       }
     },
     [
@@ -759,20 +777,41 @@ function TokenListContainer(props: ITabPageProps) {
     ],
   );
 
-  const { run: runAllNetworksRequests, result: allNetworksResult } =
-    useAllNetworkRequests<IFetchAccountTokensResp>({
-      account,
-      network,
-      wallet,
-      allNetworkRequests: handleAllNetworkRequests,
-      allNetworkCacheRequests: handleAllNetworkCacheRequests,
-      allNetworkCacheData: handleAllNetworkCacheData,
-      clearAllNetworkData: handleClearAllNetworkData,
-      onStarted: handleAllNetworkRequestsStarted,
-      onFinished: handleAllNetworkRequestsFinished,
-      interval: 200,
-      shouldAlwaysFetch,
-    });
+  const handleAllNetworkAccountsData = useCallback(
+    ({
+      accounts,
+      allAccounts,
+    }: {
+      accounts: IAllNetworkAccountInfo[];
+      allAccounts: IAllNetworkAccountInfo[];
+    }) => {
+      updateAllNetworksState({
+        visibleCount: uniqBy(allAccounts, 'networkId').length,
+      });
+      setAllNetworkAccounts(accounts);
+    },
+    [updateAllNetworksState],
+  );
+
+  const {
+    run: runAllNetworksRequests,
+    result: allNetworksResult,
+    isEmptyAccount,
+  } = useAllNetworkRequests<IFetchAccountTokensResp>({
+    accountId: account?.id,
+    networkId: network?.id,
+    walletId: wallet?.id,
+    isAllNetworks: network?.isAllNetworks,
+    allNetworkRequests: handleAllNetworkRequests,
+    allNetworkCacheRequests: handleAllNetworkCacheRequests,
+    allNetworkCacheData: handleAllNetworkCacheData,
+    allNetworkAccountsData: handleAllNetworkAccountsData,
+    clearAllNetworkData: handleClearAllNetworkData,
+    onStarted: handleAllNetworkRequestsStarted,
+    onFinished: handleAllNetworkRequestsFinished,
+    interval: 200,
+    shouldAlwaysFetch,
+  });
 
   const updateAllNetworksTokenList = useCallback(async () => {
     const tokenList: {
@@ -965,11 +1004,23 @@ function TokenListContainer(props: ITabPageProps) {
       refreshRiskyTokenListMap({
         tokens: riskyTokenListMap,
       });
+      refreshAllTokenList({
+        keys: `${tokenList.keys}_${smallBalanceTokenList.keys}_${riskyTokenList.keys}`,
+        tokens: [...tokenList.tokens, ...riskyTokenList.riskyTokens],
+      });
+      refreshAllTokenListMap({
+        tokens: {
+          ...mergeTokenListMap,
+          ...riskyTokenListMap,
+        },
+      });
     }
   }, [
     account?.createAtNetwork,
     account?.id,
     allNetworksResult,
+    refreshAllTokenList,
+    refreshAllTokenListMap,
     refreshRiskyTokenList,
     refreshRiskyTokenListMap,
     refreshSmallBalanceTokenList,
@@ -1009,6 +1060,7 @@ function TokenListContainer(props: ITabPageProps) {
       });
 
       if (networkId === networkIdsMap.onekeyall) {
+        perfTokenListView.markStart('tokenListRefreshing_1');
         updateTokenListState({
           initialized: false,
           isRefreshing: true,
@@ -1040,6 +1092,7 @@ function TokenListContainer(props: ITabPageProps) {
         isEmpty(smallBalanceTokenList) &&
         isEmpty(riskyTokenList)
       ) {
+        perfTokenListView.markStart('tokenListRefreshing_2');
         updateTokenListState({
           initialized: false,
           isRefreshing: true,
@@ -1101,6 +1154,7 @@ function TokenListContainer(props: ITabPageProps) {
           initialized: true,
         });
 
+        perfTokenListView.markEnd('tokenListRefreshing_initTokenListData');
         updateTokenListState({
           initialized: true,
           isRefreshing: false,
@@ -1198,10 +1252,13 @@ function TokenListContainer(props: ITabPageProps) {
 
       if (!network.isAllNetworks) return;
 
+      if (isNil(allNetworkAccounts)) return;
+
       const pendingTxs =
         await backgroundApiProxy.serviceHistory.getAllNetworksPendingTxs({
           accountId: account.id,
           networkId: network.id,
+          allNetworkAccounts,
         });
 
       if (isEmpty(pendingTxs)) return;
@@ -1217,7 +1274,12 @@ function TokenListContainer(props: ITabPageProps) {
         );
       }
     },
-    [account, handleRefreshAllNetworkDataByAccounts, network],
+    [
+      account,
+      allNetworkAccounts,
+      handleRefreshAllNetworkDataByAccounts,
+      network,
+    ],
     {
       overrideIsFocused: (isPageFocused) => isPageFocused && isFocused,
       debounced: POLLING_DEBOUNCE_INTERVAL,
@@ -1249,11 +1311,13 @@ function TokenListContainer(props: ITabPageProps) {
         refresh(undefined);
       }
     };
+    appEventBus.on(EAppEventBusNames.NetworkDeriveTypeChanged, fn);
     appEventBus.on(EAppEventBusNames.RefreshTokenList, refresh);
     appEventBus.on(EAppEventBusNames.AccountDataUpdate, fn);
     return () => {
       appEventBus.off(EAppEventBusNames.RefreshTokenList, refresh);
       appEventBus.off(EAppEventBusNames.AccountDataUpdate, fn);
+      appEventBus.off(EAppEventBusNames.NetworkDeriveTypeChanged, fn);
     };
   }, [
     handleRefreshAllNetworkData,
@@ -1263,6 +1327,20 @@ function TokenListContainer(props: ITabPageProps) {
     run,
     runAllNetworksRequests,
   ]);
+
+  useEffect(() => {
+    if (isEmptyAccount) {
+      perfTokenListView.markEnd('tokenListRefreshing_emptyAccount');
+      updateTokenListState({
+        initialized: true,
+        isRefreshing: false,
+      });
+      updateAccountOverviewState({
+        initialized: true,
+        isRefreshing: false,
+      });
+    }
+  }, [isEmptyAccount, updateAccountOverviewState, updateTokenListState]);
 
   return (
     <TokenListView

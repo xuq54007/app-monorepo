@@ -7,6 +7,7 @@ import {
   ENotificationPermission,
   ENotificationPushMessageAckAction,
 } from '../../types/notification';
+import appGlobals from '../appGlobals';
 import platformEnv from '../platformEnv';
 import { EModalAssetDetailRoutes, EModalRoutes } from '../routes';
 import { EModalNotificationsRoutes } from '../routes/notifications';
@@ -34,11 +35,13 @@ function convertWebPermissionToEnum(
 
 async function navigateToNotificationDetail({
   notificationId,
+  notificationAccountId,
   message,
   isFromNotificationClick,
   navigation,
 }: {
   notificationId: string;
+  notificationAccountId?: string;
   message: INotificationPushMessageInfo | undefined;
   isFromNotificationClick?: boolean; // click by system notification banner
   navigation?: IAppNavigation;
@@ -73,13 +76,15 @@ async function navigateToNotificationDetail({
         accountAddress,
         transactionHash,
         notificationId,
+        notificationAccountId,
         checkIsFocused: false,
+        allowClickAccountNameSwitch: true,
       };
     }
   }
 
   if (shouldAckRead) {
-    void globalThis.$backgroundApiProxy.serviceNotification.ackNotificationMessage(
+    void appGlobals?.$backgroundApiProxy?.serviceNotification.ackNotificationMessage(
       {
         msgId: notificationId,
         action: ENotificationPushMessageAckAction.readed,
@@ -121,7 +126,7 @@ async function navigateToNotificationDetail({
         modalParams.screen,
         modalParams.params,
       );
-      globalThis.$navigationRef.current?.dispatch(pushAction);
+      appGlobals.$navigationRef.current?.dispatch(pushAction);
     }
   }
 }

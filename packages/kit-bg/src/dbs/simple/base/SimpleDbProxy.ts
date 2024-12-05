@@ -5,6 +5,8 @@ import type { BackgroundApiProxyBase } from '../../../apis/BackgroundApiProxyBas
 import type { SimpleDbEntityAccountSelector } from '../entity/SimpleDbEntityAccountSelector';
 import type { SimpleDbEntityAccountValue } from '../entity/SimpleDbEntityAccountValue';
 import type { SimpleDbEntityAddressBook } from '../entity/SimpleDbEntityAddressBook';
+import type { SimpleDbEntityAllNetworks } from '../entity/SimpleDbEntityAllNetworks';
+import type { SimpleDbEntityAppCleanup } from '../entity/SimpleDbEntityAppCleanup';
 import type { SimpleDbEntityBabylonSync } from '../entity/SimpleDbEntityBabylonSync';
 import type { SimpleDbEntityBrowserBookmarks } from '../entity/SimpleDbEntityBrowserBookmarks';
 import type { SimpleDbEntityBrowserClosedTabs } from '../entity/SimpleDbEntityBrowserClosedTabs';
@@ -17,6 +19,7 @@ import type { SimpleDbEntityCustomTokens } from '../entity/SimpleDbEntityCustomT
 import type { SimpleDbEntityDappConnection } from '../entity/SimpleDbEntityDappConnection';
 import type { SimpleDbEntityDefaultWalletSettings } from '../entity/SimpleDbEntityDefaultWalletSettings';
 import type { SimpleDbEntityEarn } from '../entity/SimpleDbEntityEarn';
+import type { SimpleDbEntityEarnOrders } from '../entity/SimpleDbEntityEarnOrders';
 import type { SimpleDbEntityFeeInfo } from '../entity/SimpleDbEntityFeeInfo';
 import type { SimpleDbEntityLegacyWalletNames } from '../entity/SimpleDbEntityLegacyWalletNames';
 import type { SimpleDbEntityLightning } from '../entity/SimpleDbEntityLightning';
@@ -55,6 +58,10 @@ export class SimpleDbProxy
   browserTabs = this._createProxyService(
     'browserTabs',
   ) as SimpleDbEntityBrowserTabs;
+
+  appCleanup = this._createProxyService(
+    'appCleanup',
+  ) as SimpleDbEntityAppCleanup;
 
   browserBookmarks = this._createProxyService(
     'browserBookmarks',
@@ -160,9 +167,17 @@ export class SimpleDbProxy
 
   earn = this._createProxyService('earn') as SimpleDbEntityEarn;
 
+  earnOrders = this._createProxyService(
+    'earnOrders',
+  ) as SimpleDbEntityEarnOrders;
+
   localNFTs = this._createProxyService('localNFTs') as SimpleDbEntityLocalNFTs;
 
   babylonSync = this._createProxyService(
     'babylonSync',
   ) as SimpleDbEntityBabylonSync;
+
+  allNetworks = this._createProxyService(
+    'allNetworks',
+  ) as SimpleDbEntityAllNetworks;
 }

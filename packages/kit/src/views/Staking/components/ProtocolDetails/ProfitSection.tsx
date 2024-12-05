@@ -11,6 +11,8 @@ import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms'
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type { IStakeProtocolDetails } from '@onekeyhq/shared/types/staking';
 
+import { formatStakingDistanceToNowStrict } from '../utils';
+
 import { GridItem } from './GridItem';
 
 type IProfitInfoProps = {
@@ -21,6 +23,8 @@ type IProfitInfoProps = {
   updateFrequency?: string;
   unstakingPeriod?: number;
   earnPoints?: boolean;
+  stakingTime?: number;
+  nextLaunchLeft?: string;
 };
 
 function ProfitInfo({
@@ -30,6 +34,8 @@ function ProfitInfo({
   rewardTokens,
   updateFrequency,
   unstakingPeriod,
+  stakingTime,
+  nextLaunchLeft,
   earnPoints,
 }: IProfitInfoProps) {
   const intl = useIntl();
@@ -103,18 +109,31 @@ function ProfitInfo({
               {updateFrequency}
             </GridItem>
           ) : null}
+          {stakingTime ? (
+            <GridItem
+              title={intl.formatMessage({
+                id: ETranslations.earn_earnings_start,
+              })}
+            >
+              {intl.formatMessage(
+                { id: ETranslations.earn_in_number },
+                {
+                  number: formatStakingDistanceToNowStrict(stakingTime),
+                },
+              )}
+            </GridItem>
+          ) : null}
           {unstakingPeriod ? (
             <GridItem
               title={intl.formatMessage({
                 id: ETranslations.earn_unstaking_period,
               })}
-              tooltip={
-                rewardToken === 'APT'
-                  ? intl.formatMessage({
-                      id: ETranslations.earn_earn_during_unstaking_tooltip,
-                    })
-                  : undefined
-              }
+              tooltip={intl.formatMessage({
+                id:
+                  rewardToken === 'APT'
+                    ? ETranslations.earn_earn_during_unstaking_tooltip
+                    : ETranslations.earn_unstaking_period_tooltip,
+              })}
             >
               {intl.formatMessage(
                 { id: ETranslations.earn_up_to_number_days },
@@ -144,6 +163,8 @@ export const ProfitSection = ({
     // updateFrequency: details.updateFrequency,
     earnPoints: details.provider.earnPoints,
     unstakingPeriod: details.unstakingPeriod,
+    stakingTime: details.provider.stakingTime,
+    nextLaunchLeft: details.provider.nextLaunchLeft,
   };
   return <ProfitInfo {...props} />;
 };

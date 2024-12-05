@@ -1,20 +1,15 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 
 import BigNumber from 'bignumber.js';
 import { useIntl } from 'react-intl';
 
-import type { IDialogInstance, IImageSourceProps } from '@onekeyhq/components';
 import {
   Accordion,
-  Dialog,
   Divider,
   Icon,
-  Image,
   NumberSizeableText,
   SizableText,
-  Stack,
   XStack,
-  YStack,
 } from '@onekeyhq/components';
 import { useDebounce } from '@onekeyhq/kit/src/hooks/useDebounce';
 import {
@@ -22,18 +17,12 @@ import {
   useSwapProviderSupportReceiveAddressAtom,
   useSwapSelectFromTokenAtom,
   useSwapSelectToTokenAtom,
-  useSwapSlippageDialogOpeningAtom,
-  useSwapSlippagePercentageAtom,
-  useSwapSlippagePercentageCustomValueAtom,
-  useSwapSlippagePercentageModeAtom,
   useSwapTokenMetadataAtom,
 } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
-import { ESwapSlippageSegmentKey } from '@onekeyhq/shared/types/swap/types';
 import type {
   IFetchQuoteResult,
-  ISwapSlippageSegmentItem,
   ISwapToken,
   ISwapTokenMetadata,
 } from '@onekeyhq/shared/types/swap/types';
@@ -42,29 +31,23 @@ import SwapCommonInfoItem from '../../components/SwapCommonInfoItem';
 import SwapProviderInfoItem from '../../components/SwapProviderInfoItem';
 import SwapQuoteResultRate from '../../components/SwapQuoteResultRate';
 import { useSwapRecipientAddressInfo } from '../../hooks/useSwapAccount';
+import { useSwapSlippageActions } from '../../hooks/useSwapSlippageActions';
 import { useSwapQuoteLoading } from '../../hooks/useSwapState';
 
 import SwapApproveAllowanceSelectContainer from './SwapApproveAllowanceSelectContainer';
-import SwapSlippageContentContainer from './SwapSlippageContentContainer';
 import SwapSlippageTriggerContainer from './SwapSlippageTriggerContainer';
-
-interface IProtocolFeeInfo {
-  name: string;
-  fee: number;
-  color: string;
-  icon: IImageSourceProps['source'];
-  maxFee: number;
-}
 
 interface ISwapQuoteResultProps {
   quoteResult?: IFetchQuoteResult;
   onOpenProviderList?: () => void;
   onOpenRecipient?: () => void;
+  refreshAction: (manual?: boolean) => void;
 }
 
 const SwapQuoteResult = ({
   onOpenProviderList,
   quoteResult,
+  refreshAction,
   onOpenRecipient,
 }: ISwapQuoteResultProps) => {
   const [openResult, setOpenResult] = useState(false);
@@ -77,22 +60,7 @@ const SwapQuoteResult = ({
     useSwapProviderSupportReceiveAddressAtom();
   const swapQuoteLoading = useSwapQuoteLoading();
   const intl = useIntl();
-  const [, setSwapSlippageDialogOpening] = useSwapSlippageDialogOpeningAtom();
-  const [{ slippageItem, autoValue }] = useSwapSlippagePercentageAtom();
-  const [, setSwapSlippageCustomValue] =
-    useSwapSlippagePercentageCustomValueAtom();
-  const [, setSwapSlippageMode] = useSwapSlippagePercentageModeAtom();
-  const dialogRef = useRef<ReturnType<typeof Dialog.show> | null>(null);
-  const slippageOnSave = useCallback(
-    (item: ISwapSlippageSegmentItem, close: IDialogInstance['close']) => {
-      setSwapSlippageMode(item.key);
-      if (item.key === ESwapSlippageSegmentKey.CUSTOM) {
-        setSwapSlippageCustomValue(item.value);
-      }
-      void close({ flag: 'save' });
-    },
-    [setSwapSlippageCustomValue, setSwapSlippageMode],
-  );
+  const { onSlippageHandleClick, slippageItem } = useSwapSlippageActions();
 
   const swapRecipientAddress = useSwapRecipientAddressInfo(
     settingsPersistAtom.swapEnableRecipientAddress,
@@ -170,83 +138,6 @@ const SwapQuoteResult = ({
     [calculateTaxItem],
   );
 
-  const slippageHandleClick = useCallback(() => {
-    dialogRef.current = Dialog.show({
-      title: intl.formatMessage({ id: ETranslations.slippage_tolerance_title }),
-      renderContent: (
-        <SwapSlippageContentContainer
-          swapSlippage={slippageItem}
-          autoValue={autoValue}
-          onSave={slippageOnSave}
-        />
-      ),
-      onOpen: () => {
-        setSwapSlippageDialogOpening({ status: true });
-      },
-      onClose: (extra) => {
-        setSwapSlippageDialogOpening({ status: false, flag: extra?.flag });
-      },
-    });
-  }, [
-    intl,
-    slippageItem,
-    autoValue,
-    slippageOnSave,
-    setSwapSlippageDialogOpening,
-  ]);
-  const protocolFeeInfoList: IProtocolFeeInfo[] = useMemo(
-    () => [
-      {
-        maxFee: 0.875,
-        name: 'metamask',
-        color: '#F5841F',
-        icon: {
-          uri: 'https://uni.onekey-asset.com/static/logo/metamasklogo.png',
-        },
-        fee: 0.875,
-      },
-      {
-        maxFee: 0.875,
-        name: 'zerion',
-        fee: 0.8,
-        color: '#2461ED',
-
-        icon: {
-          uri: 'https://uni.onekey-asset.com/static/logo/zerionlogo.png',
-        },
-      },
-      {
-        maxFee: 0.875,
-        name: 'oneKey',
-        fee: 0.3,
-        // color: '#202020',
-        color: '$bgInverse',
-        icon: require('@onekeyhq/kit/assets/logo.png'),
-      },
-    ],
-    [],
-  );
-  const renderProtocolFeeListItem = useCallback(
-    (item: IProtocolFeeInfo) => (
-      <XStack gap="$3" alignItems="center">
-        <Stack w={20} h={20}>
-          <Image source={item.icon} w={16} h={16} />
-        </Stack>
-        <Stack flex={1}>
-          <Stack
-            backgroundColor={item.color}
-            borderRadius="$full"
-            width={`${item.maxFee > 0 ? (item.fee / item.maxFee) * 100 : 0}%`}
-            height="$1"
-          />
-        </Stack>
-        <SizableText size="$bodySm" color="$text" textAlign="right">
-          {item.fee}%
-        </SizableText>
-      </XStack>
-    ),
-    [],
-  );
   const fromAmountDebounce = useDebounce(fromTokenAmount, 500, {
     leading: true,
   });
@@ -284,6 +175,7 @@ const SwapQuoteResult = ({
                 providerIcon={quoteResult?.info.providerLogo ?? ''}
                 providerName={quoteResult?.info.providerName ?? ''}
                 isLoading={swapQuoteLoading}
+                refreshAction={refreshAction}
                 onOpenResult={
                   quoteResult?.info.provider && !swapQuoteLoading
                     ? () => setOpenResult(!openResult)
@@ -339,6 +231,7 @@ const SwapQuoteResult = ({
                   isLoading={swapQuoteLoading}
                   isBest={quoteResult.isBest}
                   fromToken={fromToken}
+                  onekeyFee={quoteResult?.fee?.percentageFee}
                   toToken={toToken}
                   showLock={!!quoteResult?.allowanceResult}
                   onPress={
@@ -353,7 +246,8 @@ const SwapQuoteResult = ({
               {quoteResult?.toAmount && !quoteResult?.unSupportSlippage ? (
                 <SwapSlippageTriggerContainer
                   isLoading={swapQuoteLoading}
-                  onPress={slippageHandleClick}
+                  onPress={onSlippageHandleClick}
+                  slippageItem={slippageItem}
                 />
               ) : null}
               {quoteResult?.fee?.estimatedFeeFiatValue ? (
@@ -373,38 +267,6 @@ const SwapQuoteResult = ({
                       {quoteResult.fee?.estimatedFeeFiatValue}
                     </NumberSizeableText>
                   }
-                />
-              ) : null}
-              {quoteResult?.fee?.percentageFee ? (
-                <SwapCommonInfoItem
-                  title={intl.formatMessage({
-                    id: ETranslations.provider_ios_popover_onekey_fee,
-                  })}
-                  isLoading={swapQuoteLoading}
-                  valueComponent={
-                    <NumberSizeableText size="$bodyMdMedium" formatter="value">
-                      {`${quoteResult?.fee?.percentageFee}%`}
-                    </NumberSizeableText>
-                  }
-                  onPress={() => {
-                    Dialog.show({
-                      icon: 'OnekeyBrand',
-                      title: intl.formatMessage({
-                        id: ETranslations.provider_ios_popover_onekey_fee,
-                      }),
-                      description: intl.formatMessage({
-                        id: ETranslations.provider_ios_popover_onekey_fee_content,
-                      }),
-                      showCancelButton: false,
-                      renderContent: (
-                        <YStack>
-                          {protocolFeeInfoList.map((item) =>
-                            renderProtocolFeeListItem(item),
-                          )}
-                        </YStack>
-                      ),
-                    });
-                  }}
                 />
               ) : null}
               {swapTokenMetadata?.swapTokenMetadata

@@ -2,7 +2,10 @@
 import BigNumber from 'bignumber.js';
 import TonWeb from 'tonweb';
 
-import { genAddressFromAddress } from '@onekeyhq/core/src/chains/ton/sdkTon';
+import {
+  ETonSendMode,
+  genAddressFromAddress,
+} from '@onekeyhq/core/src/chains/ton/sdkTon';
 import type { IEncodedTxTon } from '@onekeyhq/core/src/chains/ton/types';
 import coreChainApi from '@onekeyhq/core/src/instance/coreChainApi';
 import type {
@@ -11,6 +14,7 @@ import type {
   IUnsignedTxPro,
 } from '@onekeyhq/core/src/types';
 import { OneKeyInternalError } from '@onekeyhq/shared/src/errors';
+import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type {
   IAddressValidation,
   IGeneralInputValidation,
@@ -23,7 +27,11 @@ import type {
   IMeasureRpcStatusParams,
   IMeasureRpcStatusResult,
 } from '@onekeyhq/shared/types/customRpc';
-import type { IEstimateFeeParams } from '@onekeyhq/shared/types/fee';
+import type {
+  IEstimateFeeParams,
+  IFeeInfoUnit,
+} from '@onekeyhq/shared/types/fee';
+import { ESendPreCheckTimingEnum } from '@onekeyhq/shared/types/send';
 import {
   EDecodedTxActionType,
   EDecodedTxDirection,
@@ -51,6 +59,7 @@ import {
 } from './sdkTon/utils';
 import settings from './settings';
 
+import type { IWallet } from './sdkTon/utils';
 import type { IDBWalletType } from '../../../dbs/local/types';
 import type { KeyringBase } from '../../base/KeyringBase';
 import type {
@@ -58,9 +67,11 @@ import type {
   IBuildAccountAddressDetailParams,
   IBuildDecodedTxParams,
   IBuildEncodedTxParams,
+  IBuildOkxSwapEncodedTxParams,
   IBuildUnsignedTxParams,
   IGetPrivateKeyFromImportedParams,
   IGetPrivateKeyFromImportedResult,
+  INativeAmountInfo,
   IUpdateUnsignedTxParams,
   IValidateGeneralInputParams,
 } from '../../types';
@@ -112,7 +123,8 @@ export default class Vault extends VaultBase {
         const msg: IEncodedTxTon['messages'][0] = {
           address: transfer.to,
           amount,
-          sendMode: 3,
+          sendMode:
+            ETonSendMode.PAY_GAS_SEPARATELY + ETonSendMode.IGNORE_ERRORS,
         };
         if (transfer.memo) {
           msg.payload = await encodeComment(transfer.memo);
@@ -294,20 +306,6 @@ export default class Vault extends VaultBase {
       encodedTx.sequenceNo = params.nonceInfo.nonce;
     }
 
-    if (encodedTx.sequenceNo === 0 && !encodedTx.messages[0].stateInit) {
-      const account = await this.getAccount();
-      const wallet = getWalletContractInstance({
-        version: getAccountVersion(account.id),
-        publicKey: account.pub ?? '',
-        backgroundApi: this.backgroundApi,
-        networkId: this.networkId,
-      });
-      const stateInit = await wallet.createStateInit();
-      encodedTx.messages[0].stateInit = Buffer.from(
-        await stateInit.stateInit.toBoc(),
-      ).toString('base64');
-    }
-
     const validUntil = Math.floor(Date.now() / 1000) + 60 * 3;
     if (!encodedTx.validUntil) {
       encodedTx.validUntil = validUntil;
@@ -397,15 +395,20 @@ export default class Vault extends VaultBase {
   }> {
     const encodedTx = params.encodedTx as IEncodedTxTon;
     const account = await this.getAccount();
-    const version = getAccountVersion(account.id);
-    const serializeUnsignedTx = await serializeUnsignedTransaction({
-      version,
-      encodedTx,
+    const wallet = getWalletContractInstance({
+      version: getAccountVersion(account.id),
+      publicKey: account.pub ?? '',
       backgroundApi: this.backgroundApi,
       networkId: this.networkId,
+    }) as unknown as IWallet;
+
+    const serializeUnsignedTx = await serializeUnsignedTransaction({
+      contract: wallet,
+      encodedTx,
     });
     return {
       encodedTx: {
+        ...encodedTx,
         body: Buffer.from(await serializeUnsignedTx.body.toBoc(false)).toString(
           'base64',
         ),
@@ -455,5 +458,67 @@ export default class Vault extends VaultBase {
       ...params.signedTx,
       txid: txId,
     };
+  }
+
+  override async buildOkxSwapEncodedTx(
+    params: IBuildOkxSwapEncodedTxParams,
+  ): Promise<IEncodedTx> {
+    const { okxTx } = params;
+    const { from, to, value, data } = okxTx;
+    const network = await this.getNetwork();
+    const amount = new BigNumber(value).shiftedBy(-network.decimals).toString();
+    const message = {
+      address: to,
+      amount: TonWeb.utils.toNano(amount).toString(),
+      payload: data,
+    };
+    const fromAddress = await this.getAccountAddress();
+    if (from !== fromAddress) {
+      throw new OneKeyInternalError('Invalid from address');
+    }
+    return {
+      from,
+      to,
+      messages: [message],
+    };
+  }
+
+  override async precheckUnsignedTx(params: {
+    unsignedTx: IUnsignedTxPro;
+    precheckTiming: ESendPreCheckTimingEnum;
+    nativeAmountInfo?: INativeAmountInfo;
+    feeInfo?: IFeeInfoUnit;
+  }): Promise<boolean> {
+    if (params.precheckTiming !== ESendPreCheckTimingEnum.Confirm) {
+      return true;
+    }
+
+    const resp =
+      await this.backgroundApi.serviceAccountProfile.fetchAccountDetails({
+        networkId: this.networkId,
+        accountId: this.accountId,
+        withNetWorth: true,
+      });
+    const nativeBalance = new BigNumber(resp.balance ?? '0');
+    const { encodedTx } = params.unsignedTx;
+    const messages = (encodedTx as IEncodedTxTon).messages;
+    const amount = messages.reduce(
+      (acc, current) => acc.plus(new BigNumber(current.amount)),
+      new BigNumber('0'),
+    );
+    const balanceDiff = nativeBalance.minus(amount);
+
+    if (balanceDiff.isGreaterThanOrEqualTo(0)) {
+      return true;
+    }
+
+    const network = await this.getNetwork();
+    throw new OneKeyInternalError({
+      key: ETranslations.swap_page_toast_insufficient_balance_content,
+      info: {
+        token: network.symbol,
+        number: amount.shiftedBy(-network.decimals).toFixed(),
+      },
+    });
   }
 }

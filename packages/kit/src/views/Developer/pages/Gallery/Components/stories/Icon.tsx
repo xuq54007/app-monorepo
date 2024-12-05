@@ -25,6 +25,7 @@ const IconGallery = () => (
             <Icon name="AirpodsSolid" color="$iconHover" />
             <Icon name="AirpodsSolid" color="$iconInverse" />
             <Icon name="AirpodsSolid" color="$iconActive" />
+            <Icon name="AirpodsSolid" color="$iconSuccess" />
           </XStack>
         ),
       },
@@ -50,7 +51,7 @@ const IconGallery = () => (
             numColumns={4}
             data={iconData}
             renderItem={({ item }) => (
-              <Stack height="$28" key={item}>
+              <Stack pr="$2" height="$28" key={item}>
                 <SizableText>{item}</SizableText>
                 <Stack position="absolute" bottom="$10">
                   <Icon name={item} />

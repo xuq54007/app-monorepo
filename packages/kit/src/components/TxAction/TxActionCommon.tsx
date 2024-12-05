@@ -2,12 +2,13 @@ import { useIntl } from 'react-intl';
 
 import {
   Badge,
+  Divider,
   Icon,
-  Image,
   NumberSizeableText,
   SizableText,
   Stack,
   XStack,
+  YStack,
 } from '@onekeyhq/components';
 import { ListItem } from '@onekeyhq/kit/src/components/ListItem';
 import type { IListItemProps } from '@onekeyhq/kit/src/components/ListItem';
@@ -304,6 +305,7 @@ function TxActionCommonListView(
                   <SizableText size="$bodyMd" color="$textSubdued">
                     {formatTime(new Date(timestamp), {
                       hideSeconds: true,
+                      hideMilliseconds: true,
                     })}
                   </SizableText>
                   {description && description.children ? (
@@ -361,6 +363,7 @@ function TxActionCommonDetailView(props: ITxActionCommonDetailViewProps) {
   const { overview, target, source, applyFor, networkId } = props;
   const intl = useIntl();
   const { network } = useAccountData({ networkId });
+
   return (
     <InfoItemGroup>
       <InfoItem
@@ -376,7 +379,7 @@ function TxActionCommonDetailView(props: ITxActionCommonDetailViewProps) {
               <SizableText
                 minWidth={0}
                 maxWidth="$96"
-                size="$bodyLgMedium"
+                size="$headingSm"
                 flex={1}
               >
                 {overview.content}
@@ -387,6 +390,8 @@ function TxActionCommonDetailView(props: ITxActionCommonDetailViewProps) {
           </XStack>
         }
       />
+
+      <Divider mx="$2.5" my="$3" />
 
       {source && source.content ? (
         <InfoItem

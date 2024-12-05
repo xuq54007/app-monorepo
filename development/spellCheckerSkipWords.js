@@ -769,4 +769,10 @@ module.exports = [
   'everstake',
   'unbonding',
   'algodv2',
+  'okx',
+  'OKX',
+  'Okx',
+  'cacheable',
+  'benfen',
+  'bfc',
 ];

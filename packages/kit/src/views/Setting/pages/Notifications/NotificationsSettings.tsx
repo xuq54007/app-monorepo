@@ -51,7 +51,7 @@ export default function NotificationsSettings() {
     async (updated?: INotificationPushSettings) => {
       const result =
         updated ||
-        (await backgroundApiProxy.serviceNotification.fetchNotificationSettings());
+        (await backgroundApiProxy.serviceNotification.fetchServerNotificationSettings());
       setSettings(result);
       prevSettings.current = result;
     },
@@ -68,7 +68,7 @@ export default function NotificationsSettings() {
       let updated: INotificationPushSettings | undefined;
       try {
         updated =
-          await backgroundApiProxy.serviceNotification.updateNotificationSettings(
+          await backgroundApiProxy.serviceNotification.updateServerNotificationSettings(
             {
               ...settings,
               ...partSettings,
@@ -132,6 +132,7 @@ export default function NotificationsSettings() {
                 }}
               />
               <Switch
+                size="small"
                 value={!!settings?.pushEnabled}
                 onChange={(checked) => {
                   void updateSettings({
@@ -158,6 +159,7 @@ export default function NotificationsSettings() {
                     }}
                   />
                   <Switch
+                    size="small"
                     value={!!settings?.accountActivityPushEnabled}
                     onChange={(checked) => {
                       void updateSettings({

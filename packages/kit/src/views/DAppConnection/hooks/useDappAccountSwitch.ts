@@ -4,11 +4,19 @@ import { useIntl } from 'react-intl';
 
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { useAccountSelectorCreateAddress } from '@onekeyhq/kit/src/components/AccountSelector/hooks/useAccountSelectorCreateAddress';
-import { useActiveAccount } from '@onekeyhq/kit/src/states/jotai/contexts/accountSelector';
+import {
+  useActiveAccount,
+  useSelectedAccount,
+} from '@onekeyhq/kit/src/states/jotai/contexts/accountSelector';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import type { IAccountDeriveTypes } from '@onekeyhq/kit-bg/src/vaults/types';
+import { getScopeFromImpl } from '@onekeyhq/shared/src/background/backgroundUtils';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
-import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import { EAlignPrimaryAccountMode } from '@onekeyhq/shared/types/dappConnection';
 
@@ -32,6 +40,8 @@ export function useDappAccountSwitch({
       isOthersWallet,
     },
   } = useActiveAccount({ num: 0 });
+
+  const { selectedAccount } = useSelectedAccount({ num: 0 });
   const [settings] = useSettingsPersistAtom();
 
   const [shouldSwitchAccount, setShouldSwitchAccount] = useState(false);
@@ -58,9 +68,8 @@ export function useDappAccountSwitch({
       }
 
       if (
-        settings.alignPrimaryAccountMode ===
-          EAlignPrimaryAccountMode.AlignDappToWallet &&
-        platformEnv.isExtensionUiSidePanel
+        settings.alignPrimaryAccountMode !==
+        EAlignPrimaryAccountMode.Independent
       ) {
         setShouldSwitchAccount(false);
         return;
@@ -235,6 +244,97 @@ export function useDappAccountSwitch({
   const onCancelSwitchAccount = useCallback(() => {
     setShouldSwitchAccount(false);
   }, []);
+
+  const syncPrimaryAccount = useCallback(async () => {
+    if (
+      settings?.alignPrimaryAccountMode !==
+      EAlignPrimaryAccountMode.AlwaysUsePrimaryAccount
+    ) {
+      return;
+    }
+    if (
+      Array.isArray(result?.connectedAccountsInfo) &&
+      result?.connectedAccountsInfo?.length === 1
+    ) {
+      const isSameAccount =
+        await backgroundApiProxy.serviceDApp.isSameConnectedAccount({
+          homeAccountSelectorInfo: selectedAccount,
+          connectedAccountInfo: result.connectedAccountsInfo[0],
+        });
+      const isSyncing =
+        await backgroundApiProxy.serviceDApp.getAlignPrimaryAccountProcessing();
+
+      let isAvailableAccount = false;
+      try {
+        const isOtherWallet = accountUtils.isOthersWallet({
+          walletId: selectedAccount?.walletId ?? '',
+        });
+        const networkAccountWithSelectedAccount =
+          await backgroundApiProxy.serviceAccount.getNetworkAccount({
+            indexedAccountId: isOtherWallet
+              ? undefined
+              : selectedAccount?.indexedAccountId,
+            networkId: result.connectedAccountsInfo[0].networkId ?? '',
+            deriveType: selectedAccount?.deriveType ?? 'default',
+            accountId: isOtherWallet
+              ? selectedAccount?.othersWalletAccountId
+              : undefined,
+          });
+        if (
+          networkAccountWithSelectedAccount?.address ||
+          networkAccountWithSelectedAccount?.addressDetail.isValid
+        ) {
+          isAvailableAccount = true;
+        }
+      } catch (e) {
+        isAvailableAccount = false;
+      }
+
+      if (!isSameAccount && !isSyncing && isAvailableAccount) {
+        const scopes = getScopeFromImpl({
+          impl: result.connectedAccountsInfo[0].networkImpl,
+        });
+        // update connected accounts info from home
+        if (scopes && scopes.length) {
+          await backgroundApiProxy.serviceDApp.getConnectedAccountsInfo({
+            origin: result.origin,
+            scope: scopes[0],
+            isWalletConnectRequest: false,
+          });
+        }
+        refreshConnectionInfo();
+        if (result?.origin) {
+          void backgroundApiProxy.serviceDApp.notifyDAppAccountsChanged(
+            result.origin,
+          );
+        }
+      }
+    }
+  }, [
+    settings?.alignPrimaryAccountMode,
+    result?.origin,
+    result?.connectedAccountsInfo,
+    refreshConnectionInfo,
+    selectedAccount,
+  ]);
+
+  useEffect(() => {
+    void syncPrimaryAccount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    settings?.alignPrimaryAccountMode,
+    result?.origin,
+    result?.connectedAccountsInfo,
+    refreshConnectionInfo,
+    selectedAccount,
+  ]);
+
+  useEffect(() => {
+    appEventBus.on(EAppEventBusNames.AccountUpdate, syncPrimaryAccount);
+    return () => {
+      appEventBus.off(EAppEventBusNames.AccountUpdate, syncPrimaryAccount);
+    };
+  }, [syncPrimaryAccount]);
 
   return {
     shouldSwitchAccount,

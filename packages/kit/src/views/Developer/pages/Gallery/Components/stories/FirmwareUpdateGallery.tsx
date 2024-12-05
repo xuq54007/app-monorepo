@@ -5,6 +5,7 @@ import {
   Select,
   SizableText,
   Stack,
+  Toast,
   useForm,
 } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
@@ -29,13 +30,17 @@ import {
 import { FIRMWARE_UPDATE_UPDATE_INFO_SAMPLE } from '@onekeyhq/kit-bg/src/services/ServiceFirmwareUpdate/firewareUpdateFixtures';
 import {
   useFirmwareUpdateRetryAtom,
-  useFirmwareUpdatesDetectStatusAtom,
+  useFirmwareUpdatesDetectStatusPersistAtom,
 } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import * as AllErrors from '@onekeyhq/shared/src/errors';
 import type { IOneKeyError } from '@onekeyhq/shared/src/errors/types/errorTypes';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
-import type { ICheckAllFirmwareReleaseResult } from '@onekeyhq/shared/types/device';
 import { EFirmwareUpdateTipMessages } from '@onekeyhq/shared/types/device';
+import type { ICheckAllFirmwareReleaseResult } from '@onekeyhq/shared/types/device';
 
 import { Layout } from './utils/Layout';
 
@@ -93,7 +98,7 @@ function BootloaderModeUpdateButton() {
 }
 
 function ClearUpdateInfoDetectCacheButton() {
-  const [, setDetectStatus] = useFirmwareUpdatesDetectStatusAtom();
+  const [, setDetectStatus] = useFirmwareUpdatesDetectStatusPersistAtom();
   return (
     <Button
       onPress={() => {
@@ -119,6 +124,21 @@ export function FirmwareUpdateGalleryDemo() {
           <BootloaderModeUpdateButton />
           <ClearUpdateInfoDetectCacheButton />
           <ResetDetectTimeCheck />
+          <Button
+            onPress={() => {
+              appEventBus.emit(EAppEventBusNames.ShowFirmwareUpdateForce, {
+                connectId: undefined,
+              });
+              appEventBus.emit(EAppEventBusNames.ShowFirmwareUpdateForce, {
+                connectId: undefined,
+              });
+              Toast.message({
+                title: 'ForceUpdateDialog',
+              });
+            }}
+          >
+            ForceUpdateDialog
+          </Button>
         </>
       </Stack>
     </AccountSelectorProviderMirror>

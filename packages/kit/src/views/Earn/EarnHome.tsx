@@ -6,7 +6,6 @@ import { useIntl } from 'react-intl';
 import { StyleSheet } from 'react-native';
 
 import type {
-  IImageSourceProps,
   IKeyOfIcons,
   ISizableTextProps,
   IYStackProps,
@@ -35,7 +34,12 @@ import {
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import { getPrimaryColor } from '@onekeyhq/shared/src/modules3rdParty/react-native-image-colors';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { EModalRoutes, EModalStakingRoutes } from '@onekeyhq/shared/src/routes';
+import {
+  openUrlExternal,
+  openUrlInApp,
+} from '@onekeyhq/shared/src/utils/openUrlUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
 import type {
@@ -54,6 +58,7 @@ import { useEarnActions, useEarnAtom } from '../../states/jotai/contexts/earn';
 
 import { EARN_PAGE_MAX_WIDTH, EARN_RIGHT_PANEL_WIDTH } from './EarnConfig';
 import { EarnProviderMirror } from './EarnProviderMirror';
+import { EarnNavigation } from './earnUtils';
 
 interface ITokenAccount extends IEarnAccountToken {
   account: IEarnAccount;
@@ -629,7 +634,7 @@ function BasicEarnHome() {
             .then(actions.current.updateAvailableAssets);
         });
       }
-      const earnAccountData = actions.current.getEarnAccount(totalFiatMapKey);
+
       const fetchAndUpdateAction = async () => {
         const earnAccount =
           await backgroundApiProxy.serviceStaking.fetchAllNetworkAssets({
@@ -637,17 +642,40 @@ function BasicEarnHome() {
             accountId: account?.id ?? '',
             networkId: network?.id ?? '',
           });
+        const earnAccountData = actions.current.getEarnAccount(totalFiatMapKey);
         actions.current.updateEarnAccounts({
           key: totalFiatMapKey,
-          earnAccount,
+          earnAccount: {
+            ...earnAccountData,
+            ...earnAccount,
+          },
         });
       };
+      const fetchAndUpdateOverview = async () => {
+        const overviewData =
+          await backgroundApiProxy.serviceStaking.fetchAccountOverview({
+            assets,
+            accountId: account?.id ?? '',
+            networkId: network?.id ?? '',
+          });
+        const earnAccountData = actions.current.getEarnAccount(totalFiatMapKey);
+        actions.current.updateEarnAccounts({
+          key: totalFiatMapKey,
+          earnAccount: {
+            accounts: earnAccountData?.accounts || [],
+            ...overviewData,
+          },
+        });
+      };
+      const earnAccountData = actions.current.getEarnAccount(totalFiatMapKey);
       if (earnAccountData) {
         setTimeout(() => {
+          void fetchAndUpdateOverview();
           void fetchAndUpdateAction();
         });
       } else {
         await fetchAndUpdateAction();
+        void fetchAndUpdateOverview();
       }
       return { loaded: true };
     },
@@ -655,6 +683,25 @@ function BasicEarnHome() {
     {
       watchLoading: true,
       pollingInterval: timerUtils.getTimeDurationMs({ minute: 3 }),
+      revalidateOnReconnect: true,
+    },
+  );
+
+  const { result: earnBanners } = usePromiseResult(
+    async () => {
+      const bannerResult =
+        await backgroundApiProxy.serviceStaking.fetchEarnHomePageData();
+      return (
+        bannerResult?.map((i) => ({
+          ...i,
+          imgUrl: i.src,
+          title: i.title || '',
+        })) || []
+      );
+    },
+    [],
+    {
+      revalidateOnReconnect: true,
     },
   );
 
@@ -694,43 +741,94 @@ function BasicEarnHome() {
 
   const navigation = useAppNavigation();
 
-  const onBannerPress = useCallback(async () => {
-    if (account) {
-      navigation.pushModal(EModalRoutes.StakingModal, {
-        screen: EModalStakingRoutes.ProtocolDetails,
-        params: {
-          accountId: account?.id ?? '',
-          networkId: 'btc--0',
-          indexedAccountId: indexedAccount?.id,
-          symbol: 'BTC',
-          provider: 'babylon',
-        },
-      });
-    }
-  }, [account, indexedAccount?.id, navigation]);
-
-  const bannerData = useMemo(
-    () => [
-      {
-        'title': intl.formatMessage({
-          id: ETranslations.earn_banner_stake_in_babylon_ecosystem,
-        }),
-        'bannerId': '6f6ffc0e-8c7a-4d86-ad83-fe5629975916',
-        'imgSource': require('@onekeyhq/kit/assets/bg-mobile.png'),
-        titleTextProps: {
-          color: '$textInverseLight',
-          size: '$headingMd',
-          numberOfLines: 2,
-          maxWidth: 140,
-        } as ISizableTextProps,
-        $gtLg: {
-          'imgSource': require('@onekeyhq/kit/assets/bg-desktop.png'),
-          imgResizeMode: 'contain' as IImageSourceProps['resizeMode'],
-        },
-      },
-    ],
-    [intl],
+  const onBannerPress = useCallback(
+    async ({
+      hrefType,
+      href,
+    }: {
+      imgUrl: string;
+      title: string;
+      bannerId: string;
+      src: string;
+      href: string;
+      hrefType: string;
+      rank: number;
+      useSystemBrowser: boolean;
+      theme?: 'light' | 'dark';
+    }) => {
+      if (account) {
+        if (href.includes('/earn/staking')) {
+          const [path, query] = href.split('?');
+          const paths = path.split('/');
+          const provider = paths.pop();
+          const symbol = paths.pop();
+          const params = new URLSearchParams(query);
+          const networkId = params.get('networkId');
+          if (provider && symbol && networkId) {
+            void EarnNavigation.pushDetailPageFromDeeplink(navigation, {
+              accountId: account?.id ?? '',
+              indexedAccountId: indexedAccount?.id,
+              provider,
+              symbol,
+              networkId,
+            });
+          }
+          return;
+        }
+        if (hrefType === 'external') {
+          openUrlExternal(href);
+        } else {
+          openUrlInApp(href);
+        }
+      }
+    },
+    [account, indexedAccount?.id, navigation],
   );
+
+  const banners = useMemo(() => {
+    if (earnBanners) {
+      return earnBanners.length ? (
+        <Banner
+          showPaginationButton={!platformEnv.isNative}
+          height="$36"
+          $md={{
+            height: '$28',
+          }}
+          data={earnBanners}
+          onItemPress={onBannerPress}
+          isLoading={false}
+          leftIconButtonStyle={{
+            left: '$1.5',
+            size: 'small',
+          }}
+          rightIconButtonStyle={{
+            right: '$1.5',
+            size: 'small',
+          }}
+          indicatorContainerStyle={{
+            right: '$2.5',
+            bottom: '$3',
+          }}
+          itemTitleContainerStyle={{
+            top: 0,
+            bottom: 0,
+            right: '$10',
+            left: '$10',
+            justifyContent: 'center',
+          }}
+        />
+      ) : null;
+    }
+    return (
+      <Skeleton
+        height="$36"
+        $md={{
+          height: '$28',
+        }}
+        width="100%"
+      />
+    );
+  }, [earnBanners, onBannerPress]);
 
   return (
     <Page fullPage>
@@ -767,22 +865,7 @@ function BasicEarnHome() {
                   w: EARN_RIGHT_PANEL_WIDTH,
                 }}
               >
-                <Banner
-                  height="$36"
-                  $md={{
-                    height: '$28',
-                  }}
-                  data={bannerData}
-                  onItemPress={onBannerPress}
-                  isLoading={false}
-                  itemTitleContainerStyle={{
-                    top: 0,
-                    bottom: 0,
-                    right: 0,
-                    left: 20,
-                    justifyContent: 'center',
-                  }}
-                />
+                {banners}
               </YStack>
             </YStack>
             {/* Recommended, available assets and introduction */}

@@ -1,4 +1,4 @@
-import { debounce, isNumber, merge, uniq, uniqBy } from 'lodash';
+import { cloneDeep, debounce, isNumber, merge, uniq, uniqBy } from 'lodash';
 import { InteractionManager } from 'react-native';
 
 import {
@@ -41,6 +41,7 @@ import {
   EPushProviderEventNames,
 } from '@onekeyhq/shared/types/notification';
 
+import { NOTIFICATION_ACCOUNT_ACTIVITY_DEFAULT_MAX_ACCOUNT_COUNT } from '../../dbs/simple/entity/SimpleDbEntityNotificationSettings';
 import {
   notificationsAtom,
   notificationsDevSettingsPersistAtom,
@@ -52,22 +53,29 @@ import ServiceBase from '../ServiceBase';
 import NotificationProvider from './NotificationProvider/NotificationProvider';
 
 import type NotificationProviderBase from './NotificationProvider/NotificationProviderBase';
-import type { IDBAccount } from '../../dbs/local/types';
+import type {
+  IDBAccount,
+  IDBIndexedAccount,
+  IDBWallet,
+} from '../../dbs/local/types';
+import type { IAccountActivityNotificationSettings } from '../../dbs/simple/entity/SimpleDbEntityNotificationSettings';
 import type { Socket } from 'socket.io-client';
 
 export default class ServiceNotification extends ServiceBase {
   constructor({ backgroundApi }: { backgroundApi: any }) {
     super({ backgroundApi });
-    appEventBus.on(EAppEventBusNames.AddDBAccountsToWallet, (params) => {
+    appEventBus.on(EAppEventBusNames.AddDBAccountsToWallet, async (params) => {
       const { accounts } = params;
+      // clear cache
+      await this.getSupportedNetworks.clear();
       void this.registerClientWithAppendAccounts({
-        dbAccounts: accounts,
+        dbAccounts: accounts, // append
       });
     });
     appEventBus.on(EAppEventBusNames.RenameDBAccounts, (params) => {
       const { accounts } = params;
       void this.registerClientWithAppendAccounts({
-        dbAccounts: accounts,
+        dbAccounts: accounts, // replace
       });
     });
     appEventBus.on(EAppEventBusNames.AccountRemove, () => {
@@ -135,6 +143,8 @@ export default class ServiceNotification extends ServiceBase {
     return this.pushClient;
   }
 
+  isFirstTimeAllAccountsRegistered = false;
+
   onPushProviderConnected = async ({
     jpushId,
     socketId,
@@ -149,7 +159,13 @@ export default class ServiceNotification extends ServiceBase {
       socketId,
     });
     defaultLogger.notification.common.pushProviderConnected(this.pushClient);
-    return this.registerClientWithOverrideAllAccounts();
+    if (!this.isFirstTimeAllAccountsRegistered) {
+      this.isFirstTimeAllAccountsRegistered = true;
+      // register when webSocket or jpush established
+      void this.registerClientWithOverrideAllAccounts();
+    } else {
+      void this.updateClientBasicAppInfo();
+    }
   };
 
   onNotificationReceived = async (
@@ -234,6 +250,8 @@ export default class ServiceNotification extends ServiceBase {
       message: params?.remotePushMessageInfo,
       isFromNotificationClick: true,
       notificationId: notificationId || '',
+      notificationAccountId:
+        params?.remotePushMessageInfo?.extras?.params?.accountId,
     });
 
     void this.removeNotification({
@@ -466,6 +484,15 @@ export default class ServiceNotification extends ServiceBase {
     });
 
     const syncAccounts: INotificationPushSyncAccount[] = [];
+
+    const notificationSettingsRawData =
+      await this.backgroundApi.simpleDb.notificationSettings.getRawData();
+
+    const { wallets: allWallets } =
+      await this.backgroundApi.serviceAccount.getAllWallets({
+        refillWalletInfo: true,
+      });
+
     for (const account of dbAccounts) {
       const networks = supportNetworksFiltered.filter(
         (item) =>
@@ -478,6 +505,7 @@ export default class ServiceNotification extends ServiceBase {
           networkAccount = await this.backgroundApi.serviceAccount.getAccount({
             accountId: account.id,
             networkId: network.networkId,
+            dbAccount: account,
           });
         } catch (error) {
           //
@@ -492,12 +520,11 @@ export default class ServiceNotification extends ServiceBase {
           const walletId = accountUtils.getWalletIdFromAccountId({
             accountId: networkAccount.id,
           });
-          const wallet = await this.backgroundApi.serviceAccount.getWalletSafe({
-            walletId,
-          });
+          const wallet = allWallets.find((item) => item.id === walletId);
           const isEnabled =
             await this.backgroundApi.simpleDb.notificationSettings.isAccountActivityEnabled(
               {
+                notificationSettingsRawData,
                 walletId,
                 accountId: account.id,
                 indexedAccountId: account.indexedAccountId,
@@ -530,14 +557,20 @@ export default class ServiceNotification extends ServiceBase {
   async buildSyncAccounts({ accountIds }: { accountIds?: string[] }): Promise<{
     syncAccounts: INotificationPushSyncAccount[];
   }> {
-    const { accounts } = await this.backgroundApi.serviceAccount.getAllAccounts(
-      {
+    const { accounts, accountsRemoved } =
+      await this.backgroundApi.serviceAccount.getAllAccounts({
         ids: accountIds,
         filterRemoved: true,
-      },
-    );
+      });
 
     const { syncAccounts } = await this.convertToSyncAccounts(accounts);
+
+    // accountIds is undefined means sync all accounts
+    if (!accountIds) {
+      void this.backgroundApi.serviceAppCleanup.cleanup({
+        accountsRemoved,
+      });
+    }
 
     return {
       syncAccounts,
@@ -577,6 +610,7 @@ export default class ServiceNotification extends ServiceBase {
 
   @backgroundMethod()
   async updateClientBasicAppInfo() {
+    // update client basic app info: locale, currencyInfo, hideValue
     await this.registerClient({
       client: this.pushClient,
       syncMethod: ENotificationPushSyncMethod.append,
@@ -606,8 +640,122 @@ export default class ServiceNotification extends ServiceBase {
     return this._registerClientWithOverrideAllAccountsCore();
   }
 
+  @backgroundMethod()
+  async getNotificationWalletsAndAccounts() {
+    const result = await this.backgroundApi.serviceAccount.getWallets({
+      nestedHiddenWallets: true,
+      ignoreEmptySingletonWalletAccounts: true,
+      includingAccounts: true,
+    });
+    return result;
+  }
+
+  @backgroundMethod()
+  async fixAccountActivityNotificationSettings() {
+    const maxAccountCount =
+      (await notificationsAtom.get()).maxAccountCount ??
+      NOTIFICATION_ACCOUNT_ACTIVITY_DEFAULT_MAX_ACCOUNT_COUNT;
+
+    const settings =
+      await this.backgroundApi.simpleDb.notificationSettings.getRawData();
+    const { wallets } = await this.getNotificationWalletsAndAccounts();
+    const oldAccountActivity = cloneDeep(settings?.accountActivity ?? {});
+    const accountActivity: IAccountActivityNotificationSettings = {};
+
+    const currentEnabledAccountCount =
+      await this.backgroundApi.simpleDb.notificationSettings.getEnabledAccountCount();
+
+    let totalEnabledCount = 0;
+    const isInit = !settings?.accountActivity;
+    const updateWalletAccountActivity = (wallet: IDBWallet) => {
+      accountActivity[wallet.id] = oldAccountActivity?.[wallet.id] || {
+        enabled: false,
+        accounts: {},
+      };
+      accountActivity[wallet.id].accounts =
+        accountActivity[wallet.id].accounts || {};
+      let enabledCountInWallet = 0;
+      const disableAccount = (account: IDBAccount | IDBIndexedAccount) => {
+        accountActivity[wallet.id].accounts[account.id] = {
+          enabled: false,
+        };
+      };
+      const enableAccount = (account: IDBAccount | IDBIndexedAccount) => {
+        if (totalEnabledCount < maxAccountCount) {
+          accountActivity[wallet.id].accounts[account.id] = {
+            enabled: true,
+          };
+          totalEnabledCount += 1;
+          enabledCountInWallet += 1;
+          accountActivity[wallet.id].enabled = true;
+        } else {
+          disableAccount(account);
+        }
+      };
+
+      for (const account of wallet.dbAccounts ||
+        wallet.dbIndexedAccounts ||
+        []) {
+        if (isInit) {
+          enableAccount(account);
+        } else {
+          const isWalletEnabled =
+            oldAccountActivity?.[wallet.id]?.enabled === true ||
+            oldAccountActivity?.[wallet.id]?.enabled === undefined;
+          const isAccountEnabledUndefined =
+            oldAccountActivity?.[wallet.id]?.accounts?.[account.id]?.enabled ===
+            undefined;
+          const isAccountEnabled =
+            oldAccountActivity?.[wallet.id]?.accounts?.[account.id]?.enabled ===
+              true || isAccountEnabledUndefined;
+
+          if (isWalletEnabled && isAccountEnabled) {
+            if (
+              isAccountEnabledUndefined &&
+              currentEnabledAccountCount >= maxAccountCount
+            ) {
+              disableAccount(account);
+            } else {
+              enableAccount(account);
+            }
+          } else {
+            disableAccount(account);
+          }
+        }
+      }
+      if (accountActivity?.[wallet.id]?.enabled === undefined) {
+        accountActivity[wallet.id].enabled = enabledCountInWallet > 0;
+      }
+      if (enabledCountInWallet === 0) {
+        accountActivity[wallet.id].enabled = false;
+      }
+    };
+    for (const wallet of wallets) {
+      updateWalletAccountActivity(wallet);
+      for (const hiddenWallet of wallet.hiddenWallets || []) {
+        updateWalletAccountActivity(hiddenWallet);
+      }
+    }
+    await this.saveAccountActivityNotificationSettings(accountActivity);
+  }
+
+  @backgroundMethod()
+  async saveAccountActivityNotificationSettings(
+    accountActivity: IAccountActivityNotificationSettings | undefined,
+  ) {
+    await this.backgroundApi.simpleDb.notificationSettings.saveAccountActivityNotificationSettings(
+      accountActivity,
+    );
+    await notificationsAtom.set((v) => ({
+      ...v,
+      lastSettingsUpdateTime: Date.now(),
+    }));
+  }
+
   _registerClientWithOverrideAllAccountsDebounced = debounce(
-    () => this._registerClientWithOverrideAllAccountsCore(),
+    async () => {
+      await this._registerClientWithOverrideAllAccountsCore();
+    },
     5000,
     {
       leading: false,
@@ -749,19 +897,49 @@ export default class ServiceNotification extends ServiceBase {
 
   getSupportedNetworks = memoizee(
     async () => {
-      // /notification/v1/config/supported-networks
-      const client = await this.getClient(EServiceEndpointEnum.Notification);
-      const result = await client.get<
-        IApiClientResponse<
-          {
+      const serverSettings = await this.fetchServerNotificationSettings();
+
+      let supportNetworks:
+        | {
             networkId: string;
             impl: string;
             chainId: string;
           }[]
-        >
-      >('/notification/v1/config/supported-networks');
+        | undefined;
+      if (serverSettings.supportNetworks) {
+        supportNetworks = serverSettings.supportNetworks;
+      } else {
+        // /notification/v1/config/supported-networks
+        const client = await this.getClient(EServiceEndpointEnum.Notification);
+        const result = await client.get<
+          IApiClientResponse<
+            {
+              networkId: string;
+              impl: string;
+              chainId: string;
+            }[]
+          >
+        >('/notification/v1/config/supported-networks');
 
-      const supportNetworks = result?.data?.data ?? [];
+        supportNetworks = result?.data?.data ?? [];
+      }
+
+      // serverSettings.maxAccount = 30;
+
+      const maxAccountCount =
+        serverSettings.maxAccount ??
+        NOTIFICATION_ACCOUNT_ACTIVITY_DEFAULT_MAX_ACCOUNT_COUNT;
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const currentMaxAccountCount = (await notificationsAtom.get())
+        .maxAccountCount;
+
+      await notificationsAtom.set((v) => ({
+        ...v,
+        maxAccountCount,
+      }));
+      await this.fixAccountActivityNotificationSettings();
+
       const supportNetworksFiltered = uniqBy(supportNetworks, (item) => {
         if (item.impl === IMPL_EVM) {
           return item.impl;
@@ -829,7 +1007,7 @@ export default class ServiceNotification extends ServiceBase {
 
   @backgroundMethod()
   @toastIfError()
-  async fetchNotificationSettings() {
+  async fetchServerNotificationSettings() {
     const client = await this.getClient(EServiceEndpointEnum.Notification);
     const result = await client.post<
       IApiClientResponse<INotificationPushSettings>
@@ -841,7 +1019,7 @@ export default class ServiceNotification extends ServiceBase {
 
   @backgroundMethod()
   @toastIfError()
-  async updateNotificationSettings(params: INotificationPushSettings) {
+  async updateServerNotificationSettings(params: INotificationPushSettings) {
     this.updateNotificationSettingsAbortController?.abort();
 
     this.updateNotificationSettingsAbortController = new AbortController();
@@ -854,6 +1032,10 @@ export default class ServiceNotification extends ServiceBase {
     if (result?.data?.data?.pushEnabled) {
       void this.registerClientWithOverrideAllAccounts();
     }
+    await notificationsAtom.set((v) => ({
+      ...v,
+      lastSettingsUpdateTime: Date.now(),
+    }));
     return result?.data?.data;
   }
 

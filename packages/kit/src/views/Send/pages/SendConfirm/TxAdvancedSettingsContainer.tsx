@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import BigNumber from 'bignumber.js';
-import { utils } from 'ethers';
 import { isNaN, isNil } from 'lodash';
 import { useIntl } from 'react-intl';
-import { useDebouncedCallback } from 'use-debounce';
 
 import {
   Button,
@@ -23,7 +21,6 @@ import {
   useUnsignedTxsAtom,
 } from '@onekeyhq/kit/src/states/jotai/contexts/sendConfirm';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
-import { checkIsEmptyData } from '@onekeyhq/kit-bg/src/vaults/impls/evm/decoder/utils';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
 
@@ -48,7 +45,7 @@ const showNonceFaq = () => {
     }),
     showCancelButton: false,
     onConfirmText: appLocale.intl.formatMessage({
-      id: ETranslations.global_done,
+      id: ETranslations.global_ok,
     }),
   });
 };
@@ -56,7 +53,7 @@ const showNonceFaq = () => {
 const showHexDataFaq = () => {
   Dialog.show({
     title: appLocale.intl.formatMessage({
-      id: ETranslations.global_hex_data,
+      id: ETranslations.global_hex_data_default,
     }),
     icon: 'ConsoleOutline',
     description: appLocale.intl.formatMessage({
@@ -64,7 +61,7 @@ const showHexDataFaq = () => {
     }),
     showCancelButton: false,
     onConfirmText: appLocale.intl.formatMessage({
-      id: ETranslations.global_done,
+      id: ETranslations.global_ok,
     }),
   });
 };
@@ -74,11 +71,9 @@ function TxAdvancedSettingsContainer(props: IProps) {
   const intl = useIntl();
   const [unsignedTxs] = useUnsignedTxsAtom();
   const [settings] = useSettingsPersistAtom();
-  const { updateTxAdvancedSettings, updateUnsignedTxs } =
-    useSendConfirmActions().current;
+  const { updateTxAdvancedSettings } = useSendConfirmActions().current;
 
   const [shouldShowSettings, setShouldShowSettings] = useState<boolean>(false);
-  const [originalData, setOriginalData] = useState<string>('');
 
   const vaultSettings = usePromiseResult(
     async () =>
@@ -112,15 +107,11 @@ function TxAdvancedSettingsContainer(props: IProps) {
   const canEditNonce = useMemo(
     () =>
       unsignedTxs.length === 1 &&
+      !unsignedTxs[0].isInternalSwap &&
       vaultSettings?.canEditNonce &&
       settings.isCustomNonceEnabled &&
       !isNil(unsignedTxs[0].nonce),
     [settings.isCustomNonceEnabled, unsignedTxs, vaultSettings?.canEditNonce],
-  );
-
-  const canEditData = useMemo(
-    () => unsignedTxs.length === 1 && checkIsEmptyData(originalData),
-    [unsignedTxs, originalData],
   );
 
   const currentNonce = new BigNumber(unsignedTxs[0].nonce ?? 0).toFixed();
@@ -171,46 +162,6 @@ function TxAdvancedSettingsContainer(props: IProps) {
     },
     [accountId, currentNonce, intl, networkId],
   );
-  const handleValidateData = useCallback(
-    (value: string) => {
-      if (checkIsEmptyData(value)) {
-        return true;
-      }
-
-      if (
-        !value.startsWith('0x') ||
-        value.length % 2 !== 0 ||
-        !utils.isHexString(value)
-      ) {
-        return intl.formatMessage({
-          id: ETranslations.global_hex_data_error,
-        });
-      }
-
-      return true;
-    },
-    [intl],
-  );
-
-  const handleDataOnChange = useDebouncedCallback(
-    async (e: { target: { name: string; value: string } }) => {
-      const value = e.target?.value;
-      if (!form.getFieldState('data').invalid) {
-        const newUnsignedTx =
-          await backgroundApiProxy.serviceSend.updateUnsignedTx({
-            accountId,
-            networkId,
-            unsignedTx: unsignedTxs[0],
-            dataInfo: {
-              data: value,
-            },
-          });
-        updateTxAdvancedSettings({ dataChanged: true });
-        updateUnsignedTxs([newUnsignedTx]);
-      }
-    },
-    1000,
-  );
 
   const renderAdvancedSettings = useCallback(
     () => (
@@ -258,7 +209,6 @@ function TxAdvancedSettingsContainer(props: IProps) {
               <Button
                 size="small"
                 variant="tertiary"
-                icon="WalletOutline"
                 onPress={() => showNonceFaq()}
               >
                 {intl.formatMessage({
@@ -272,37 +222,29 @@ function TxAdvancedSettingsContainer(props: IProps) {
         ) : null}
         <Form.Field
           label={intl.formatMessage({
-            id: ETranslations.global_hex_data,
+            id: ETranslations.global_hex_data_default,
           })}
           name="data"
-          rules={{
-            validate: handleValidateData,
-            onChange: handleDataOnChange,
-          }}
           labelAddon={
             <Button
               size="small"
               variant="tertiary"
-              icon="WalletOutline"
               onPress={() => showHexDataFaq()}
             >
               {intl.formatMessage({
-                id: ETranslations.global_hex_data_faq,
+                id: ETranslations.global_hex_data_default_faq,
               })}
             </Button>
           }
         >
-          <TextAreaInput editable={canEditData} flex={1} />
+          <TextAreaInput editable={false} flex={1} />
         </Form.Field>
       </Form>
     ),
     [
-      canEditData,
       canEditNonce,
       currentNonce,
       form,
-      handleDataOnChange,
-      handleValidateData,
       handleValidateNonce,
       intl,
       updateTxAdvancedSettings,
@@ -310,15 +252,13 @@ function TxAdvancedSettingsContainer(props: IProps) {
   );
 
   useEffect(() => {
-    setOriginalData(dataContent);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    form.setValue('data', dataContent);
+  }, [dataContent, form]);
 
   if (
     isInternalStakingTx ||
     isInternalSwapTx ||
-    (!canEditNonce &&
-      (!vaultSettings?.canEditData || !checkIsEmptyData(originalData)))
+    (!canEditNonce && !vaultSettings?.canEditData)
   ) {
     return null;
   }

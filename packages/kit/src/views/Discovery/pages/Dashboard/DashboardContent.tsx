@@ -77,6 +77,7 @@ function DashboardContent({
     {
       watchLoading: true,
       checkIsFocused: false,
+      revalidateOnReconnect: true,
     },
   );
 

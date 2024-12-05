@@ -1,10 +1,11 @@
 export enum EModalSettingRoutes {
   SettingListModal = 'SettingListModal',
   SettingCurrencyModal = 'SettingCurrencyModal',
+  SettingClearAppCache = 'SettingClearAppCache',
   SettingAccountDerivationModal = 'SettingAccountDerivationModal',
   SettingSpendUTXOModal = 'SettingSpendUTXOModal',
   SettingCustomRPC = 'SettingCustomRPC',
-  SettingCustomNonce = 'SettingCustomNonce',
+  SettingCustomTransaction = 'SettingCustomTransaction',
   SettingCustomNetwork = 'SettingCustomNetwork',
   SettingAppAutoLockModal = 'SettingAppAutoLockModal',
   SettingProtectModal = 'SettingProtectModal',
@@ -20,11 +21,12 @@ export enum EModalSettingRoutes {
 export type IModalSettingParamList = {
   [EModalSettingRoutes.SettingListModal]: { flag?: string } | undefined;
   [EModalSettingRoutes.SettingCurrencyModal]: undefined;
+  [EModalSettingRoutes.SettingClearAppCache]: undefined;
   [EModalSettingRoutes.SettingAccountDerivationModal]: undefined;
   [EModalSettingRoutes.SettingSpendUTXOModal]: undefined;
   [EModalSettingRoutes.SettingCustomRPC]: undefined;
   [EModalSettingRoutes.SettingCustomNetwork]: undefined;
-  [EModalSettingRoutes.SettingCustomNonce]: undefined;
+  [EModalSettingRoutes.SettingCustomTransaction]: undefined;
   [EModalSettingRoutes.SettingAppAutoLockModal]: undefined;
   [EModalSettingRoutes.SettingProtectModal]: undefined;
   [EModalSettingRoutes.SettingSignatureRecordModal]: undefined;
