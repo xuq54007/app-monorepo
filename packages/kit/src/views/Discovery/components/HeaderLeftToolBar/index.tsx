@@ -75,7 +75,11 @@ function HeaderLeftToolBar({
           bg: '$bgActive',
         }}
       >
-        <Icon {...iconConfig} />
+        <Icon
+          size="$5"
+          color={iconConfig.iconColor}
+          name={iconConfig.iconName}
+        />
         <SizableText size="$bodyLg" flex={1} numberOfLines={1} ml="$2">
           {url}
         </SizableText>
