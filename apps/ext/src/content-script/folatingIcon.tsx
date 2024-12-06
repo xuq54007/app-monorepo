@@ -78,6 +78,34 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
   ];
 }
 
+function SecurityInfoRow({ title, children }: { title: string, children: any }) {
+  return h(
+    "div",
+    {
+      style: {
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        padding: "0 8px",
+      },
+    },
+    [
+      h(
+        "span",
+        {
+          style: {
+            color: "rgba(0, 0, 0, 0.61)",
+            fontWeight: "500",
+            fontSize: "11.2px",
+          },
+        },
+        title
+      ),
+      children,
+    ]
+  );
+}
+
 function SecurityInfo({ securityInfo }: { securityInfo: {} }) {
   {
     return h(
@@ -175,14 +203,40 @@ function SecurityInfo({ securityInfo }: { securityInfo: {} }) {
               },
             }),
             h(
-              "div",
+              SecurityInfoRow,
               {
-                style: {
-                  alignItems: "center",
-                  justifyItems: "space-between",
-                },
+                title: 'Dapp listed by',
+                children: [
+                  h("div", {
+                    style: {
+                      display: "flex",
+                      alignItems: "center"
+                    }
+                  }, [
+                    h("img", {
+                      src: "https://asset.onekey-asset.com/app-monorepo/bb7a4e71aba56b405faf9278776d57d73b829708/favicon.png",
+                      style: {
+                        width: "16px",
+                        height: "16px"
+                      }
+                    }),
+                    h("img", {
+                      src: "https://asset.onekey-asset.com/app-monorepo/bb7a4e71aba56b405faf9278776d57d73b829708/favicon.png", 
+                      style: {
+                        width: "16px",
+                        height: "16px"
+                      }
+                    }),
+                    h("img", {
+                      src: "https://asset.onekey-asset.com/app-monorepo/bb7a4e71aba56b405faf9278776d57d73b829708/favicon.png",
+                      style: {
+                        width: "16px",
+                        height: "16px"
+                      }
+                    })
+                  ])
+                ]
               },
-              [h("span", {}, "Uniswap"), h("span", {}, "x")]
             ),
             h(
               "div",
