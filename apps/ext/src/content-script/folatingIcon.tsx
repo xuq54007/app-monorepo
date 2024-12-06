@@ -1,45 +1,28 @@
 let isInjected = false
 import { h, render } from 'preact';
-import { useState } from 'preact/hooks';
-
-
-
-const fetchingStyle = {
-  display: "flex",
-  alignItems: "center",
-  width: "184px",
-  borderTopLeftRadius: "12px",
-  borderBottomLeftRadius: "12px",
-  padding: "8px",
-  borderWidth: "1px",
-  borderColor: "rgba(0, 0, 0, 0.13)",
-  borderStyle: "solid",
-  background: "rgba(255, 255, 255, 1)",
-  boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
-  transition: "transform 0.3s ease-in-out",
-};
+import { useMemo, useState } from 'preact/hooks';
 
 const logoStyle = {
-  width: '28px',
-  height: '28px'
+  width: "28px",
+  height: "28px",
 };
 
 const textStyle = {
-  color: 'rgba(0, 0, 0, 0.61)',
-  fontSize: '13px',
-  marginLeft: '8px'
+  color: "rgba(0, 0, 0, 0.61)",
+  fontSize: "13px",
+  marginLeft: "8px",
 };
-
-const container = document.createElement('div');
 
 function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () => void }) {
   const [showCloseButton, setIsShowCloseButton] = useState(false);
   return [
     h('div', {
       style: {
-        ...fetchingStyle,
-        position: 'relative',
-        cursor: 'pointer'
+        display: "flex",
+        alignItems: "center",
+        width: "184px",
+        position: "relative",
+        cursor: "pointer",
       },
       onClick,
       onMouseEnter: () => setIsShowCloseButton(true),
@@ -66,7 +49,6 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
         },
         onClick: () => {
-          container.remove();
           isInjected = false;
         }
       }, '×')
@@ -149,18 +131,36 @@ function App() {
     }, 1500)
   };
 
+  const borderStyle = useMemo(() => {
+    return isExpanded ? { 
+      borderTopLeftRadius: "12px",
+      borderBottomLeftRadius: "12px",
+      borderTopRightRadius: "0px",
+      borderBottomRightRadius: "0px",
+    } : {
+      boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
+      transition: "transform 0.3s ease-in-out",
+      borderRadius: "100px",
+    };
+  }, [isExpanded]);
+
   return (
     h('div', {
       style: {
-        position: 'fixed',
+        position: "fixed",
         zIndex: 999999,
-        top: '20%',
-        right: '-156px',
-        borderRadius: "100%",
+        top: "20%",
+        right: "-156px",
+        background: "rgba(255, 255, 255, 1)",
         borderWidth: "0.33px",
         borderColor: "rgba(0, 0, 0, 0.13)",
-        transform: isExpanded ? 'translateX(-156px)' : 'translateX(0)'
-      }
+        padding: "8px",
+        borderStyle: "solid",
+        boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
+        transition: "transform 0.3s ease-in-out",
+        transform: isExpanded ? "translateX(-156px)" : "translateX(0)",
+        ...borderStyle,
+      },
     },
       securityInfo ? h(SecurityInfo, { securityInfo }) : h(IconButton, { onClick: handleClick, isExpanded })
     )
@@ -176,9 +176,7 @@ function injectFloatingIcon() {
     return;
   }
   isInjected = true;
-
-  document.body.appendChild(container);
-  render(h(App, {}), container);
+  render(h(App, {}), document.body);
 }
 
 const BlackList = [
@@ -188,7 +186,7 @@ const BlackList = [
 
 function isBlacklistedDomain() {
   const hostname = window.location.hostname;
-  return BlackList.some(pattern => pattern.test(hostname));
+  return !hostname || BlackList.some(pattern => pattern.test(hostname));
 }
 
 export function inject() {
