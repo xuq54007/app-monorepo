@@ -25,6 +25,7 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           width: "184px",
           position: "relative",
           cursor: "pointer",
+          padding: "8px",
         },
         onClick,
         onMouseEnter: () => setIsShowCloseButton(true),
