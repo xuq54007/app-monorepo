@@ -256,6 +256,7 @@ function SecurityInfo({ securityInfo }: { securityInfo: {} }) {
       ]
     );
   }
+}
 
 
 function App() {
