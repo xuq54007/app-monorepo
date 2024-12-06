@@ -40,7 +40,7 @@ function CloseDialog({ onClose }: { onClose: () => void }) {
         background: "rgba(255, 255, 255, 1)",
         padding: "14px",
         position: "absolute",
-        right: "146px",
+        right: "134px",
         border: "1px rgba(0, 0, 0, 0.13) solid",
         top: "60px",
         width: "170px",
@@ -103,7 +103,12 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           cursor: "pointer",
           padding: "8px",
         },
-        onMouseEnter: () => setIsShowCloseButton(true),
+        onMouseEnter: () => {
+          if (isClosing) {
+            return;
+          }
+          setIsShowCloseButton(true)
+        },
         onMouseLeave: () => setIsShowCloseButton(false),
         onClick: () => {
           if (isClosing) {
