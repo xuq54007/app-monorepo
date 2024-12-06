@@ -88,7 +88,7 @@ function CloseDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () => void }) {
+function IconButton({ isExpanded, onClick, dataLoaded }: { isExpanded: boolean; onClick: () => void; dataLoaded: boolean;}) {
   const [showCloseButton, setIsShowCloseButton] = useState(false);
   const [showCloseDialog, setIsShowCloseDialog] = useState(false);
   return [
@@ -122,13 +122,13 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           src: "https://asset.onekey-asset.com/app-monorepo/bb7a4e71aba56b405faf9278776d57d73b829708/favicon.png",
           style: logoStyle,
         }),
-        h(
+        dataLoaded ? h(
           "span",
           {
             style: textStyle,
           },
           "Fetching dApp info..."
-        ),
+        ) : null,
         h("div", {
           style: {
             position: "absolute",
@@ -514,7 +514,7 @@ function App() {
       showSecurityInfo && securityInfo ? h(SecurityInfo, { securityInfo, onClose: () => {
         setIsExpanded(false);
         setIsShowSecurityInfo(false);
-      } }) : h(IconButton, { onClick: handleClick, isExpanded }),
+      } }) : h(IconButton, { onClick: handleClick, isExpanded, dataLoaded: !!securityInfo }),
     )
   )
 }
