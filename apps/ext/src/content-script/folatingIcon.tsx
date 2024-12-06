@@ -159,7 +159,7 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
             setIsClosing(true);
           },
         }),
-        isClosing ? h(CloseDialog, { onClose: () => { setIsClosing(false); } }) : null,
+        !isExpanded && isClosing ? h(CloseDialog, { onClose: () => { setIsClosing(false); } }) : null,
       ]
     ),
   ];
