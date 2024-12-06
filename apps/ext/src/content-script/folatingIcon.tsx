@@ -466,10 +466,12 @@ function App() {
 
   const handleClick = () => {
     setIsExpanded(!isExpanded);
-    setTimeout(() => {
-      setIsShowSecurityInfo(true);
-      setSecurityInfo({});
-    }, 1500)
+    setIsShowSecurityInfo(true);
+    if (!securityInfo) {
+      setTimeout(() => {
+        setSecurityInfo({});
+      }, 1500)
+    }
   };
 
   const borderStyle = useMemo(() => {
@@ -492,14 +494,14 @@ function App() {
           position: "fixed",
           zIndex: 999999,
           top: "20%",
-          right: "-156px",
+          right: "-146px",
           background: "rgba(255, 255, 255, 1)",
           borderWidth: "0.33px",
           borderColor: "rgba(0, 0, 0, 0.13)",
           borderStyle: "solid",
           boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
           transition: "transform 0.3s ease-in-out",
-          transform: isExpanded ? "translateX(-156px)" : "translateX(0)",
+          transform: isExpanded ? "translateX(-146px)" : "translateX(0)",
           ...borderStyle,
         },
       },
