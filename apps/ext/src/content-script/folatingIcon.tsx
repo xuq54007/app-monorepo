@@ -47,7 +47,7 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           style: {
             position: "absolute",
             left: "0px",
-            bottom: "-20px",
+            bottom: "-10px",
             opacity: showCloseButton ? 1 : 0,
           },
           children: h(
