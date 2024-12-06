@@ -155,8 +155,11 @@ function App() {
         position: 'fixed',
         zIndex: 999999,
         top: '20%',
-        right: '-155px',
-        transform: isExpanded ? 'translateX(-155px)' : 'translateX(0)'
+        right: '-156px',
+        borderRadius: "100%",
+        borderWidth: "0.33px",
+        borderColor: "rgba(0, 0, 0, 0.13)",
+        transform: isExpanded ? 'translateX(-156px)' : 'translateX(0)'
       }
     },
       securityInfo ? h(SecurityInfo, { securityInfo }) : h(IconButton, { onClick: handleClick, isExpanded })
