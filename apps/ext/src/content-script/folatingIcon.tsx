@@ -90,7 +90,7 @@ function CloseDialog({ onClose }: { onClose: () => void }) {
 
 function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () => void }) {
   const [showCloseButton, setIsShowCloseButton] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
+  const [showCloseDialog, setIsShowCloseDialog] = useState(false);
   return [
     h(
       "div",
@@ -104,14 +104,14 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           padding: "8px",
         },
         onMouseEnter: () => {
-          if (isClosing) {
+          if (isExpanded || showCloseDialog) {
             return;
           }
           setIsShowCloseButton(true)
         },
         onMouseLeave: () => setIsShowCloseButton(false),
         onClick: () => {
-          if (isClosing) {
+          if (showCloseDialog) {
             return;
           }
           onClick();
@@ -156,10 +156,11 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           ),
           onClick: (event: MouseEvent) => {
             event.stopPropagation();
-            setIsClosing(true);
+            setIsShowCloseButton(false);
+            setIsShowCloseDialog(true);
           },
         }),
-        !isExpanded && isClosing ? h(CloseDialog, { onClose: () => { setIsClosing(false); } }) : null,
+        !isExpanded && showCloseDialog ? h(CloseDialog, { onClose: () => { setIsShowCloseDialog(false); } }) : null,
       ]
     ),
   ];
