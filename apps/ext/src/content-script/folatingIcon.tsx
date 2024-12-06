@@ -293,7 +293,6 @@ function App() {
         background: "rgba(255, 255, 255, 1)",
         borderWidth: "0.33px",
         borderColor: "rgba(0, 0, 0, 0.13)",
-        padding: "8px",
         borderStyle: "solid",
         boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
         transition: "transform 0.3s ease-in-out",
