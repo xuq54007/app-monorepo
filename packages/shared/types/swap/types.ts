@@ -585,3 +585,6 @@ export enum ESwapSlippageCustomStatus {
   ERROR = 'error',
   WRONG = 'wrong',
 }
+
+export const SwapPercentageInputStage = [25, 50, 100];
+export const SwapBuildUseMultiplePopoversNetworkIds = ['tron--0x2b6653dc'];
