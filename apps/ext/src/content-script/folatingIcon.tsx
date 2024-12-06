@@ -103,6 +103,8 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           cursor: "pointer",
           padding: "8px",
         },
+        onMouseEnter: () => setIsShowCloseButton(true),
+        onMouseLeave: () => setIsShowCloseButton(false),
         onClick: () => {
           if (isClosing) {
             return;
@@ -128,8 +130,6 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
             left: "0px",
             bottom: "-10px",
             opacity: showCloseButton ? 1 : 0,
-            onMouseEnter: () => setIsShowCloseButton(true),
-            onMouseLeave: () => setIsShowCloseButton(false),
           },
           children: h(
             "svg",
