@@ -14,8 +14,65 @@ const textStyle = {
 };
 
 const containerId = 'onekey-floating-widget';
+
+function CloseDialog() {
+  return h(
+    "div",
+    {
+      style: {
+        background: "rgba(255, 255, 255, 1)",
+        padding: "14px",
+        position: "absolute",
+        right: "146px",
+        border: "1px rgba(0, 0, 0, 0.13) solid",
+        top: "60px",
+        width: "170px",
+        borderRadius: "15px",
+      },
+    },
+    [
+      h(
+        "div",
+        {
+          style: {
+            color: "rgba(0, 0, 0, 1)",
+            fontSize: "12px",
+            fontWeight: "400",
+          },
+        },
+        "Hide on this site"
+      ),
+      h(
+        "div",
+        {
+          style: {
+            marginTop: "4px",
+            marginBottom: "8px",
+            color: "rgba(0, 0, 0, 1)",
+            fontSize: "12px",
+            fontWeight: "400",
+          },
+        },
+        "Disable"
+      ),
+      h(
+        "div",
+        {
+          style: {
+            color: "rgb(156, 156, 156)",
+            fontSize: "10px",
+            fontWeight: "400",
+          },
+        },
+        "Can be re-enabled in settings."
+      ),
+    ]
+  );
+}
+
 function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () => void }) {
   const [showCloseButton, setIsShowCloseButton] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   return [
     h(
       "div",
@@ -28,9 +85,12 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           cursor: "pointer",
           padding: "8px",
         },
-        onClick,
-        onMouseEnter: () => setIsShowCloseButton(true),
-        onMouseLeave: () => setIsShowCloseButton(false),
+        onClick: () => {
+          if (isClosing) {
+            return;
+          }
+          onClick();
+        },
       },
       [
         h("img", {
@@ -50,6 +110,8 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
             left: "0px",
             bottom: "-10px",
             opacity: showCloseButton ? 1 : 0,
+            onMouseEnter: () => setIsShowCloseButton(true),
+            onMouseLeave: () => setIsShowCloseButton(false),
           },
           children: h(
             "svg",
@@ -71,9 +133,10 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
           ),
           onClick: (event: MouseEvent) => {
             event.stopPropagation();
-            console.log("here");
+            setIsClosing(true);
           },
         }),
+        isClosing ? h(CloseDialog, {}) : null,
       ]
     ),
   ];
