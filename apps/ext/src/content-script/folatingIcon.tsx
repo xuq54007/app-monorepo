@@ -88,7 +88,7 @@ function CloseDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function IconButton({ isExpanded, onClick, dataLoaded }: { isExpanded: boolean; onClick: () => void; dataLoaded: boolean;}) {
+function IconButton({ isExpanded, onClick, dataLoaded }: { isExpanded: boolean; onClick: () => void; dataLoaded: boolean; }) {
   const [showCloseButton, setIsShowCloseButton] = useState(false);
   const [showCloseDialog, setIsShowCloseDialog] = useState(false);
   return [
@@ -497,24 +497,26 @@ function App() {
     h('div', {
       id: containerId,
       style: {
-          position: "fixed",
-          zIndex: 999999,
-          top: "20%",
-          right: "-146px",
-          background: "rgba(255, 255, 255, 1)",
-          borderWidth: "0.33px",
-          borderColor: "rgba(0, 0, 0, 0.13)",
-          borderStyle: "solid",
-          boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
-          transition: "transform 0.3s ease-in-out",
-          transform: isExpanded ? "translateX(-146px)" : "translateX(0)",
-          ...borderStyle,
-        },
+        position: "fixed",
+        zIndex: 999999,
+        top: "20%",
+        right: "-146px",
+        background: "rgba(255, 255, 255, 1)",
+        borderWidth: "0.33px",
+        borderColor: "rgba(0, 0, 0, 0.13)",
+        borderStyle: "solid",
+        boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
+        transition: "transform 0.3s ease-in-out",
+        transform: isExpanded ? "translateX(-146px)" : "translateX(0)",
+        ...borderStyle,
       },
-      showSecurityInfo && securityInfo ? h(SecurityInfo, { securityInfo, onClose: () => {
-        setIsExpanded(false);
-        setIsShowSecurityInfo(false);
-      } }) : h(IconButton, { onClick: handleClick, isExpanded, dataLoaded: !!securityInfo }),
+    },
+      showSecurityInfo && securityInfo ? h(SecurityInfo, {
+        securityInfo, onClose: () => {
+          setIsExpanded(false);
+          setIsShowSecurityInfo(false);
+        }
+      }) : h(IconButton, { onClick: handleClick, isExpanded, dataLoaded: !!securityInfo }),
     )
   )
 }
