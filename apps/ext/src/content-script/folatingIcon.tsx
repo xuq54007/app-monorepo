@@ -16,44 +16,65 @@ const textStyle = {
 function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () => void }) {
   const [showCloseButton, setIsShowCloseButton] = useState(false);
   return [
-    h('div', {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        width: "184px",
-        position: "relative",
-        cursor: "pointer",
-      },
-      onClick,
-      onMouseEnter: () => setIsShowCloseButton(true),
-      onMouseLeave: () => setIsShowCloseButton(false)
-    }, [
-      h('img', {
-        src: "https://asset.onekey-asset.com/app-monorepo/bb7a4e71aba56b405faf9278776d57d73b829708/favicon.png",
-        style: logoStyle
-      }),
-      h('span', {
-        style: textStyle
-      }, "Fetching dApp info..."),
-      h('div', {
+    h(
+      "div",
+      {
         style: {
-          position: 'absolute',
-          left: '8px',
-          bottom: '-24px',
-          padding: '4px',
-          background: '#fff',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          opacity: showCloseButton ? 1 : 0,
-          transition: 'opacity 0.2s',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          display: "flex",
+          alignItems: "center",
+          width: "184px",
+          position: "relative",
+          cursor: "pointer",
         },
-        onClick: () => {
-          isInjected = false;
-        }
-      }, '×')
-    ])
-  ]
+        onClick,
+        onMouseEnter: () => setIsShowCloseButton(true),
+        onMouseLeave: () => setIsShowCloseButton(false),
+      },
+      [
+        h("img", {
+          src: "https://asset.onekey-asset.com/app-monorepo/bb7a4e71aba56b405faf9278776d57d73b829708/favicon.png",
+          style: logoStyle,
+        }),
+        h(
+          "span",
+          {
+            style: textStyle,
+          },
+          "Fetching dApp info..."
+        ),
+        h("div", {
+          style: {
+            position: "absolute",
+            left: "0px",
+            bottom: "-20px",
+            opacity: showCloseButton ? 1 : 0,
+          },
+          children: h(
+            "svg",
+            {
+              width: "15",
+              height: "15",
+              viewBox: "0 0 15 15",
+              fill: "none",
+              xmlns: "http://www.w3.org/2000/svg",
+            },
+            [
+              h("path", {
+                "fill-rule": "evenodd",
+                "clip-rule": "evenodd",
+                d: "M6.5 1.5C3.73858 1.5 1.5 3.73858 1.5 6.5C1.5 9.26142 3.73858 11.5 6.5 11.5C9.26142 11.5 11.5 9.26142 11.5 6.5C11.5 3.73858 9.26142 1.5 6.5 1.5ZM0.25 6.5C0.25 3.04822 3.04822 0.25 6.5 0.25C9.95178 0.25 12.75 3.04822 12.75 6.5C12.75 9.95178 9.95178 12.75 6.5 12.75C3.04822 12.75 0.25 9.95178 0.25 6.5ZM4.18306 4.18306C4.42714 3.93898 4.82286 3.93898 5.06694 4.18306L6.5 5.61612L7.93306 4.18306C8.17714 3.93898 8.57286 3.93898 8.81694 4.18306C9.06102 4.42714 9.06102 4.82286 8.81694 5.06694L7.38388 6.5L8.81694 7.93306C9.06102 8.17714 9.06102 8.57286 8.81694 8.81694C8.57286 9.06102 8.17714 9.06102 7.93306 8.81694L6.5 7.38388L5.06694 8.81694C4.82286 9.06102 4.42714 9.06102 4.18306 8.81694C3.93898 8.57286 3.93898 8.17714 4.18306 7.93306L5.61612 6.5L4.18306 5.06694C3.93898 4.82286 3.93898 4.42714 4.18306 4.18306Z",
+                fill: "#C8C8C8",
+              }),
+            ]
+          ),
+          onClick: (event: MouseEvent) => {
+            event.stopPropagation();
+            console.log("here");
+          },
+        }),
+      ]
+    ),
+  ];
 }
 
 function SecurityInfo({ securityInfo }: { securityInfo: {} }) {
@@ -132,7 +153,7 @@ function App() {
   };
 
   const borderStyle = useMemo(() => {
-    return isExpanded ? { 
+    return isExpanded ? {
       borderTopLeftRadius: "12px",
       borderBottomLeftRadius: "12px",
       borderTopRightRadius: "0px",
