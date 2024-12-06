@@ -1,6 +1,6 @@
 let isInjected = false
 import { h, render } from 'preact';
-import { useMemo, useState } from 'preact/hooks';
+import { useMemo, useState, useEffect, useRef } from 'preact/hooks';
 
 const logoStyle = {
   width: "28px",
@@ -15,7 +15,24 @@ const textStyle = {
 
 const containerId = 'onekey-floating-widget';
 
-function CloseDialog() {
+const useOutsideClick = (ref: any, callback: () => void) => {
+  useEffect(() => {
+    const handleClickOutside = (event: any) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        callback();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [callback]);
+};
+
+
+function CloseDialog({ onClose }: { onClose: () => void }) {
+  const dialogRef = useRef()
+  useOutsideClick(dialogRef, onClose)
   return h(
     "div",
     {
@@ -29,6 +46,7 @@ function CloseDialog() {
         width: "170px",
         borderRadius: "15px",
       },
+      ref: dialogRef,
     },
     [
       h(
@@ -136,7 +154,7 @@ function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () 
             setIsClosing(true);
           },
         }),
-        isClosing ? h(CloseDialog, {}) : null,
+        isClosing ? h(CloseDialog, { onClose: () => { setIsClosing(false); } }) : null,
       ]
     ),
   ];
@@ -170,10 +188,13 @@ function SecurityInfoRow({ title, children }: { title: string, children: any }) 
   );
 }
 
-function SecurityInfo({ securityInfo }: { securityInfo: {} }) {
+function SecurityInfo({ securityInfo, onClose }: { securityInfo: {}, onClose: () => void }) {
+  const viewRef = useRef()
+  useOutsideClick(viewRef, onClose);
   return h(
     "div",
     {
+      ref: viewRef,
       style: {
         display: "flex",
         flexDirection: "column",
@@ -440,12 +461,14 @@ function SecurityInfo({ securityInfo }: { securityInfo: {} }) {
 
 function App() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSecurityInfo, setIsShowSecurityInfo] = useState(false);
   const [securityInfo, setSecurityInfo] = useState<{} | null>(null);
 
   const handleClick = () => {
     setIsExpanded(!isExpanded);
     setTimeout(() => {
-      setSecurityInfo({})
+      setIsShowSecurityInfo(true);
+      setSecurityInfo({});
     }, 1500)
   };
 
@@ -466,21 +489,24 @@ function App() {
     h('div', {
       id: containerId,
       style: {
-        position: "fixed",
-        zIndex: 999999,
-        top: "20%",
-        right: "-156px",
-        background: "rgba(255, 255, 255, 1)",
-        borderWidth: "0.33px",
-        borderColor: "rgba(0, 0, 0, 0.13)",
-        borderStyle: "solid",
-        boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
-        transition: "transform 0.3s ease-in-out",
-        transform: isExpanded ? "translateX(-156px)" : "translateX(0)",
-        ...borderStyle,
+          position: "fixed",
+          zIndex: 999999,
+          top: "20%",
+          right: "-156px",
+          background: "rgba(255, 255, 255, 1)",
+          borderWidth: "0.33px",
+          borderColor: "rgba(0, 0, 0, 0.13)",
+          borderStyle: "solid",
+          boxShadow: "0px 8.57px 17.14px 0px rgba(0, 0, 0, 0.09)",
+          transition: "transform 0.3s ease-in-out",
+          transform: isExpanded ? "translateX(-156px)" : "translateX(0)",
+          ...borderStyle,
+        },
       },
-    },
-      securityInfo ? h(SecurityInfo, { securityInfo }) : h(IconButton, { onClick: handleClick, isExpanded })
+      showSecurityInfo && securityInfo ? h(SecurityInfo, { securityInfo, onClose: () => {
+        setIsExpanded(false);
+        setIsShowSecurityInfo(false);
+      } }) : h(IconButton, { onClick: handleClick, isExpanded }),
     )
   )
 }
