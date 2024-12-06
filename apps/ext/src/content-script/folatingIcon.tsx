@@ -431,7 +431,9 @@ function injectFloatingIcon() {
     return;
   }
   isInjected = true;
-  render(h(App, {}), document.body);
+  const div = document.createElement('div')
+  document.body.appendChild(div)
+  render(h(App, {}), document.body, div);
 }
 
 const BlackList = [
