@@ -13,6 +13,7 @@ const textStyle = {
   marginLeft: "8px",
 };
 
+const containerId = 'onekey-floating-widget';
 function IconButton({ isExpanded, onClick }: { isExpanded: boolean, onClick: () => void }) {
   const [showCloseButton, setIsShowCloseButton] = useState(false);
   return [
@@ -400,6 +401,7 @@ function App() {
 
   return (
     h('div', {
+      id: containerId,
       style: {
         position: "fixed",
         zIndex: 999999,
