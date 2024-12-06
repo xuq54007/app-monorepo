@@ -114,6 +114,7 @@ function IconButton({ isExpanded, onClick, dataLoaded }: { isExpanded: boolean; 
           if (showCloseDialog) {
             return;
           }
+          setIsShowCloseButton(false);
           onClick();
         },
       },
@@ -122,7 +123,7 @@ function IconButton({ isExpanded, onClick, dataLoaded }: { isExpanded: boolean; 
           src: "https://asset.onekey-asset.com/app-monorepo/bb7a4e71aba56b405faf9278776d57d73b829708/favicon.png",
           style: logoStyle,
         }),
-        dataLoaded ? h(
+        !dataLoaded ? h(
           "span",
           {
             style: textStyle,
@@ -470,13 +471,14 @@ function App() {
   const [showSecurityInfo, setIsShowSecurityInfo] = useState(false);
   const [securityInfo, setSecurityInfo] = useState<{} | null>(null);
 
+  console.log("---securityInfo", securityInfo, !!securityInfo)
   const handleClick = () => {
     setIsExpanded(!isExpanded);
     setIsShowSecurityInfo(true);
     if (!securityInfo) {
       setTimeout(() => {
         setSecurityInfo({});
-      }, 1500)
+      }, 3500)
     }
   };
 
