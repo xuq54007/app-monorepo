@@ -408,6 +408,7 @@ export interface IFetchBuildTxParams extends IFetchSwapQuoteBaseParams {
 }
 export interface IFetchBuildTxResult extends IFetchQuoteResult {
   arrivalTime?: number;
+  slippage?: number;
 }
 
 export interface IThorSwapCallData {
