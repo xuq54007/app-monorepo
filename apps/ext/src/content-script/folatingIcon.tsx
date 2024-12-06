@@ -471,7 +471,6 @@ function App() {
   const [showSecurityInfo, setIsShowSecurityInfo] = useState(false);
   const [securityInfo, setSecurityInfo] = useState<{} | null>(null);
 
-  console.log("---securityInfo", securityInfo, !!securityInfo)
   const handleClick = () => {
     setIsExpanded(!isExpanded);
     setIsShowSecurityInfo(true);
