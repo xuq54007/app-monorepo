@@ -1,19 +1,8 @@
-import type { ReactElement } from 'react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useIntl } from 'react-intl';
-import { TouchableWithoutFeedback } from 'react-native';
 
-import {
-  Icon,
-  SegmentControl,
-  Select,
-  SizableText,
-  Stack,
-  XStack,
-  YStack,
-  useMedia,
-} from '@onekeyhq/components';
+import { SegmentControl, XStack, YStack, useMedia } from '@onekeyhq/components';
 import type { ISegmentControlProps } from '@onekeyhq/components';
 import {
   EAppEventBusNames,
@@ -137,7 +126,6 @@ function TradingViewChart({
 }: Omit<ITradingViewProps, 'mode'> & {
   defer: IDeferredPromise<unknown>;
 }) {
-  const { gtMd } = useMedia();
   useEffect(() => {
     if (platformEnv.isNativeAndroid) {
       setTimeout(() => {
