@@ -45,11 +45,12 @@ export const useTradingViewProps = ({
 }) => {
   const { md } = useMedia();
   const theme = useThemeVariant();
-  const [bgAppColor, textColor, textDisabled, iconColor] = useThemeValue(
-    ['$bgApp', '$text', '$textDisabled', '$icon'],
-    undefined,
-    true,
-  );
+  const [bgAppColor, bgSubduedColor, textColor, textDisabled, iconColor] =
+    useThemeValue(
+      ['$bgApp', '$bgSubdued', '$text', '$textDisabled', '$icon'],
+      undefined,
+      true,
+    );
   const systemLocale = useLocaleVariant();
   const locale = useMemo(
     () => localeMap[systemLocale as ILocaleJSONSymbol] || 'en',
@@ -105,6 +106,7 @@ export const useTradingViewProps = ({
                 --tv-color-platform-background: ${bgAppColor} !important;
                 --tv-color-toolbar-button-text: ${textDisabled} !important;
                 --tv-spinner-color: ${iconColor} !important;
+                --tv-color-popup-background: ${bgSubduedColor} !important;
               }
               html .chart-page .chart-container-border {
                 background-color: ${bgAppColor} !important;
