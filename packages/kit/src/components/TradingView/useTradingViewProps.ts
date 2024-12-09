@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import { useCalendars } from 'expo-localization';
 
-import { useThemeValue } from '@onekeyhq/components';
+import { useMedia, useThemeValue } from '@onekeyhq/components';
 import type { ILocaleJSONSymbol } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
@@ -43,6 +43,7 @@ export const useTradingViewProps = ({
   baseToken: string;
   targetToken: string;
 }) => {
+  const { md } = useMedia();
   const theme = useThemeVariant();
   const [bgAppColor, textColor, textDisabled, iconColor] = useThemeValue(
     ['$bgApp', '$text', '$textDisabled', '$icon'],
@@ -108,6 +109,27 @@ export const useTradingViewProps = ({
               body {
                 border-width: 0px !important;
               }  
+                ${
+                  md
+                    ? `
+                .layout__area--top>div {
+                  padding: 0 10px;
+                }`
+                    : ''
+                }
+                    
+              div:has(>#header-toolbar-compare) {
+                display: none;
+              } 
+              div:has(>#header-toolbar-chart-styles) + div {
+                display: none;
+              }
+              div:has(>#header-toolbar-indicators) {
+                display: none;
+              }
+              div:has(>#header-toolbar-indicators) + div {
+                display: none;
+              }
               html.theme-dark .chart-page {
                 background: ${bgAppColor} !important;
               }
@@ -134,16 +156,17 @@ export const useTradingViewProps = ({
       };
     },
     [
-      baseToken,
-      bgAppColor,
       identifier,
-      locale,
+      baseToken,
       targetToken,
-      theme,
       timezone,
-      iconColor,
+      theme,
+      locale,
+      bgAppColor,
       textColor,
       textDisabled,
+      iconColor,
+      md,
     ],
     {
       initResult: {
