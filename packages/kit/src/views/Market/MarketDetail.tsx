@@ -314,6 +314,7 @@ function MarketDetail({
                 <TokenDetailTabs
                   defer={defer}
                   token={tokenDetail}
+                  coinGeckoId={coinGeckoId}
                   listHeaderComponent={tokenPriceChart}
                 />
               </YStack>
@@ -325,12 +326,8 @@ function MarketDetail({
             isRefreshing={isRefreshing}
             onRefresh={onRefresh}
             token={tokenDetail}
-            listHeaderComponent={
-              <YStack>
-                {tokenDetailHeader}
-                {tokenDetail ? tokenPriceChart : <YStack h={480} />}
-              </YStack>
-            }
+            coinGeckoId={coinGeckoId}
+            listHeaderComponent={tokenDetailHeader}
           />
         )}
       </Page.Body>

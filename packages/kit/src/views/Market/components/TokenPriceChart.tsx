@@ -135,24 +135,20 @@ function TradingViewChart({
       defer.resolve(null);
     }
   }, [defer]);
-  const timerId = useRef<ReturnType<typeof setTimeout>>();
   const handlePressIn = useCallback(() => {
     if (!platformEnv.isNative) {
       return;
     }
-    timerId.current = setTimeout(() => {
-      appEventBus.emit(
-        EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
-        { enabled: false },
-      );
-    }, 50);
+    appEventBus.emit(
+      EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
+      { enabled: false },
+    );
   }, []);
 
   const handlePressOut = useCallback(() => {
     if (!platformEnv.isNative) {
       return;
     }
-    clearTimeout(timerId.current);
     setTimeout(() => {
       appEventBus.emit(
         EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,

@@ -29,6 +29,7 @@ import type {
 import { MarketDetailLinks } from './MarketDetailLinks';
 import { MarketDetailOverview } from './MarketDetailOverview';
 import { MarketDetailPools } from './MarketDetailPools';
+import { TokenPriceChart } from './TokenPriceChart';
 
 import type { IDeferredPromise } from '../../../hooks/useDeferredPromise';
 
@@ -76,12 +77,14 @@ function BasicTokenDetailTabs({
   isRefreshing,
   onRefresh,
   defer,
+  coinGeckoId,
 }: {
   token?: IMarketTokenDetail;
   listHeaderComponent?: ReactElement;
   onRefresh?: () => void;
   isRefreshing?: boolean;
   defer: IDeferredPromise<unknown>;
+  coinGeckoId: string;
 }) {
   const intl = useIntl();
   const { md } = useMedia();
@@ -146,6 +149,23 @@ function BasicTokenDetailTabs({
                   }),
                   // eslint-disable-next-line react/no-unstable-nested-components
                   page: (props: ITabPageProps) => (
+                    <TokenPriceChart
+                      {...props}
+                      tickers={token?.tickers}
+                      coinGeckoId={coinGeckoId}
+                      defer={defer}
+                      symbol={token?.symbol}
+                    />
+                  ),
+                }
+              : undefined,
+            md && token
+              ? {
+                  title: intl.formatMessage({
+                    id: ETranslations.global_overview,
+                  }),
+                  // eslint-disable-next-line react/no-unstable-nested-components
+                  page: (props: ITabPageProps) => (
                     <MarketDetailOverview {...props} token={token} />
                   ),
                 }
@@ -174,7 +194,7 @@ function BasicTokenDetailTabs({
             },
           ].filter(Boolean)
         : [],
-    [intl, md, pools, token],
+    [coinGeckoId, defer, intl, md, pools, token],
   );
 
   const tabRef = useRef<ITabInstance | null>(null);
