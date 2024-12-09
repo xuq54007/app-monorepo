@@ -139,7 +139,7 @@ function TradingViewChart({
 
   const tabHeight = useTabBarHeight();
   const viewHeight = useMemo(
-    () => height - top - tabHeight - 264,
+    () => height - top - tabHeight - (platformEnv.isNative ? 264 : 300),
     [height, tabHeight, top],
   );
   useEffect(() => {
