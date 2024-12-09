@@ -106,6 +106,9 @@ export const useTradingViewProps = ({
                 --tv-color-toolbar-button-text: ${textDisabled} !important;
                 --tv-spinner-color: ${iconColor} !important;
               }
+              html.theme-dark .chart-page .chart-container-border {
+                background-color: ${bgAppColor} !important;
+              }  
               body {
                 border-width: 0px !important;
               }  
@@ -117,7 +120,7 @@ export const useTradingViewProps = ({
                 }`
                     : ''
                 }
-                    
+
               div:has(>#header-toolbar-compare) {
                 display: none;
               } 
