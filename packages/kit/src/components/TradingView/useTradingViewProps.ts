@@ -124,6 +124,9 @@ export const useTradingViewProps = ({
               div:has(>#header-toolbar-chart-styles) + div {
                 display: none;
               }
+              div:has(>#header-toolbar-compare) + div {
+                display: none;
+              }
               div:has(>#header-toolbar-indicators) {
                 display: none;
               }
