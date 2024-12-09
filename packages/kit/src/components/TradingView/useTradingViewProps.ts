@@ -106,7 +106,7 @@ export const useTradingViewProps = ({
                 --tv-color-toolbar-button-text: ${textDisabled} !important;
                 --tv-spinner-color: ${iconColor} !important;
               }
-              html.theme-dark .chart-page .chart-container-border {
+              html .chart-page .chart-container-border {
                 background-color: ${bgAppColor} !important;
               }  
               body {
