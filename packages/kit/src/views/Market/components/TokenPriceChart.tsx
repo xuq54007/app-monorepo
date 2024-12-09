@@ -151,27 +151,6 @@ function TradingViewChart({
       defer.resolve(null);
     }
   }, [defer]);
-  const handlePressIn = useCallback(() => {
-    if (!platformEnv.isNative) {
-      return;
-    }
-    appEventBus.emit(
-      EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
-      { enabled: false },
-    );
-  }, []);
-
-  const handlePressOut = useCallback(() => {
-    if (!platformEnv.isNative) {
-      return;
-    }
-    setTimeout(() => {
-      appEventBus.emit(
-        EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
-        { enabled: true },
-      );
-    }, 50);
-  }, []);
 
   return (
     <TradingView
@@ -182,8 +161,6 @@ function TradingViewChart({
       targetToken={targetToken}
       baseToken={baseToken}
       identifier={identifier}
-      onTouchStart={handlePressIn}
-      onTouchEnd={handlePressOut}
     />
   );
 }

@@ -209,17 +209,34 @@ function BasicTokenDetailTabs({
     if (!platformEnv.isNative) {
       return;
     }
-    appEventBus.on(
-      EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
-      changeTabVerticalScrollEnabled,
-    );
-    return () => {
-      appEventBus.off(
-        EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
-        changeTabVerticalScrollEnabled,
-      );
-    };
+    setTimeout(() => {
+      changeTabVerticalScrollEnabled({ enabled: false });
+    }, 100);
+    // appEventBus.on(
+    //   EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
+    //   changeTabVerticalScrollEnabled,
+    // );
+    // return () => {
+    //   appEventBus.off(
+    //     EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled,
+    //     changeTabVerticalScrollEnabled,
+    //   );
+    // };
   }, [changeTabVerticalScrollEnabled]);
+
+  const onSelectedPageIndex = useCallback(
+    (index: number) => {
+      if (index === 0) {
+        tabRef.current?.scrollToTop();
+        setTimeout(() => {
+          changeTabVerticalScrollEnabled({ enabled: false });
+        }, 50);
+      } else {
+        changeTabVerticalScrollEnabled({ enabled: true });
+      }
+    },
+    [changeTabVerticalScrollEnabled],
+  );
 
   return (
     <Tab
@@ -239,9 +256,7 @@ function BasicTokenDetailTabs({
           )} */}
         </Stack>
       }
-      onSelectedPageIndex={(index: number) => {
-        console.log('选中', index);
-      }}
+      onSelectedPageIndex={onSelectedPageIndex}
     />
   );
 }
