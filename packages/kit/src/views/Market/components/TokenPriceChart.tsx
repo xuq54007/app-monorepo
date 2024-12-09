@@ -1,8 +1,16 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useIntl } from 'react-intl';
+import { useWindowDimensions } from 'react-native';
 
-import { SegmentControl, XStack, YStack, useMedia } from '@onekeyhq/components';
+import {
+  SegmentControl,
+  XStack,
+  YStack,
+  useMedia,
+  useSafeAreaInsets,
+  useTabBarHeight,
+} from '@onekeyhq/components';
 import type { ISegmentControlProps } from '@onekeyhq/components';
 import {
   EAppEventBusNames,
@@ -126,6 +134,14 @@ function TradingViewChart({
 }: Omit<ITradingViewProps, 'mode'> & {
   defer: IDeferredPromise<unknown>;
 }) {
+  const { height } = useWindowDimensions();
+  const { top } = useSafeAreaInsets();
+
+  const tabHeight = useTabBarHeight();
+  const viewHeight = useMemo(
+    () => height - top - tabHeight - 264,
+    [height, tabHeight, top],
+  );
   useEffect(() => {
     if (platformEnv.isNativeAndroid) {
       setTimeout(() => {
@@ -160,7 +176,7 @@ function TradingViewChart({
   return (
     <TradingView
       mode="overview"
-      h={450}
+      h={viewHeight}
       $gtMd={{ pl: '$5' }}
       $md={{ pt: '$6' }}
       targetToken={targetToken}
