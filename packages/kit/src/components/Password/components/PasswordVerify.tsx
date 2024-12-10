@@ -12,8 +12,8 @@ import { AuthenticationType } from 'expo-local-authentication';
 import { useIntl } from 'react-intl';
 
 import type { IKeyOfIcons, IPropsWithTestId } from '@onekeyhq/components';
-import { Form, Input, useForm } from '@onekeyhq/components';
-import type { EPasswordMode } from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
+import { Button, Form, Input, useForm } from '@onekeyhq/components';
+import { EPasswordMode } from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
 import { usePasswordAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
@@ -21,6 +21,8 @@ import { EPasswordVerifyStatus } from '@onekeyhq/shared/types/password';
 
 import { useHandleAppStateActive } from '../../../hooks/useHandleAppStateActive';
 import { getPasswordKeyboardType } from '../utils';
+
+import PassCodeInput from './PassCodeInput';
 
 interface IPasswordVerifyProps {
   authType: AuthenticationType[];
@@ -35,8 +37,9 @@ interface IPasswordVerifyProps {
   };
 }
 
-interface IPasswordVerifyForm {
+export interface IPasswordVerifyForm {
   password: string;
+  passCode: string;
 }
 
 const PasswordVerify = ({
@@ -52,7 +55,7 @@ const PasswordVerify = ({
   const form = useForm<IPasswordVerifyForm>({
     mode: 'onSubmit',
     reValidateMode: 'onSubmit',
-    defaultValues: { password: '' },
+    defaultValues: { password: '', passCode: '' },
   });
   const timeOutRef = useRef<NodeJS.Timeout | null>(null);
   const isEnableRef = useRef(isEnable);
@@ -63,7 +66,9 @@ const PasswordVerify = ({
     // enable first false should wait some logic to get final value
     timeOutRef.current = setTimeout(() => {
       if (!isEnableRef.current) {
-        form.setFocus('password');
+        form.setFocus(
+          passwordMode === EPasswordMode.PASSWORD ? 'password' : 'passCode',
+        );
       }
     }, 500);
     return () => {
@@ -75,8 +80,24 @@ const PasswordVerify = ({
   }, []);
   const [secureEntry, setSecureEntry] = useState(true);
   const lastTime = useRef(0);
-  const passwordInput = form.watch('password');
+  const passwordInput = form.watch(
+    passwordMode === EPasswordMode.PASSWORD ? 'password' : 'passCode',
+  );
   const [{ manualLocking }] = usePasswordAtom();
+  const biologyAuthIconName = useMemo(() => {
+    let iconName: IKeyOfIcons =
+      authType &&
+      (authType.includes(AuthenticationType.FACIAL_RECOGNITION) ||
+        authType.includes(AuthenticationType.IRIS))
+        ? 'FaceIdOutline'
+        : 'TouchId2Outline';
+    if (platformEnv.isDesktopWin) {
+      iconName = 'WindowsHelloSolid';
+    } else if (platformEnv.isExtension) {
+      iconName = 'PassKeySolid';
+    }
+    return iconName;
+  }, [authType]);
   const rightActions = useMemo(() => {
     const actions: IPropsWithTestId<{
       iconName?: IKeyOfIcons;
@@ -84,19 +105,8 @@ const PasswordVerify = ({
       loading?: boolean;
     }>[] = [];
     if (isEnable && !passwordInput) {
-      let iconName: IKeyOfIcons =
-        authType &&
-        (authType.includes(AuthenticationType.FACIAL_RECOGNITION) ||
-          authType.includes(AuthenticationType.IRIS))
-          ? 'FaceIdOutline'
-          : 'TouchId2Outline';
-      if (platformEnv.isDesktopWin) {
-        iconName = 'WindowsHelloSolid';
-      } else if (platformEnv.isExtension) {
-        iconName = 'PassKeySolid';
-      }
       actions.push({
-        iconName,
+        iconName: biologyAuthIconName,
         onPress: onBiologyAuth,
         loading: status.value === EPasswordVerifyStatus.VERIFYING,
       });
@@ -119,7 +129,7 @@ const PasswordVerify = ({
   }, [
     isEnable,
     passwordInput,
-    authType,
+    biologyAuthIconName,
     onBiologyAuth,
     status.value,
     secureEntry,
@@ -128,13 +138,15 @@ const PasswordVerify = ({
   ]);
 
   useEffect(() => {
+    const fieldName =
+      passwordMode === EPasswordMode.PASSWORD ? 'password' : 'passCode';
     if (status.value === EPasswordVerifyStatus.ERROR) {
-      form.setError('password', { message: status.message });
-      form.setFocus('password');
+      form.setError(fieldName, { message: status.message });
+      form.setFocus(fieldName);
     } else {
-      form.clearErrors('password');
+      form.clearErrors(fieldName);
     }
-  }, [form, status]);
+  }, [form, passwordMode, status]);
 
   useLayoutEffect(() => {
     if (
@@ -168,38 +180,92 @@ const PasswordVerify = ({
 
   return (
     <Form form={form}>
-      <Form.Field
-        name="password"
-        rules={{
-          required: {
-            value: true,
-            message: intl.formatMessage({
-              id: ETranslations.auth_error_password_incorrect,
-            }),
-          },
-          onChange: onPasswordChange,
-        }}
-      >
-        <Input
-          selectTextOnFocus
-          size="large"
-          editable={status.value !== EPasswordVerifyStatus.VERIFYING}
-          placeholder={intl.formatMessage({
-            id: ETranslations.auth_enter_your_password,
-          })}
-          flex={1}
-          // onChangeText={(text) => text.replace(PasswordRegex, '')}
-          onChangeText={(text) => text}
-          keyboardType={getPasswordKeyboardType(!secureEntry)}
-          secureTextEntry={secureEntry}
-          // fix Keyboard Flickering on TextInput with secureTextEntry #39411
-          // https://github.com/facebook/react-native/issues/39411
-          textContentType="oneTimeCode"
-          onSubmitEditing={form.handleSubmit(onInputPasswordAuth)}
-          addOns={rightActions}
-          testID="password-input"
-        />
-      </Form.Field>
+      {passwordMode === EPasswordMode.PASSWORD ? (
+        <Form.Field
+          name="password"
+          rules={{
+            required: {
+              value: true,
+              message: intl.formatMessage({
+                id: ETranslations.auth_error_password_incorrect,
+              }),
+            },
+            onChange: onPasswordChange,
+          }}
+        >
+          <Input
+            selectTextOnFocus
+            size="large"
+            editable={status.value !== EPasswordVerifyStatus.VERIFYING}
+            placeholder={intl.formatMessage({
+              id: ETranslations.auth_enter_your_password,
+            })}
+            flex={1}
+            // onChangeText={(text) => text.replace(PasswordRegex, '')}
+            onChangeText={(text) => text}
+            keyboardType={getPasswordKeyboardType(!secureEntry)}
+            secureTextEntry={secureEntry}
+            // fix Keyboard Flickering on TextInput with secureTextEntry #39411
+            // https://github.com/facebook/react-native/issues/39411
+            textContentType="oneTimeCode"
+            onSubmitEditing={form.handleSubmit(onInputPasswordAuth)}
+            addOns={rightActions}
+            testID="password-input"
+          />
+        </Form.Field>
+      ) : (
+        <>
+          <Form.Field
+            label={intl.formatMessage({
+              id: ETranslations.auth_confirm_password_form_label,
+            })}
+            name="passCode"
+            rules={{
+              validate: {
+                required: (v) =>
+                  v
+                    ? undefined
+                    : intl.formatMessage({
+                        id: ETranslations.auth_error_password_empty,
+                      }),
+              },
+              onChange: onPasswordChange,
+            }}
+          >
+            <PassCodeInput
+              disabled={!!(status.value === EPasswordVerifyStatus.VERIFYING)}
+              onPinCodeChange={(pin) => {
+                form.setValue('passCode', pin);
+                form.clearErrors('passCode');
+              }}
+              testId="pass-code-input"
+            />
+          </Form.Field>
+          {isEnable && !passwordInput ? (
+            <Button
+              size="large"
+              variant="secondary"
+              icon={biologyAuthIconName}
+              onPress={onBiologyAuth}
+              loading={status.value === EPasswordVerifyStatus.VERIFYING}
+            >
+              {intl.formatMessage({
+                id: ETranslations.global_biometric,
+              })}
+            </Button>
+          ) : (
+            <Button
+              size="large"
+              variant="secondary"
+              onPress={form.handleSubmit(onInputPasswordAuth)}
+            >
+              {intl.formatMessage({
+                id: ETranslations.global_confirm,
+              })}
+            </Button>
+          )}
+        </>
+      )}
     </Form>
   );
 };

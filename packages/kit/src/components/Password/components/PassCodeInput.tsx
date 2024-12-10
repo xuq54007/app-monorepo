@@ -29,10 +29,14 @@ const cellStyles = StyleSheet.create({
 
 const PassCodeInput = ({
   onPinCodeChange,
+  showMask,
   disabled,
+  testId,
 }: {
   onPinCodeChange?: (pin: string) => void;
   disabled?: boolean;
+  testId?: string;
+  showMask?: boolean;
 }) => {
   const [pinValue, setPinValue] = useState('');
 
@@ -76,6 +80,7 @@ const PassCodeInput = ({
     <XStack gap="$1" flex={1} disabled={disabled}>
       <CodeField
         autoFocus
+        testID={testId}
         ref={pinInputRef}
         {...props}
         rootStyle={{ flex: 1 }}
@@ -89,10 +94,12 @@ const PassCodeInput = ({
         textContentType="oneTimeCode"
         renderCell={renderCell}
       />
-      <IconButton
-        icon={enableMask ? 'EyeOutline' : 'EyeOffOutline'}
-        onPress={toggleMask}
-      />
+      {showMask ? (
+        <IconButton
+          icon={enableMask ? 'EyeOutline' : 'EyeOffOutline'}
+          onPress={toggleMask}
+        />
+      ) : null}
     </XStack>
   );
 };

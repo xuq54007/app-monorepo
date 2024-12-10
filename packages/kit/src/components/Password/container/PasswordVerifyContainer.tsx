@@ -6,6 +6,7 @@ import { useIntl } from 'react-intl';
 import { Stack } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { biologyAuthUtils } from '@onekeyhq/kit-bg/src/services/ServicePassword/biologyAuthUtils';
+import { EPasswordMode } from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import {
   usePasswordAtom,
@@ -22,16 +23,13 @@ import { EPasswordVerifyStatus } from '@onekeyhq/shared/types/password';
 import { useWebAuthActions } from '../../BiologyAuthComponent/hooks/useWebAuthActions';
 import PasswordVerify from '../components/PasswordVerify';
 
+import type { IPasswordVerifyForm } from '../components/PasswordVerify';
 import type { LayoutChangeEvent } from 'react-native';
 
 interface IPasswordVerifyProps {
   onVerifyRes: (password: string) => void;
   onLayout?: (e: LayoutChangeEvent) => void;
   name?: 'lock';
-}
-
-interface IPasswordVerifyForm {
-  password: string;
 }
 
 const PasswordVerifyContainer = ({
@@ -233,10 +231,12 @@ const PasswordVerifyContainer = ({
         ...v,
         passwordVerifyStatus: { value: EPasswordVerifyStatus.VERIFYING },
       }));
+      const finalPassword =
+        passwordMode === EPasswordMode.PASSWORD ? data.password : data.passCode;
       try {
         const encodePassword =
           await backgroundApiProxy.servicePassword.encodeSensitiveText({
-            text: data.password,
+            text: finalPassword,
           });
         const verifiedPassword =
           await backgroundApiProxy.servicePassword.verifyPassword({
@@ -263,7 +263,13 @@ const PasswordVerifyContainer = ({
         }));
       }
     },
-    [intl, onVerifyRes, passwordVerifyStatus.value, setPasswordAtom],
+    [
+      intl,
+      onVerifyRes,
+      passwordMode,
+      passwordVerifyStatus.value,
+      setPasswordAtom,
+    ],
   );
 
   return (

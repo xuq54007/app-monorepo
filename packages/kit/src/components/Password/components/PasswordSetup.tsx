@@ -1,22 +1,17 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 
 import { useIntl } from 'react-intl';
 
-import type { IScrollViewRef } from '@onekeyhq/components';
-import {
-  Button,
-  Form,
-  Input,
-  ScrollView,
-  Unspaced,
-  XStack,
-  useForm,
-} from '@onekeyhq/components';
-import { X } from '@onekeyhq/components/src/primitives/Icon/react/brand';
+import { Button, Form, Input, Unspaced, useForm } from '@onekeyhq/components';
 import { EPasswordMode } from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
-import { PasswordRegex, getPasswordKeyboardType } from '../utils';
+import {
+  PassCodeRegex,
+  PasswordRegex,
+  getPasswordKeyboardType,
+} from '../utils';
 
 import PassCodeInput, { PIN_CELL_COUNT } from './PassCodeInput';
 
@@ -220,6 +215,12 @@ const PasswordSetup = ({
                           length: PIN_CELL_COUNT,
                         },
                       ),
+                regexCheck: (v: string) =>
+                  v.replace(PassCodeRegex, '') === v
+                    ? undefined
+                    : intl.formatMessage({
+                        id: ETranslations.global_hex_data_error,
+                      }),
               },
               onChange: () => {
                 form.clearErrors();
@@ -232,6 +233,8 @@ const PasswordSetup = ({
                 form.setValue('passCode', pin);
                 form.clearErrors('passCode');
               }}
+              testId="pass-code"
+              showMask
             />
           </Form.Field>
           <Form.Field
@@ -268,6 +271,8 @@ const PasswordSetup = ({
                 form.setValue('confirmPassCode', pin);
                 form.clearErrors('confirmPassCode');
               }}
+              testId="confirm-pass-code"
+              showMask
             />
           </Form.Field>
         </>
@@ -291,24 +296,26 @@ const PasswordSetup = ({
       >
         {confirmBtnTextMemo}
       </Button>
-      <Button
-        size="large"
-        variant="secondary"
-        onPress={() => {
-          form.reset();
-          setCurrentPasswordMode(
+      {platformEnv.isNative ? (
+        <Button
+          size="large"
+          variant="secondary"
+          onPress={() => {
+            form.reset();
+            setCurrentPasswordMode(
+              currentPasswordMode === EPasswordMode.PASSWORD
+                ? EPasswordMode.PASSCODE
+                : EPasswordMode.PASSWORD,
+            );
+          }}
+        >
+          {`切换成${
             currentPasswordMode === EPasswordMode.PASSWORD
-              ? EPasswordMode.PASSCODE
-              : EPasswordMode.PASSWORD,
-          );
-        }}
-      >
-        {`切换成${
-          currentPasswordMode === EPasswordMode.PASSWORD
-            ? 'Passcode'
-            : 'Password'
-        }`}
-      </Button>
+              ? 'Passcode'
+              : 'Password'
+          }`}
+        </Button>
+      ) : null}
     </Form>
   );
 };
