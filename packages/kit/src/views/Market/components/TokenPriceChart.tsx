@@ -135,9 +135,21 @@ function TradingViewChart({
   const { top } = useSafeAreaInsets();
 
   const tabHeight = useTabBarHeight();
+  const fixedHeight = useMemo(() => {
+    if (platformEnv.isNativeIOS) {
+      return 280;
+    }
+
+    if (platformEnv.isNativeAndroid) {
+      return 280;
+    }
+
+    return 300;
+  }, []);
+  console.log('aaaa', height, top, tabHeight, fixedHeight)
   const viewHeight = useMemo(
-    () => height - top - tabHeight - (platformEnv.isNative ? 264 : 300),
-    [height, tabHeight, top],
+    () => height - top - tabHeight - fixedHeight,
+    [fixedHeight, height, tabHeight, top],
   );
   useEffect(() => {
     defer.resolve(null);
