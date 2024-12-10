@@ -104,13 +104,10 @@ function BasicTokenDetailTabs({
       const response = await backgroundApiProxy.serviceMarket.fetchPools(
         token.detailPlatforms,
       );
-      if (platformEnv.isNativeAndroid) {
-        await defer.promise;
-      } else {
-        setTimeout(() => {
-          defer.resolve(null);
-        }, 100);
-      }
+
+      setTimeout(() => {
+        defer.resolve(null);
+      }, 100);
       setPools(response);
     }
   }, [defer, token?.detailPlatforms]);
