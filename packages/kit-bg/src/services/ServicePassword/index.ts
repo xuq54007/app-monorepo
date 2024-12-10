@@ -52,7 +52,7 @@ import { checkExtUIOpen } from '../utils';
 import { biologyAuthUtils } from './biologyAuthUtils';
 import { EPasswordPromptType } from './types';
 
-import type { IPasswordRes } from './types';
+import type { EPasswordMode, IPasswordRes } from './types';
 
 @backgroundClass()
 export default class ServicePassword extends ServiceBase {
@@ -336,20 +336,30 @@ export default class ServicePassword extends ServiceBase {
     return checkPasswordSet;
   }
 
-  async setPasswordSetStatus(isSet: boolean): Promise<void> {
-    await passwordPersistAtom.set((v) => ({ ...v, isPasswordSet: isSet }));
+  async setPasswordSetStatus(
+    isSet: boolean,
+    passMode?: EPasswordMode,
+  ): Promise<void> {
+    await passwordPersistAtom.set((v) => ({
+      ...v,
+      isPasswordSet: isSet,
+      ...(passMode ? { passwordMode: passMode } : {}),
+    }));
   }
 
   // password actions --------------
   @backgroundMethod()
-  async setPassword(password: string): Promise<string> {
+  async setPassword(
+    password: string,
+    passMode?: EPasswordMode,
+  ): Promise<string> {
     ensureSensitiveTextEncoded(password);
     await this.validatePassword({ password, skipDBVerify: true });
     try {
       await this.unLockApp();
       await this.saveBiologyAuthPassword(password);
       await this.setCachedPassword(password);
-      await this.setPasswordSetStatus(true);
+      await this.setPasswordSetStatus(true, passMode);
       await localDb.setPassword({ password });
       return password;
     } catch (e) {
@@ -362,6 +372,7 @@ export default class ServicePassword extends ServiceBase {
   async updatePassword(
     oldPassword: string,
     newPassword: string,
+    passMode?: EPasswordMode,
   ): Promise<string> {
     ensureSensitiveTextEncoded(oldPassword);
     ensureSensitiveTextEncoded(newPassword);
@@ -371,7 +382,7 @@ export default class ServicePassword extends ServiceBase {
       await this.backgroundApi.serviceAddressBook.updateHash(newPassword);
       await this.saveBiologyAuthPassword(newPassword);
       await this.setCachedPassword(newPassword);
-      await this.setPasswordSetStatus(true);
+      await this.setPasswordSetStatus(true, passMode);
       // update v5 db password
       await localDb.updatePassword({ oldPassword, newPassword });
       // update v4 db password

@@ -97,6 +97,14 @@ type IFieldProps = Omit<GetProps<typeof Controller>, 'render'> &
   PropsWithChildren<{
     testID?: string;
     label?: string;
+    display?:
+      | 'inherit'
+      | 'none'
+      | 'inline'
+      | 'block'
+      | 'contents'
+      | 'flex'
+      | 'inline-flex';
     description?: string | ReactNode;
     horizontal?: boolean;
     optional?: boolean;
@@ -107,6 +115,7 @@ function Field({
   name,
   label,
   optional,
+  display,
   description,
   rules,
   children,
@@ -139,7 +148,7 @@ function Field({
       control={control}
       rules={rules}
       render={({ field }) => (
-        <Fieldset p="$0" m="$0" borderWidth={0}>
+        <Fieldset p="$0" m="$0" borderWidth={0} display={display}>
           <Stack
             flexDirection={horizontal ? 'row' : 'column'}
             jc={horizontal ? 'space-between' : undefined}

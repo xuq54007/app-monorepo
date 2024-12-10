@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AuthenticationType } from 'expo-local-authentication';
 import { useIntl } from 'react-intl';
@@ -10,6 +10,7 @@ import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms'
 import {
   usePasswordAtom,
   usePasswordBiologyAuthInfoAtom,
+  usePasswordModeAtom,
   usePasswordPersistAtom,
 } from '@onekeyhq/kit-bg/src/states/jotai/atoms/password';
 import { dismissKeyboard } from '@onekeyhq/shared/src/keyboard';
@@ -45,7 +46,7 @@ const PasswordVerifyContainer = ({
   const [{ isBiologyAuthSwitchOn }] = useSettingsPersistAtom();
   const [hasCachedPassword, setHasCachedPassword] = useState(false);
   const [hasSecurePassword, setHasSecurePassword] = useState(false);
-
+  const [passwordMode] = usePasswordModeAtom();
   const isExtLockAndNoCachePassword = Boolean(
     platformEnv.isExtension && name === 'lock' && !hasCachedPassword,
   );
@@ -268,6 +269,7 @@ const PasswordVerifyContainer = ({
   return (
     <Stack onLayout={onLayout}>
       <PasswordVerify
+        passwordMode={passwordMode}
         onPasswordChange={() => {
           setPasswordAtom((v) => ({
             ...v,

@@ -13,6 +13,7 @@ import { useIntl } from 'react-intl';
 
 import type { IKeyOfIcons, IPropsWithTestId } from '@onekeyhq/components';
 import { Form, Input, useForm } from '@onekeyhq/components';
+import type { EPasswordMode } from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
 import { usePasswordAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
@@ -24,6 +25,7 @@ import { getPasswordKeyboardType } from '../utils';
 interface IPasswordVerifyProps {
   authType: AuthenticationType[];
   isEnable: boolean;
+  passwordMode: EPasswordMode;
   onPasswordChange: (e: any) => void;
   onBiologyAuth: () => void;
   onInputPasswordAuth: (data: IPasswordVerifyForm) => void;
@@ -41,6 +43,7 @@ const PasswordVerify = ({
   authType,
   isEnable,
   status,
+  passwordMode,
   onBiologyAuth,
   onPasswordChange,
   onInputPasswordAuth,

@@ -775,4 +775,7 @@ module.exports = [
   'cacheable',
   'benfen',
   'bfc',
+  'biometric',
+  'biometrics',
+  'Biometric',
 ];
