@@ -12,10 +12,6 @@ import {
   useTabBarHeight,
 } from '@onekeyhq/components';
 import type { ISegmentControlProps } from '@onekeyhq/components';
-import {
-  EAppEventBusNames,
-  appEventBus,
-} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type {
@@ -42,6 +38,7 @@ function NativeTokenPriceChart({ coinGeckoId, defer }: IChartProps) {
   const intl = useIntl();
   const [points, setPoints] = useState<IMarketTokenChart>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { md } = useMedia();
   const options = useMemo(
     () => [
       {
@@ -75,7 +72,7 @@ function NativeTokenPriceChart({ coinGeckoId, defer }: IChartProps) {
       coinGeckoId,
       days,
     );
-    if (platformEnv.isNativeAndroid) {
+    if (md) {
       setTimeout(() => {
         defer.resolve(null);
       }, 100);
@@ -84,7 +81,7 @@ function NativeTokenPriceChart({ coinGeckoId, defer }: IChartProps) {
     }
     setPoints(response);
     setIsLoading(false);
-  }, [coinGeckoId, days, defer]);
+  }, [coinGeckoId, days, defer, md]);
 
   useEffect(() => {
     void init();
@@ -143,13 +140,7 @@ function TradingViewChart({
     [height, tabHeight, top],
   );
   useEffect(() => {
-    if (platformEnv.isNativeAndroid) {
-      setTimeout(() => {
-        defer.resolve(null);
-      }, 450);
-    } else {
-      defer.resolve(null);
-    }
+    defer.resolve(null);
   }, [defer]);
 
   return (
