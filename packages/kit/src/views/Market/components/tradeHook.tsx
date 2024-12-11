@@ -110,20 +110,19 @@ export const useMarketTradeActions = (token: IMarketTokenDetail | null) => {
       tokenSymbol: symbol,
       contractAddress,
     });
-    const { importFromToken, swapTabSwitchType, isNative } =
-      importFromTokenResponse || {};
+    const { swapTabSwitchType, isNative } = importFromTokenResponse || {};
     navigation.pushModal(EModalRoutes.SwapModal, {
       screen: EModalSwapRoutes.SwapMainLand,
       params: {
-        importToToken: {
+        importFromToken: {
           ...onekeyNetwork,
           contractAddress: isNative ? '' : contractAddress,
           networkId,
+          isNative,
           networkLogoURI: onekeyNetwork.logoURI,
           symbol: symbol.toUpperCase(),
           name,
         },
-        importFromToken,
         swapTabSwitchType,
       },
     });
