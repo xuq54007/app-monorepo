@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AuthenticationType } from 'expo-local-authentication';
 import { useIntl } from 'react-intl';
@@ -6,7 +6,14 @@ import { useIntl } from 'react-intl';
 import { Stack } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { biologyAuthUtils } from '@onekeyhq/kit-bg/src/services/ServicePassword/biologyAuthUtils';
-import { EPasswordMode } from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
+import {
+  BIOLOGY_AUTH_ATTEMPTS_FACE,
+  BIOLOGY_AUTH_ATTEMPTS_FINGERPRINT,
+  EPasswordMode,
+  PASSCODE_PROTECTION_ATTEMPTS,
+  PASSCODE_PROTECTION_ATTEMPTS_MESSAGE_SHOW_MAX,
+  PASSCODE_PROTECTION_ATTEMPTS_PER_MINUTE_MAP,
+} from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import {
   usePasswordAtom,
@@ -44,9 +51,34 @@ const PasswordVerifyContainer = ({
   const [{ isBiologyAuthSwitchOn }] = useSettingsPersistAtom();
   const [hasCachedPassword, setHasCachedPassword] = useState(false);
   const [hasSecurePassword, setHasSecurePassword] = useState(false);
+  const [unlockPeriodPasswordArray, setUnlockPeriodPasswordArray] = useState<
+    string[]
+  >([]);
+  const [passwordErrorProtectionTimeOver, setPasswordErrorProtectionTimeOver] =
+    useState(false);
+  const [verifyPeriodBiologyAuthAttempts, setVerifyPeriodBiologyAuthAttempts] =
+    useState(0);
+  const [verifyPeriodBiologyEnable, setVerifyPeriodBiologyEnable] =
+    useState(true);
   const [passwordMode] = usePasswordModeAtom();
+  const [
+    {
+      passwordErrorAttempts,
+      enablePasswordErrorProtection,
+      passwordErrorProtectionTime,
+    },
+    setPasswordPersist,
+  ] = usePasswordPersistAtom();
+  const biologyAuthAttempts = useMemo(
+    () =>
+      authType.includes(AuthenticationType.FACIAL_RECOGNITION)
+        ? BIOLOGY_AUTH_ATTEMPTS_FACE
+        : BIOLOGY_AUTH_ATTEMPTS_FINGERPRINT,
+    [authType],
+  );
+  const isLock = useMemo(() => name === 'lock', [name]);
   const isExtLockAndNoCachePassword = Boolean(
-    platformEnv.isExtension && name === 'lock' && !hasCachedPassword,
+    platformEnv.isExtension && isLock && !hasCachedPassword,
   );
 
   useEffect(() => {
@@ -76,10 +108,15 @@ const PasswordVerifyContainer = ({
     // both webAuth or biologyAuth are enabled
     () => {
       if (isExtLockAndNoCachePassword) {
-        return isBiologyAuthSwitchOn && !!webAuthCredentialId;
+        return (
+          isBiologyAuthSwitchOn &&
+          !!webAuthCredentialId &&
+          verifyPeriodBiologyEnable
+        );
       }
       return (
         isBiologyAuthSwitchOn &&
+        verifyPeriodBiologyEnable &&
         ((isEnable && hasSecurePassword) ||
           (!!webAuthCredentialId && !!hasCachedPassword))
       );
@@ -91,6 +128,7 @@ const PasswordVerifyContainer = ({
       webAuthCredentialId,
       isBiologyAuthSwitchOn,
       isExtLockAndNoCachePassword,
+      verifyPeriodBiologyEnable,
     ],
   );
   const [{ passwordVerifyStatus }, setPasswordAtom] = usePasswordAtom();
@@ -128,17 +166,14 @@ const PasswordVerifyContainer = ({
           }));
           onVerifyRes('');
         } else {
-          setPasswordAtom((v) => ({
-            ...v,
-            passwordVerifyStatus: {
-              value: EPasswordVerifyStatus.ERROR,
-              message: intl.formatMessage({
-                id: ETranslations.auth_error_password_incorrect,
-              }),
-            },
-          }));
+          throw new Error('biology auth verify error');
         }
       } catch {
+        if (verifyPeriodBiologyAuthAttempts >= biologyAuthAttempts) {
+          setVerifyPeriodBiologyEnable(false);
+        } else {
+          setVerifyPeriodBiologyAuthAttempts((v) => v + 1);
+        }
         setPasswordAtom((v) => ({
           ...v,
           passwordVerifyStatus: {
@@ -150,11 +185,13 @@ const PasswordVerifyContainer = ({
         }));
       }
     }, [
+      passwordVerifyStatus.value,
+      setPasswordAtom,
       checkWebAuth,
-      passwordVerifyStatus,
       onVerifyRes,
       intl,
-      setPasswordAtom,
+      verifyPeriodBiologyAuthAttempts,
+      biologyAuthAttempts,
     ]);
 
   const onBiologyAuthenticate = useCallback(async () => {
@@ -178,6 +215,7 @@ const PasswordVerifyContainer = ({
           await backgroundApiProxy.servicePassword.verifyPassword({
             password: '',
             isBiologyAuth: true,
+            passwordMode,
           });
       }
       if (biologyAuthRes) {
@@ -187,18 +225,14 @@ const PasswordVerifyContainer = ({
         }));
         onVerifyRes(biologyAuthRes);
       } else {
-        setPasswordAtom((v) => ({
-          ...v,
-          passwordVerifyStatus: {
-            value: EPasswordVerifyStatus.ERROR,
-            message: intl.formatMessage({
-              id: ETranslations.auth_error_password_incorrect,
-            }),
-          },
-        }));
         throw new Error('biology auth verify error');
       }
     } catch (e) {
+      if (verifyPeriodBiologyAuthAttempts >= biologyAuthAttempts) {
+        setVerifyPeriodBiologyEnable(false);
+      } else {
+        setVerifyPeriodBiologyAuthAttempts((v) => v + 1);
+      }
       setPasswordAtom((v) => ({
         ...v,
         passwordVerifyStatus: {
@@ -210,13 +244,16 @@ const PasswordVerifyContainer = ({
       }));
     }
   }, [
+    biologyAuthAttempts,
     intl,
     isBiologyAuthEnable,
     isEnable,
     onVerifyRes,
+    passwordMode,
     passwordVerifyStatus.value,
     setPasswordAtom,
     verifiedPasswordWebAuth,
+    verifyPeriodBiologyAuthAttempts,
   ]);
 
   const onInputPasswordAuthenticate = useCallback(
@@ -241,6 +278,7 @@ const PasswordVerifyContainer = ({
         const verifiedPassword =
           await backgroundApiProxy.servicePassword.verifyPassword({
             password: encodePassword,
+            passwordMode,
           });
         setPasswordAtom((v) => ({
           ...v,
@@ -252,30 +290,101 @@ const PasswordVerifyContainer = ({
         }
         onVerifyRes(verifiedPassword);
       } catch (e) {
+        let message = intl.formatMessage({
+          id: ETranslations.auth_error_password_incorrect,
+        });
+        if (isLock && enablePasswordErrorProtection) {
+          let nextAttempts = passwordErrorAttempts + 1;
+          if (!unlockPeriodPasswordArray.includes(finalPassword)) {
+            setPasswordPersist((v) => ({
+              ...v,
+              passwordErrorAttempts: nextAttempts,
+            }));
+            setUnlockPeriodPasswordArray((v) => [...v, finalPassword]);
+          } else {
+            nextAttempts = passwordErrorAttempts;
+          }
+          if (nextAttempts >= PASSCODE_PROTECTION_ATTEMPTS_MESSAGE_SHOW_MAX) {
+            const timeMinutes =
+              PASSCODE_PROTECTION_ATTEMPTS_PER_MINUTE_MAP[
+                nextAttempts.toString()
+              ];
+            message = `${
+              PASSCODE_PROTECTION_ATTEMPTS - nextAttempts
+            } more failed attempts will reset the device`;
+            setPasswordPersist((v) => ({
+              ...v,
+              passwordErrorProtectionTime: Date.now() + timeMinutes * 60 * 1000,
+            }));
+          }
+        }
         setPasswordAtom((v) => ({
           ...v,
           passwordVerifyStatus: {
             value: EPasswordVerifyStatus.ERROR,
-            message: intl.formatMessage({
-              id: ETranslations.auth_error_password_incorrect,
-            }),
+            message,
           },
         }));
       }
     },
     [
+      enablePasswordErrorProtection,
       intl,
+      isLock,
       onVerifyRes,
+      passwordErrorAttempts,
       passwordMode,
       passwordVerifyStatus.value,
       setPasswordAtom,
+      setPasswordPersist,
+      unlockPeriodPasswordArray,
     ],
   );
+
+  const alertText = useMemo(() => {
+    if (
+      isLock &&
+      enablePasswordErrorProtection &&
+      passwordErrorAttempts >= PASSCODE_PROTECTION_ATTEMPTS_MESSAGE_SHOW_MAX &&
+      passwordErrorProtectionTime > Date.now() &&
+      !passwordErrorProtectionTimeOver
+    ) {
+      return `Try again in ${Math.floor(
+        (passwordErrorProtectionTime - Date.now()) / 60_000,
+      )} minutes`;
+    }
+    return '';
+  }, [
+    isLock,
+    enablePasswordErrorProtection,
+    passwordErrorAttempts,
+    passwordErrorProtectionTime,
+    passwordErrorProtectionTimeOver,
+  ]);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  useEffect(() => {
+    if (alertText) {
+      intervalRef.current = setInterval(() => {
+        if (passwordErrorProtectionTime < Date.now()) {
+          setPasswordErrorProtectionTimeOver(true);
+        }
+      }, 1000 * 60);
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [alertText, passwordErrorProtectionTime]);
 
   return (
     <Stack onLayout={onLayout}>
       <PasswordVerify
         passwordMode={passwordMode}
+        alertText={alertText}
+        confirmBtnDisabled={!!alertText}
         onPasswordChange={() => {
           setPasswordAtom((v) => ({
             ...v,

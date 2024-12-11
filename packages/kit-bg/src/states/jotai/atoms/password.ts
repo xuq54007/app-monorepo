@@ -62,6 +62,9 @@ export type IPasswordPersistAtom = {
   appLockDuration: number;
   enableSystemIdleLock: boolean;
   passwordMode: EPasswordMode;
+  enablePasswordErrorProtection: boolean;
+  passwordErrorAttempts: number;
+  passwordErrorProtectionTime: number;
 };
 export const passwordAtomInitialValue: IPasswordPersistAtom = {
   isPasswordSet: false,
@@ -69,6 +72,9 @@ export const passwordAtomInitialValue: IPasswordPersistAtom = {
   appLockDuration: 240,
   enableSystemIdleLock: true,
   passwordMode: EPasswordMode.PASSWORD,
+  enablePasswordErrorProtection: false,
+  passwordErrorAttempts: 0,
+  passwordErrorProtectionTime: 0,
 };
 export const { target: passwordPersistAtom, use: usePasswordPersistAtom } =
   globalAtom<IPasswordPersistAtom>({

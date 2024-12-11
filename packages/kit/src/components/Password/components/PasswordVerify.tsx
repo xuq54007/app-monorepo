@@ -12,7 +12,14 @@ import { AuthenticationType } from 'expo-local-authentication';
 import { useIntl } from 'react-intl';
 
 import type { IKeyOfIcons, IPropsWithTestId } from '@onekeyhq/components';
-import { Button, Form, Input, useForm } from '@onekeyhq/components';
+import {
+  Form,
+  IconButton,
+  Input,
+  SizableText,
+  XStack,
+  useForm,
+} from '@onekeyhq/components';
 import { EPasswordMode } from '@onekeyhq/kit-bg/src/services/ServicePassword/types';
 import { usePasswordAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
@@ -35,6 +42,8 @@ interface IPasswordVerifyProps {
     value: EPasswordVerifyStatus;
     message?: string;
   };
+  alertText?: string;
+  confirmBtnDisabled?: boolean;
 }
 
 export interface IPasswordVerifyForm {
@@ -45,6 +54,8 @@ export interface IPasswordVerifyForm {
 const PasswordVerify = ({
   authType,
   isEnable,
+  alertText,
+  confirmBtnDisabled,
   status,
   passwordMode,
   onBiologyAuth,
@@ -103,6 +114,7 @@ const PasswordVerify = ({
       iconName?: IKeyOfIcons;
       onPress?: () => void;
       loading?: boolean;
+      disabled?: boolean;
     }>[] = [];
     if (isEnable && !passwordInput) {
       actions.push({
@@ -121,6 +133,7 @@ const PasswordVerify = ({
         iconName: 'ArrowRightOutline',
         onPress: form.handleSubmit(onInputPasswordAuth),
         loading: status.value === EPasswordVerifyStatus.VERIFYING,
+        disabled: confirmBtnDisabled,
         testID: 'verifying-password',
       });
     }
@@ -135,6 +148,7 @@ const PasswordVerify = ({
     secureEntry,
     form,
     onInputPasswordAuth,
+    confirmBtnDisabled,
   ]);
 
   useEffect(() => {
@@ -181,38 +195,47 @@ const PasswordVerify = ({
   return (
     <Form form={form}>
       {passwordMode === EPasswordMode.PASSWORD ? (
-        <Form.Field
-          name="password"
-          rules={{
-            required: {
-              value: true,
-              message: intl.formatMessage({
-                id: ETranslations.auth_error_password_incorrect,
-              }),
-            },
-            onChange: onPasswordChange,
-          }}
-        >
-          <Input
-            selectTextOnFocus
-            size="large"
-            editable={status.value !== EPasswordVerifyStatus.VERIFYING}
-            placeholder={intl.formatMessage({
-              id: ETranslations.auth_enter_your_password,
-            })}
-            flex={1}
-            // onChangeText={(text) => text.replace(PasswordRegex, '')}
-            onChangeText={(text) => text}
-            keyboardType={getPasswordKeyboardType(!secureEntry)}
-            secureTextEntry={secureEntry}
-            // fix Keyboard Flickering on TextInput with secureTextEntry #39411
-            // https://github.com/facebook/react-native/issues/39411
-            textContentType="oneTimeCode"
-            onSubmitEditing={form.handleSubmit(onInputPasswordAuth)}
-            addOns={rightActions}
-            testID="password-input"
-          />
-        </Form.Field>
+        <>
+          <Form.Field
+            name="password"
+            rules={{
+              required: {
+                value: true,
+                message: intl.formatMessage({
+                  id: ETranslations.auth_error_password_incorrect,
+                }),
+              },
+              onChange: onPasswordChange,
+            }}
+          >
+            <Input
+              selectTextOnFocus
+              size="large"
+              editable={status.value !== EPasswordVerifyStatus.VERIFYING}
+              placeholder={intl.formatMessage({
+                id: ETranslations.auth_enter_your_password,
+              })}
+              flex={1}
+              // onChangeText={(text) => text.replace(PasswordRegex, '')}
+              onChangeText={(text) => text}
+              keyboardType={getPasswordKeyboardType(!secureEntry)}
+              secureTextEntry={secureEntry}
+              // fix Keyboard Flickering on TextInput with secureTextEntry #39411
+              // https://github.com/facebook/react-native/issues/39411
+              textContentType="oneTimeCode"
+              onSubmitEditing={form.handleSubmit(onInputPasswordAuth)}
+              addOns={rightActions}
+              testID="password-input"
+            />
+          </Form.Field>
+          {alertText ? (
+            <XStack alignSelf="center" w="$45" h="$10" borderRadius="$2.5">
+              <SizableText size="$bodyMd" color="$textOnBrightColor">
+                {alertText}
+              </SizableText>
+            </XStack>
+          ) : null}
+        </>
       ) : (
         <>
           <Form.Field
@@ -233,36 +256,31 @@ const PasswordVerify = ({
             }}
           >
             <PassCodeInput
-              disabled={!!(status.value === EPasswordVerifyStatus.VERIFYING)}
               onPinCodeChange={(pin) => {
                 form.setValue('passCode', pin);
                 form.clearErrors('passCode');
               }}
+              onComplete={form.handleSubmit(onInputPasswordAuth)}
+              disabledComplete={confirmBtnDisabled}
               testId="pass-code-input"
             />
           </Form.Field>
           {isEnable && !passwordInput ? (
-            <Button
-              size="large"
-              variant="secondary"
+            <IconButton
               icon={biologyAuthIconName}
               onPress={onBiologyAuth}
               loading={status.value === EPasswordVerifyStatus.VERIFYING}
-            >
-              {intl.formatMessage({
-                id: ETranslations.global_biometric,
-              })}
-            </Button>
+            />
           ) : (
-            <Button
-              size="large"
-              variant="secondary"
-              onPress={form.handleSubmit(onInputPasswordAuth)}
-            >
-              {intl.formatMessage({
-                id: ETranslations.global_confirm,
-              })}
-            </Button>
+            <>
+              {alertText ? (
+                <XStack alignSelf="center" w="$45" h="$10" borderRadius="$2.5">
+                  <SizableText size="$bodyMd" color="$textOnBrightColor">
+                    {alertText}
+                  </SizableText>
+                </XStack>
+              ) : null}
+            </>
           )}
         </>
       )}

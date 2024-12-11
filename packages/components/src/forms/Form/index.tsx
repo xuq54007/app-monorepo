@@ -148,7 +148,12 @@ function Field({
       control={control}
       rules={rules}
       render={({ field }) => (
-        <Fieldset p="$0" m="$0" borderWidth={0} display={display}>
+        <Fieldset
+          p="$0"
+          m="$0"
+          borderWidth={0}
+          {...(display ? { display } : {})}
+        >
           <Stack
             flexDirection={horizontal ? 'row' : 'column'}
             jc={horizontal ? 'space-between' : undefined}

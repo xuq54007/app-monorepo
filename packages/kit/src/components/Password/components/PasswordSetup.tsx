@@ -228,7 +228,6 @@ const PasswordSetup = ({
             }}
           >
             <PassCodeInput
-              disabled={loading}
               onPinCodeChange={(pin) => {
                 form.setValue('passCode', pin);
                 form.clearErrors('passCode');
@@ -266,7 +265,6 @@ const PasswordSetup = ({
             }}
           >
             <PassCodeInput
-              disabled={loading}
               onPinCodeChange={(pin) => {
                 form.setValue('confirmPassCode', pin);
                 form.clearErrors('confirmPassCode');

@@ -11,6 +11,7 @@ import {
 } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { ListItem } from '@onekeyhq/kit/src/components/ListItem';
+import PassCodeProtectionSwitch from '@onekeyhq/kit/src/components/Password/container/PassCodeProtectionSwitch';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms/settings';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 
@@ -87,6 +88,14 @@ const SettingProtectionModal = () => {
             {intl.formatMessage({
               id: ETranslations.settings_password_bypass_desc,
             })}
+          </SizableText>
+          <Divider my="$5" mx="$5" />
+          <SectionList.SectionHeader title="PassCode protection" />
+          <ListItem title="Reset app">
+            <PassCodeProtectionSwitch />
+          </ListItem>
+          <SizableText px="$5" size="$bodySm" color="$textSubdued">
+            Reset app on this device after 10 failed passcode attempts.
           </SizableText>
         </YStack>
       </Page.Body>

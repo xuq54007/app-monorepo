@@ -29,12 +29,14 @@ const cellStyles = StyleSheet.create({
 
 const PassCodeInput = ({
   onPinCodeChange,
+  onComplete,
+  disabledComplete,
   showMask,
-  disabled,
   testId,
 }: {
   onPinCodeChange?: (pin: string) => void;
-  disabled?: boolean;
+  onComplete?: () => void;
+  disabledComplete?: boolean;
   testId?: string;
   showMask?: boolean;
 }) => {
@@ -77,7 +79,7 @@ const PassCodeInput = ({
     );
   };
   return (
-    <XStack gap="$1" flex={1} disabled={disabled}>
+    <XStack gap="$1" minHeight={40}>
       <CodeField
         autoFocus
         testID={testId}
@@ -88,6 +90,9 @@ const PassCodeInput = ({
         onChangeText={(text) => {
           setPinValue(text);
           onPinCodeChange?.(text);
+          if (text.length === PIN_CELL_COUNT && !disabledComplete) {
+            onComplete?.();
+          }
         }}
         cellCount={PIN_CELL_COUNT}
         keyboardType="number-pad"
