@@ -225,7 +225,7 @@ export default class Vault extends VaultBase {
     params: IBuildDecodedTxParams,
   ): Promise<IDecodedTx> {
     const { unsignedTx, transferPayload } = params;
-
+    console.log('EVM buildDecodedTx params:', JSON.stringify(params, null, 2));
     const encodedTx = unsignedTx.encodedTx as IEncodedTxEvm;
     const { swapInfo, stakingInfo } = unsignedTx;
 

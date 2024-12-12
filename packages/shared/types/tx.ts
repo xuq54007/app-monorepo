@@ -35,6 +35,9 @@ export enum EDecodedTxActionType {
   // Contract Interaction
   FUNCTION_CALL = 'FUNCTION_CALL',
 
+  // Staking/Unstaking
+  UNFREEZE = 'UNFREEZE',
+
   // other
   UNKNOWN = 'UNKNOWN',
 }

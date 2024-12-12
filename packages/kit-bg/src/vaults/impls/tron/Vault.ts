@@ -323,6 +323,21 @@ export default class Vault extends VaultBase {
         action = actionFromContract.action;
         toAddress = actionFromContract.toAddress;
       }
+    } else if (encodedTx.raw_data.contract[0].type === 'UnfreezeBalanceV2Contract') {
+      const { unfreeze_balance: unfreezeBalance, resource = 'BANDWIDTH' } =
+        encodedTx.raw_data.contract[0].parameter.value as Types.UnfreezeBalanceV2Contract;
+      action = {
+        type: EDecodedTxActionType.UNFREEZE,
+        unknownAction: {
+          from: accountAddress,
+          to: accountAddress,
+        },
+        data: JSON.stringify({
+          amount: new BigNumber(unfreezeBalance).shiftedBy(-6).toFixed(),
+          resource,
+        }),
+      };
+      toAddress = accountAddress;
     }
 
     if (swapInfo) {

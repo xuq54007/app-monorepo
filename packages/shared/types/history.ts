@@ -25,6 +25,7 @@ export enum EOnChainHistoryTxType {
   Send = 'Send',
   Receive = 'Receive',
   Approve = 'Approve',
+  Unfreeze = 'Unfreeze',
 }
 
 export type IOnChainHistoryTxApprove = {
