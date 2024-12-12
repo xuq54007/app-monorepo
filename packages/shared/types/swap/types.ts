@@ -14,6 +14,7 @@ import type {
 
 import type { EMessageTypesEth } from '../message';
 import type { IDecodedTxActionTokenApprove } from '../tx';
+import type { OrderParameters } from '@cowprotocol/cow-sdk';
 
 export enum EProtocolOfExchange {
   SWAP = 'Swap', // swap and bridge
@@ -261,6 +262,7 @@ export interface IFetchQuoteResult {
   fromTokenInfo: ISwapTokenBase;
   toTokenInfo: ISwapTokenBase;
   quoteResultCtx?: any;
+  cowSwapQuoteResult?: OrderParameters;
   swapShouldSignedData?: {
     unSignedMessage: string;
     unSignedInfo: {

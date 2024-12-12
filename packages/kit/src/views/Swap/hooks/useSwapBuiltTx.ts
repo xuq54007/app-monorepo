@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 
+import { OrderSigningUtils } from '@cowprotocol/cow-sdk';
+import { Web3Provider } from '@ethersproject/providers';
 import BigNumber from 'bignumber.js';
 import { cloneDeep } from 'lodash';
 import { useIntl } from 'react-intl';
@@ -61,12 +63,13 @@ import { useSwapAddressInfo } from './useSwapAccount';
 import { useSwapSlippagePercentageModeInfo } from './useSwapState';
 import { useSwapTxHistoryActions } from './useSwapTxHistory';
 
-import type { IInjectedProviderNamesStrings } from '@onekeyfe/cross-inpage-provider-types';
-
 export function useSwapBuildTx() {
   const intl = useIntl();
   const [fromToken] = useSwapSelectFromTokenAtom();
   const [toToken] = useSwapSelectToTokenAtom();
+  // eslint-disable-next-line unicorn/prefer-global-this
+  const provider = new Web3Provider(window.ethereum);
+  const signer = provider.getSigner();
   const { slippageItem } = useSwapSlippagePercentageModeInfo();
   const [selectQuote] = useSwapQuoteCurrentSelectAtom();
   const [, setSwapQuoteResultList] = useSwapQuoteListAtom();
@@ -386,44 +389,69 @@ export function useSwapBuildTx() {
       swapToAddressInfo.address &&
       swapFromAddressInfo.networkId
     ) {
+      console.log('swap__createBuildT1x', selectQuoteRes.swapShouldSignedData);
+      console.log(
+        'swap__createBuildTx',
+        swapFromAddressInfo.accountInfo?.account?.id,
+      );
       try {
         if (
           selectQuoteRes.swapShouldSignedData &&
           swapFromAddressInfo.accountInfo?.account?.id
         ) {
-          const { unSignedInfo, unSignedMessage } =
-            selectQuoteRes.swapShouldSignedData;
-          if (unSignedMessage) {
-            console.log('swap__cowSwapQuoteData');
-            const signHash =
-              (await backgroundApiProxy.serviceDApp.openSignMessageModal({
-                accountId: swapFromAddressInfo.accountInfo?.account?.id,
-                networkId: swapFromAddressInfo.networkId,
-                request: {
-                  origin: unSignedInfo.origin,
-                  scope: unSignedInfo.scope as IInjectedProviderNamesStrings,
-                },
-                unsignedMessage: {
-                  type:
-                    unSignedInfo.signedType ?? EMessageTypesEth.TYPED_DATA_V4,
-                  message: unSignedMessage,
-                  payload: [swapFromAddressInfo.address, unSignedMessage],
-                },
-                walletInternalSign: true,
-              })) as string;
-            if (signHash) {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-              selectQuoteRes.quoteResultCtx.signedResult = {
-                signature: signHash,
-                signingScheme: ESigningScheme.EIP712,
-              };
-            }
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          const quote = selectQuoteRes.quoteResultCtx.cowSwapQuoteResult;
+          console.log('swap__quote--', quote);
+          console.log('quote?.receiver', quote?.receiver);
+          if (quote?.receiver) {
+            console.log('swap__signOrder');
+            const chainId = swapFromAddressInfo.networkId.split(
+              '--',
+            )[1] as SupportedChainId;
+
+            const orderSigningResult = await OrderSigningUtils.signOrder(
+              quote,
+              chainId,
+              signer,
+            );
+            console.log('swap__orderSigningResult', orderSigningResult);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            selectQuoteRes.quoteResultCtx.signedResult = orderSigningResult;
           }
+          // const { unSignedInfo, unSignedMessage } =
+          //   selectQuoteRes.swapShouldSignedData;
+          // if (unSignedMessage) {
+          //   console.log('swap__cowSwapQuoteData');
+          //   const signHash =
+          //     (await backgroundApiProxy.serviceDApp.openSignMessageModal({
+          //       accountId: swapFromAddressInfo.accountInfo?.account?.id,
+          //       networkId: swapFromAddressInfo.networkId,
+          //       request: {
+          //         origin: unSignedInfo.origin,
+          //         scope: unSignedInfo.scope as IInjectedProviderNamesStrings,
+          //       },
+          //       unsignedMessage: {
+          //         type:
+          //           unSignedInfo.signedType ?? EMessageTypesEth.TYPED_DATA_V4,
+          //         message: unSignedMessage,
+          //         payload: [swapFromAddressInfo.address, unSignedMessage],
+          //       },
+          //       walletInternalSign: true,
+          //     })) as string;
+          //   if (signHash) {
+          //     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          //     selectQuoteRes.quoteResultCtx.signedResult = {
+          //       signature: signHash,
+          //       signingScheme: ESigningScheme.EIP712,
+          //     };
+          //   }
+          // }
         }
         const checkRes = await checkOtherFee(selectQuoteRes);
         if (!checkRes) {
           return null;
         }
+        console.log('swap__fetchBuildTx');
         const res = await backgroundApiProxy.serviceSwap.fetchBuildTx({
           fromToken,
           toToken,
