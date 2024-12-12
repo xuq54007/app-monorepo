@@ -156,7 +156,7 @@ function analyzeTransactionType(tx: TransactionBlock) {
   return EBfcTransactionType.Unknown;
 }
 
-interface ITransferDetail {
+export interface ITransferDetail {
   from: string;
   to: string;
   amount: string;
