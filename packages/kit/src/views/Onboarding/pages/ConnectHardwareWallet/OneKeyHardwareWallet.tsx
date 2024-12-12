@@ -56,10 +56,6 @@ export function OneKeyHardwareWallet() {
           resizeMode={EVideoResizeMode.COVER}
           controls={false}
           playInBackground={false}
-          bufferConfig={{
-            cacheSizeMB: 50_000,
-            bufferSize: 10_000,
-          }}
         />
         <Stack
           position="absolute"

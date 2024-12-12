@@ -1,7 +1,7 @@
-import PropTypes from 'prop-types';
-import { Platform } from 'react-native';
 import NativeVideo from 'react-native-video';
 import { usePropsAndStyle } from 'tamagui';
+
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
 import type { IVideoProps } from './type';
 import type { ViewStyle } from 'react-native';
@@ -12,27 +12,18 @@ export function Video(rawProps: IVideoProps) {
     <NativeVideo
       style={style as ViewStyle}
       {...props}
+      preferredForwardBufferDuration={
+        platformEnv.isNativeIOS ? 30_000 : undefined
+      }
       bufferConfig={{
-        cacheSizeMB: Platform.OS === 'android' ? 50_000 : undefined,
-        bufferSize: 10_000,
+        cacheSizeMB: platformEnv.isNativeAndroid ? 50_000 : undefined,
         minBufferMs: 15_000,
         maxBufferMs: 50_000,
-        playbackAfterBuffer: 3000,
-        ...props.bufferConfig,
+        backBufferDurationMs: 30_000,
       }}
     />
   );
 }
-
-Video.propTypes = {
-  bufferConfig: PropTypes.shape({
-    cacheSizeMB: PropTypes.number,
-    bufferSize: PropTypes.number,
-    minBufferMs: PropTypes.number,
-    maxBufferMs: PropTypes.number,
-    playbackAfterBuffer: PropTypes.number,
-  }),
-};
 
 export { type IVideoProps } from './type';
 export * from './enum';

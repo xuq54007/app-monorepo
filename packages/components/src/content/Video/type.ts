@@ -12,5 +12,4 @@ export interface IVideoBufferConfig {
 export type IVideoProps = ReactVideoProps &
   Omit<IStackProps, 'children'> & {
     autoPlay?: boolean;
-    bufferConfig?: IVideoBufferConfig;
   };
