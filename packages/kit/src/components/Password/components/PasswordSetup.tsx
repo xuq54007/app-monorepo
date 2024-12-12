@@ -300,11 +300,12 @@ const PasswordSetup = ({
           variant="secondary"
           onPress={() => {
             form.reset();
-            setCurrentPasswordMode(
+            const newPasswordMode =
               currentPasswordMode === EPasswordMode.PASSWORD
                 ? EPasswordMode.PASSCODE
-                : EPasswordMode.PASSWORD,
-            );
+                : EPasswordMode.PASSWORD;
+            setCurrentPasswordMode(newPasswordMode);
+            form.setValue('passwordMode', newPasswordMode);
           }}
         >
           {`切换成${

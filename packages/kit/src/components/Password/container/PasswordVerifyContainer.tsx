@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AuthenticationType } from 'expo-local-authentication';
 import { useIntl } from 'react-intl';
@@ -29,6 +29,7 @@ import { EPasswordVerifyStatus } from '@onekeyhq/shared/types/password';
 
 import { useWebAuthActions } from '../../BiologyAuthComponent/hooks/useWebAuthActions';
 import PasswordVerify from '../components/PasswordVerify';
+import usePasswordProtection from '../hooks/usePasswordProtection';
 
 import type { IPasswordVerifyForm } from '../components/PasswordVerify';
 import type { LayoutChangeEvent } from 'react-native';
@@ -51,24 +52,7 @@ const PasswordVerifyContainer = ({
   const [{ isBiologyAuthSwitchOn }] = useSettingsPersistAtom();
   const [hasCachedPassword, setHasCachedPassword] = useState(false);
   const [hasSecurePassword, setHasSecurePassword] = useState(false);
-  const [unlockPeriodPasswordArray, setUnlockPeriodPasswordArray] = useState<
-    string[]
-  >([]);
-  const [passwordErrorProtectionTimeOver, setPasswordErrorProtectionTimeOver] =
-    useState(false);
-  const [verifyPeriodBiologyAuthAttempts, setVerifyPeriodBiologyAuthAttempts] =
-    useState(0);
-  const [verifyPeriodBiologyEnable, setVerifyPeriodBiologyEnable] =
-    useState(true);
   const [passwordMode] = usePasswordModeAtom();
-  const [
-    {
-      passwordErrorAttempts,
-      enablePasswordErrorProtection,
-      passwordErrorProtectionTime,
-    },
-    setPasswordPersist,
-  ] = usePasswordPersistAtom();
   const biologyAuthAttempts = useMemo(
     () =>
       authType.includes(AuthenticationType.FACIAL_RECOGNITION)
@@ -80,7 +64,10 @@ const PasswordVerifyContainer = ({
   const isExtLockAndNoCachePassword = Boolean(
     platformEnv.isExtension && isLock && !hasCachedPassword,
   );
-
+  const [{ passwordVerifyStatus }, setPasswordAtom] = usePasswordAtom();
+  const resetPasswordStatus = useCallback(() => {
+    void backgroundApiProxy.servicePassword.resetPasswordStatus();
+  }, []);
   useEffect(() => {
     if (webAuthCredentialId && isBiologyAuthSwitchOn) {
       void (async () => {
@@ -103,6 +90,30 @@ const PasswordVerifyContainer = ({
       })();
     }
   }, [isEnable, isBiologyAuthSwitchOn]);
+
+  useEffect(() => {
+    setPasswordAtom((v) => ({
+      ...v,
+      passwordVerifyStatus: { value: EPasswordVerifyStatus.DEFAULT },
+    }));
+    return () => {
+      resetPasswordStatus();
+    };
+  }, [setPasswordAtom, resetPasswordStatus]);
+
+  const {
+    verifyPeriodBiologyEnable,
+    verifyPeriodBiologyAuthAttempts,
+    unlockPeriodPasswordArray,
+    passwordErrorAttempts,
+    setVerifyPeriodBiologyEnable,
+    setVerifyPeriodBiologyAuthAttempts,
+    setPasswordErrorProtectionTimeMinutesSurplus,
+    setUnlockPeriodPasswordArray,
+    alertText,
+    setPasswordPersist,
+    enablePasswordErrorProtection,
+  } = usePasswordProtection(isLock);
 
   const isBiologyAuthEnable = useMemo(
     // both webAuth or biologyAuth are enabled
@@ -131,19 +142,6 @@ const PasswordVerifyContainer = ({
       verifyPeriodBiologyEnable,
     ],
   );
-  const [{ passwordVerifyStatus }, setPasswordAtom] = usePasswordAtom();
-  const resetPasswordStatus = useCallback(() => {
-    void backgroundApiProxy.servicePassword.resetPasswordStatus();
-  }, []);
-  useEffect(() => {
-    setPasswordAtom((v) => ({
-      ...v,
-      passwordVerifyStatus: { value: EPasswordVerifyStatus.DEFAULT },
-    }));
-    return () => {
-      resetPasswordStatus();
-    };
-  }, [setPasswordAtom, resetPasswordStatus]);
 
   const onBiologyAuthenticateExtLockAndNoCachePassword =
     useCallback(async () => {
@@ -189,9 +187,11 @@ const PasswordVerifyContainer = ({
       setPasswordAtom,
       checkWebAuth,
       onVerifyRes,
-      intl,
       verifyPeriodBiologyAuthAttempts,
       biologyAuthAttempts,
+      setVerifyPeriodBiologyEnable,
+      setVerifyPeriodBiologyAuthAttempts,
+      intl,
     ]);
 
   const onBiologyAuthenticate = useCallback(async () => {
@@ -252,6 +252,8 @@ const PasswordVerifyContainer = ({
     passwordMode,
     passwordVerifyStatus.value,
     setPasswordAtom,
+    setVerifyPeriodBiologyAuthAttempts,
+    setVerifyPeriodBiologyEnable,
     verifiedPasswordWebAuth,
     verifyPeriodBiologyAuthAttempts,
   ]);
@@ -289,6 +291,13 @@ const PasswordVerifyContainer = ({
           await timerUtils.wait(0);
         }
         onVerifyRes(verifiedPassword);
+        if (isLock && enablePasswordErrorProtection) {
+          setPasswordPersist((v) => ({
+            ...v,
+            passwordErrorAttempts: 0,
+            passwordErrorProtectionTime: 0,
+          }));
+        }
       } catch (e) {
         let message = intl.formatMessage({
           id: ETranslations.auth_error_password_incorrect,
@@ -314,8 +323,9 @@ const PasswordVerifyContainer = ({
             } more failed attempts will reset the device`;
             setPasswordPersist((v) => ({
               ...v,
-              passwordErrorProtectionTime: Date.now() + timeMinutes * 60 * 1000,
+              passwordErrorProtectionTime: Date.now() + timeMinutes * 60 * 1000, // 2s for animation
             }));
+            setPasswordErrorProtectionTimeMinutesSurplus(timeMinutes);
           }
         }
         setPasswordAtom((v) => ({
@@ -336,48 +346,12 @@ const PasswordVerifyContainer = ({
       passwordMode,
       passwordVerifyStatus.value,
       setPasswordAtom,
+      setPasswordErrorProtectionTimeMinutesSurplus,
       setPasswordPersist,
+      setUnlockPeriodPasswordArray,
       unlockPeriodPasswordArray,
     ],
   );
-
-  const alertText = useMemo(() => {
-    if (
-      isLock &&
-      enablePasswordErrorProtection &&
-      passwordErrorAttempts >= PASSCODE_PROTECTION_ATTEMPTS_MESSAGE_SHOW_MAX &&
-      passwordErrorProtectionTime > Date.now() &&
-      !passwordErrorProtectionTimeOver
-    ) {
-      return `Try again in ${Math.floor(
-        (passwordErrorProtectionTime - Date.now()) / 60_000,
-      )} minutes`;
-    }
-    return '';
-  }, [
-    isLock,
-    enablePasswordErrorProtection,
-    passwordErrorAttempts,
-    passwordErrorProtectionTime,
-    passwordErrorProtectionTimeOver,
-  ]);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
-  useEffect(() => {
-    if (alertText) {
-      intervalRef.current = setInterval(() => {
-        if (passwordErrorProtectionTime < Date.now()) {
-          setPasswordErrorProtectionTimeOver(true);
-        }
-      }, 1000 * 60);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [alertText, passwordErrorProtectionTime]);
 
   return (
     <Stack onLayout={onLayout}>

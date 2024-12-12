@@ -304,7 +304,8 @@ export default class ServicePassword extends ServiceBase {
   validatePasswordSame(password: string, newPassword: string) {
     ensureSensitiveTextEncoded(password);
     ensureSensitiveTextEncoded(newPassword);
-
+    console.log('same__password', password);
+    console.log('same__newPassword', newPassword);
     const realPassword = decodePassword({ password });
     const realNewPassword = decodePassword({ password: newPassword });
     if (realPassword === realNewPassword) {
@@ -327,8 +328,9 @@ export default class ServicePassword extends ServiceBase {
     if (newPassword) {
       ensureSensitiveTextEncoded(newPassword);
     }
-    this.validatePasswordValidRules(password, passwordMode);
-    if (newPassword) {
+    if (!newPassword) {
+      this.validatePasswordValidRules(password, passwordMode);
+    } else {
       this.validatePasswordValidRules(newPassword, passwordMode);
       this.validatePasswordSame(password, newPassword);
     }
