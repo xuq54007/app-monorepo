@@ -15,13 +15,16 @@ import type { IAccountHistoryTx } from '@onekeyhq/shared/types/history';
 import { EDecodedTxStatus } from '@onekeyhq/shared/types/tx';
 
 import type { IProps } from '.';
+import { useTabIsRefreshingFocused } from '@onekeyhq/components';
 
 function TokenDetailsHistory(props: IProps) {
   const navigation = useAppNavigation();
 
-  const { accountId, networkId, tokenInfo, ListHeaderComponent } = props;
+  const { accountId, networkId, tokenInfo, ListHeaderComponent, isTabView } =
+    props;
 
   const [historyInit, setHistoryInit] = useState(false);
+  const { isFocused } = useTabIsRefreshingFocused();
 
   /**
    * since some tokens are slow to load history,
@@ -46,6 +49,8 @@ function TokenDetailsHistory(props: IProps) {
     {
       watchLoading: true,
       pollingInterval: POLLING_INTERVAL_FOR_HISTORY,
+      overrideIsFocused: (isPageFocused) =>
+        isPageFocused && (isTabView ? isFocused : true),
     },
   );
 

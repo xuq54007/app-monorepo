@@ -225,9 +225,7 @@ function TokenDetailsView() {
             data={tabs}
             contentItemWidth={platformEnv.isNative ? undefined : (640 as any)}
             initialScrollIndex={0}
-            focusable
             showsVerticalScrollIndicator={false}
-            windowSize={tabs.length}
           />
         );
       }
