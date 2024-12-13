@@ -108,6 +108,8 @@ export function convertDeviceError(
       return new HardwareErrors.NewFirmwareUnRelease({ payload });
     case HardwareErrorCode.NewFirmwareForceUpdate:
       return new HardwareErrors.NewFirmwareForceUpdate({ payload });
+    case HardwareErrorCode.DeviceNotSupportMethod:
+      return new HardwareErrors.UnknownMethod({ payload });
     case HardwareErrorCode.NetworkError:
       return new HardwareErrors.NetworkError({ payload });
     case HardwareErrorCode.BlePermissionError:
