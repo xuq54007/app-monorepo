@@ -47,6 +47,12 @@ abstract class ProviderApiBase {
     const { data } = payload;
     const request = data as IJsonRpcRequest;
     const { method, params = [] } = request;
+    console.log(
+      'ProviderApiBase handleMethods method: ',
+      method,
+      ', params: ',
+      params,
+    );
     const paramsArr = [].concat(params as any);
     const methodName = `${PROVIDER_API_METHOD_PREFIX}${method}`;
 

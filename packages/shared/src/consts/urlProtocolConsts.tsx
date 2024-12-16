@@ -12,7 +12,7 @@ export const VALID_DEEP_LINK = [
 ];
 
 export const PROTOCOLS_SUPPORTED_TO_OPEN = [
-  // 'http:' as const,
+  'http:' as const,
   'https:' as const,
   'about:' as const,
   'blob:' as const,

@@ -2664,6 +2664,27 @@ export const presetNetworksMap = {
   benfen,
 };
 
+const bbnDevNet: IServerNetwork = {
+  'chainId': 'euphrates-0.5.0',
+  'code': 'ubbn',
+  'decimals': 6,
+  'id': 'cosmos--euphrates-0.5.0',
+  'impl': 'cosmos',
+  'isTestnet': true,
+  'logoURI': 'https://uni.onekey-asset.com/static/chain/cosmos.png',
+  'name': 'Babylon Devnet',
+  'shortcode': 'bbn',
+  'shortname': 'BBN',
+  'symbol': 'BBN',
+  'feeMeta': {
+    'code': 'ubbn',
+    'decimals': 6,
+    'symbol': 'UBBN',
+  },
+  'defaultEnabled': false,
+  'status': ENetworkStatus.LISTED,
+};
+
 // top 20 tvl evm networks
 export const getDefaultEnabledEVMNetworksInAllNetworks = memoFn(
   (): IServerNetwork[] => [
@@ -2797,5 +2818,6 @@ export const getPresetNetworks = memoFn((): IServerNetwork[] => [
   ton,
   scdo,
   benfen,
+  bbnDevNet,
   ...(platformEnv.isDev ? chainsOnlyEnabledInDev : []),
 ]);

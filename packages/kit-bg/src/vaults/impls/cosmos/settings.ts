@@ -115,6 +115,11 @@ const settings: IVaultSettings = {
       curve: 'secp256k1',
       nativeTokenAddress: 'utia',
     },
+    'cosmos--euphrates-0.5.0': {
+      addressPrefix: 'bbn',
+      curve: 'secp256k1',
+      nativeTokenAddress: 'ubbn',
+    },
   },
 
   stakingConfig: {
