@@ -79,5 +79,26 @@ export interface IHostSecurity {
     content: string;
   };
   projectName: string;
+  createdAt: string;
   updatedAt?: string;
+  dapp: {
+    name: string;
+    logo: string;
+    description: {
+      text: string;
+    };
+    tags: {
+      name: {
+        text: string;
+        lokaliseKey: string;
+        deleted: boolean;
+      };
+      tagId: string;
+      type: 'success' | 'info' | 'critical' | 'warning' | 'default' | undefined;
+    }[];
+    origins: {
+      name: string;
+      logo: string;
+    }[];
+  };
 }
