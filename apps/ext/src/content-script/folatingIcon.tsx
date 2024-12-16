@@ -227,7 +227,7 @@ function SecurityInfo({
   securityInfo,
   onClose,
 }: {
-  securityInfo: {};
+  securityInfo: object;
   onClose: () => void;
 }) {
   const viewRef = useRef();
@@ -502,7 +502,7 @@ function SecurityInfo({
 function App() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSecurityInfo, setIsShowSecurityInfo] = useState(false);
-  const [securityInfo, setSecurityInfo] = useState<{} | null>(null);
+  const [securityInfo, setSecurityInfo] = useState<object | null>(null);
 
   const handleClick = () => {
     setIsExpanded(!isExpanded);
