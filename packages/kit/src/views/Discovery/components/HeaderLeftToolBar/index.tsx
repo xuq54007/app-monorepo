@@ -194,6 +194,7 @@ function HeaderLeftToolBar({
             renderTrigger={<Stack />}
             renderContent={({ closePopover }) => (
               <DappInfoPopoverContent
+                iconConfig={iconConfig}
                 hostSecurity={hostSecurity}
                 closePopover={closePopover}
               />
