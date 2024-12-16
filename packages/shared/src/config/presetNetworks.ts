@@ -2665,13 +2665,13 @@ export const presetNetworksMap = {
 };
 
 const bbnDevNet: IServerNetwork = {
-  'chainId': 'euphrates-0.5.0',
+  'chainId': 'devnet-7',
   'code': 'ubbn',
   'decimals': 6,
-  'id': 'cosmos--euphrates-0.5.0',
+  'id': 'cosmos--devnet-7',
   'impl': 'cosmos',
   'isTestnet': true,
-  'logoURI': 'https://uni.onekey-asset.com/static/chain/cosmos.png',
+  'logoURI': 'https://uni.onekey-asset.com/static/logo/babylon.png',
   'name': 'Babylon Devnet',
   'shortcode': 'bbn',
   'shortname': 'BBN',

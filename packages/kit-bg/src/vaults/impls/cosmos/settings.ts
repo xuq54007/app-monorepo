@@ -115,7 +115,7 @@ const settings: IVaultSettings = {
       curve: 'secp256k1',
       nativeTokenAddress: 'utia',
     },
-    'cosmos--euphrates-0.5.0': {
+    'cosmos--devnet-7': {
       addressPrefix: 'bbn',
       curve: 'secp256k1',
       nativeTokenAddress: 'ubbn',
