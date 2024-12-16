@@ -1,0 +1,1 @@
+{"version":3,"file":"static/js/16015.350f36c93f.chunk.js","mappings":"smBAAgC,QAAhC,SAASA,UAAU,OAAO,IAAK,C","sources":["webpack://web/../../packages/kit/src/views/Discovery/pages/Browser/Browser.tsx"],"sourcesContent":["function Browser(){return null;}export default Browser;"],"names":["Browser"],"sourceRoot":""}

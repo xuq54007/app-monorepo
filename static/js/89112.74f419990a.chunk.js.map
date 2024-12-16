@@ -1,0 +1,1 @@
+{"version":3,"file":"static/js/89112.74f419990a.chunk.js","mappings":"wkBAAe,SAASA,gBAAgB,OAAO,IAAK,C","sources":["webpack://web/../../packages/kit/src/views/Developer/pages/NetworkLogger.tsx"],"sourcesContent":["export default function NetworkLogger(){return null;}"],"names":["NetworkLogger"],"sourceRoot":""}
