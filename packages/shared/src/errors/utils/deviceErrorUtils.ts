@@ -189,6 +189,8 @@ export function convertDeviceError(
       return new HardwareErrors.DeviceDataOverload({ payload });
     case HardwareErrorCode.BridgeDeviceDisconnected:
       return new HardwareErrors.DeviceDisconnectedError({ payload });
+    case HardwareErrorCode.BTCPsbtTooManyUtxos:
+      return new HardwareErrors.BTCPsbtTooManyUtxos({ payload });
 
     // Bridge error
     case 'ERR_BAD_REQUEST':
