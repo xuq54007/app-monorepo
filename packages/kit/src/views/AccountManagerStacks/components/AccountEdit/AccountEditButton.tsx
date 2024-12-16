@@ -226,20 +226,7 @@ function AccountEditButtonView({
             account={account}
             onClose={handleActionListClose}
           />
-          {exportKeysVisible?.showExportPrivateKey ? (
-            <AccountExportPrivateKeyButton
-              testID={`popover-export-private-key-${name}`}
-              icon="KeyOutline"
-              accountName={name}
-              indexedAccount={indexedAccount}
-              account={account}
-              onClose={handleActionListClose}
-              label={intl.formatMessage({
-                id: ETranslations.global_export_private_key,
-              })}
-              exportType="privateKey"
-            />
-          ) : null}
+          {exportKeysVisible?.showExportPrivateKey ? null : null}
           {exportKeysVisible?.showExportPublicKey ? (
             <AccountExportPrivateKeyButton
               testID={`popover-export-public-key-${name}`}
@@ -254,20 +241,7 @@ function AccountEditButtonView({
               exportType="publicKey"
             />
           ) : null}
-          {exportKeysVisible?.showExportMnemonic ? (
-            <AccountExportPrivateKeyButton
-              testID={`popover-export-mnemonic-key-${name}`}
-              icon="Shield2CheckOutline"
-              accountName={name}
-              indexedAccount={indexedAccount}
-              account={account}
-              onClose={handleActionListClose}
-              label={intl.formatMessage({
-                id: ETranslations.global_backup_recovery_phrase,
-              })}
-              exportType="mnemonic"
-            />
-          ) : null}
+          {exportKeysVisible?.showExportMnemonic ? null : null}
           <AccountMoveToTopButton
             indexedAccount={indexedAccount}
             firstIndexedAccount={firstIndexedAccount}
