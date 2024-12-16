@@ -1,12 +1,15 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 
 import BigNumber from 'bignumber.js';
 
-import { SizableText, YStack } from '@onekeyhq/components';
+import { SizableText, XStack, YStack } from '@onekeyhq/components';
 import { AmountInput } from '@onekeyhq/kit/src/components/AmountInput';
 import {
   useRateDifferenceAtom,
   useSwapAlertsAtom,
+  useSwapFromTokenAmountAtom,
+  useSwapSelectFromTokenAtom,
+  useSwapSelectedFromTokenBalanceAtom,
 } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
@@ -21,6 +24,7 @@ import { useSwapAddressInfo } from '../../hooks/useSwapAccount';
 import { useSwapSelectedTokenInfo } from '../../hooks/useSwapTokens';
 
 import SwapAccountAddressContainer from './SwapAccountAddressContainer';
+import SwapInputActions from './SwapInputActions';
 
 interface ISwapInputContainerProps {
   direction: ESwapDirectionType;
@@ -33,6 +37,7 @@ interface ISwapInputContainerProps {
   inputLoading?: boolean;
   selectTokenLoading?: boolean;
   onBalanceMaxPress?: () => void;
+  onSelectPercentageStage?: (stage: number) => void;
 }
 
 const SwapInputContainer = ({
@@ -44,6 +49,7 @@ const SwapInputContainer = ({
   inputLoading,
   onSelectToken,
   onBalanceMaxPress,
+  onSelectPercentageStage,
   balance,
 }: ISwapInputContainerProps) => {
   useSwapSelectedTokenInfo({
@@ -65,16 +71,38 @@ const SwapInputContainer = ({
       : `${tokenFiatValueBN.decimalPlaces(6, BigNumber.ROUND_DOWN).toFixed()}`;
   }, [amountValue, token?.price]);
 
-  const fromInputHasError = useMemo(
-    () =>
+  const [fromToken] = useSwapSelectFromTokenAtom();
+  const [fromTokenAmount] = useSwapFromTokenAmountAtom();
+  const [fromTokenBalance] = useSwapSelectedFromTokenBalanceAtom();
+
+  const fromInputHasError = useMemo(() => {
+    const accountError =
       (alerts?.states.some((item) => item.inputShowError) &&
         direction === ESwapDirectionType.FROM) ||
       (!address &&
         (accountUtils.isHdWallet({ walletId: accountInfo?.wallet?.id }) ||
           accountUtils.isHwWallet({ walletId: accountInfo?.wallet?.id }) ||
-          accountUtils.isQrWallet({ walletId: accountInfo?.wallet?.id }))),
-    [alerts?.states, direction, address, accountInfo],
-  );
+          accountUtils.isQrWallet({ walletId: accountInfo?.wallet?.id })));
+    const balanceBN = new BigNumber(fromTokenBalance ?? 0);
+    const amountValueBN = new BigNumber(fromTokenAmount ?? 0);
+    const hasBalanceError =
+      direction === ESwapDirectionType.FROM &&
+      !!fromToken &&
+      !!address &&
+      balanceBN.lt(amountValueBN);
+    return {
+      accountError,
+      hasBalanceError,
+    };
+  }, [
+    alerts?.states,
+    direction,
+    address,
+    accountInfo?.wallet?.id,
+    fromTokenBalance,
+    fromTokenAmount,
+    fromToken,
+  ]);
 
   const valueMoreComponent = useMemo(() => {
     if (rateDifference && direction === ESwapDirectionType.TO) {
@@ -97,16 +125,58 @@ const SwapInputContainer = ({
     return null;
   }, [direction, inputLoading, rateDifference]);
 
+  const [percentageInputStageShow, setPercentageInputStageShow] =
+    useState(false);
+
+  const onFromInputFocus = () => {
+    setPercentageInputStageShow(true);
+  };
+
+  const onFromInputBlur = () => {
+    // delay to avoid blur when select percentage stage
+    setTimeout(() => {
+      setPercentageInputStageShow(false);
+    }, 200);
+  };
+
+  const showPercentageInput = useMemo(
+    () =>
+      direction === ESwapDirectionType.FROM &&
+      (percentageInputStageShow || !!amountValue),
+    [direction, percentageInputStageShow, amountValue],
+  );
+
+  const showActionBuy = useMemo(
+    () =>
+      direction === ESwapDirectionType.FROM &&
+      !!accountInfo?.account?.id &&
+      !!fromToken &&
+      fromInputHasError.hasBalanceError,
+    [direction, accountInfo?.account?.id, fromToken, fromInputHasError],
+  );
   return (
     <YStack>
-      <SwapAccountAddressContainer
-        type={direction}
-        onClickNetwork={onSelectToken}
-      />
+      <XStack justifyContent="space-between">
+        <SwapAccountAddressContainer
+          type={direction}
+          onClickNetwork={onSelectToken}
+        />
+        <SwapInputActions
+          fromToken={fromToken}
+          accountInfo={accountInfo}
+          showPercentageInput={showPercentageInput}
+          showActionBuy={showActionBuy}
+          onSelectStage={onSelectPercentageStage}
+        />
+      </XStack>
       <AmountInput
         onChange={onAmountChange}
         value={amountValue}
-        hasError={fromInputHasError}
+        onFocus={onFromInputFocus}
+        onBlur={onFromInputBlur}
+        hasError={
+          fromInputHasError.accountError || fromInputHasError.hasBalanceError
+        }
         balanceProps={{
           value: balance,
           onPress:

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { CommonActions, StackActions } from '@react-navigation/native';
-import { useIntl } from 'react-intl';
 
 import {
   HeaderIconButton,
@@ -42,7 +41,6 @@ import { MarketTokenIcon } from './components/MarketTokenIcon';
 import { MarketTokenPrice } from './components/MarketTokenPrice';
 import { MarketTradeButton } from './components/MarketTradeButton';
 import { PriceChangePercentage } from './components/PriceChangePercentage';
-import { TextCell } from './components/TextCell';
 import { TokenDetailTabs } from './components/TokenDetailTabs';
 import { TokenPriceChart } from './components/TokenPriceChart';
 import { buildMarketFullUrl } from './marketUtils';
@@ -55,7 +53,6 @@ function TokenDetailHeader({
   coinGeckoId: string;
   token: IMarketTokenDetail;
 }) {
-  const intl = useIntl();
   const { gtMd } = useMedia();
   const { result: token } = usePromiseResult(
     () => backgroundApiProxy.serviceMarket.fetchMarketTokenDetail(coinGeckoId),
@@ -287,13 +284,14 @@ function MarketDetail({
   const tokenPriceChart = useMemo(
     () => (
       <TokenPriceChart
+        isFetching={!tokenDetail}
         tickers={tokenDetail?.tickers}
         coinGeckoId={coinGeckoId}
         defer={defer}
         symbol={tokenDetail?.symbol}
       />
     ),
-    [coinGeckoId, defer, tokenDetail?.symbol, tokenDetail?.tickers],
+    [coinGeckoId, defer, tokenDetail],
   );
 
   return (
@@ -314,6 +312,7 @@ function MarketDetail({
                 <TokenDetailTabs
                   defer={defer}
                   token={tokenDetail}
+                  coinGeckoId={coinGeckoId}
                   listHeaderComponent={tokenPriceChart}
                 />
               </YStack>
@@ -325,12 +324,8 @@ function MarketDetail({
             isRefreshing={isRefreshing}
             onRefresh={onRefresh}
             token={tokenDetail}
-            listHeaderComponent={
-              <YStack>
-                {tokenDetailHeader}
-                {tokenDetail ? tokenPriceChart : <YStack h={480} />}
-              </YStack>
-            }
+            coinGeckoId={coinGeckoId}
+            listHeaderComponent={tokenDetailHeader}
           />
         )}
       </Page.Body>
