@@ -1,8 +1,6 @@
-import { upperFirst } from 'lodash';
 import { useIntl } from 'react-intl';
 import { StyleSheet } from 'react-native';
 
-import type { IBadgeType } from '@onekeyhq/components';
 import {
   Badge,
   Dialog,
@@ -15,7 +13,6 @@ import {
   YStack,
 } from '@onekeyhq/components';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
-import { formatDistanceToNow } from '@onekeyhq/shared/src/utils/dateUtils';
 import type { IHostSecurity } from '@onekeyhq/shared/types/discovery';
 import { EHostSecurityLevel } from '@onekeyhq/shared/types/discovery';
 
@@ -29,11 +26,6 @@ export function DappInfoPopoverContent({
   closePopover: () => void;
 }) {
   const intl = useIntl();
-  const tags: {
-    type: IBadgeType;
-    name: string;
-  }[] = [];
-  const description = '';
   return (
     <YStack
       gap="$5"
@@ -51,11 +43,13 @@ export function DappInfoPopoverContent({
           borderColor="$borderSubdued"
           borderCurve="continuous"
         >
-          <Image.Source
-            source={{
-              uri: 'item.logo',
-            }}
-          />
+          {hostSecurity?.dapp.logo ? (
+            <Image.Source
+              source={{
+                uri: hostSecurity?.dapp.logo,
+              }}
+            />
+          ) : null}
           <Image.Fallback>
             <Icon name="GlobusOutline" width="100%" height="100%" />
           </Image.Fallback>
@@ -72,11 +66,15 @@ export function DappInfoPopoverContent({
               }}
               numberOfLines={1}
             >
-              {hostSecurity?.projectName ?? ''}
+              {hostSecurity?.dapp?.name ?? ''}
             </SizableText>
-            {tags.length ? (
-              <Badge badgeSize="sm" badgeType={tags[0].type} ml="$2">
-                {tags[0].name}
+            {hostSecurity?.dapp?.tags.length ? (
+              <Badge
+                badgeSize="sm"
+                badgeType={hostSecurity?.dapp?.tags[0]?.type}
+                ml="$2"
+              >
+                {hostSecurity?.dapp?.tags[0]?.name.text}
               </Badge>
             ) : null}
           </XStack>
@@ -92,7 +90,7 @@ export function DappInfoPopoverContent({
               } as any
             }
           >
-            {description}
+            {hostSecurity?.dapp.description.text ?? ''}
           </SizableText>
         </Stack>
       </XStack>
@@ -150,7 +148,7 @@ export function DappInfoPopoverContent({
           </XStack>
         </XStack>
       </YStack>
-      {hostSecurity?.checkSources ? (
+      {hostSecurity?.dapp.origins.length ? (
         <YStack>
           <SizableText size="$headingMd">
             {intl.formatMessage({
@@ -158,47 +156,35 @@ export function DappInfoPopoverContent({
             })}
           </SizableText>
           <XStack gap="$2" pt="$3" flexWrap="wrap">
-            {hostSecurity.checkSources
-              .filter((item) => item.riskLevel !== EHostSecurityLevel.Unknown)
-              .map((item) => (
-                <XStack
-                  key={item.name}
-                  gap="$1"
-                  px="$2"
-                  py="$1"
-                  bg="$bgSubdued"
-                  borderRadius="$2"
-                  borderColor="$borderSubdued"
-                  borderWidth={StyleSheet.hairlineWidth}
-                >
-                  <Image w="$5" h="$5" bg="$bgSubdued" borderRadius="$1">
-                    <Image.Source
-                      source={{
-                        uri: `https://uni.onekey-asset.com/static/logo/${item.name}.png`,
-                      }}
-                    />
-                    <Image.Fallback>
-                      <Icon
-                        size="$5"
-                        name="GlobusOutline"
-                        color="$iconSubdued"
-                      />
-                    </Image.Fallback>
-                    <Image.Loading>
-                      <Skeleton width="100%" height="100%" />
-                    </Image.Loading>
-                  </Image>
-                  <SizableText size="$bodyMdMedium">
-                    {upperFirst(item.name)}
-                  </SizableText>
-                </XStack>
-              ))}
+            {hostSecurity?.dapp.origins.map((item) => (
+              <XStack
+                key={item.name}
+                px="$2"
+                py="$1"
+                bg="$bgSubdued"
+                borderRadius="$2"
+                borderColor="$borderSubdued"
+                borderWidth={StyleSheet.hairlineWidth}
+              >
+                <Image w="$5" h="$5" bg="$bgSubdued" borderRadius="$1">
+                  <Image.Source
+                    source={{
+                      uri: item.logo,
+                    }}
+                  />
+                  <Image.Fallback>
+                    <Icon size="$5" name="GlobusOutline" color="$iconSubdued" />
+                  </Image.Fallback>
+                  <Image.Loading>
+                    <Skeleton width="100%" height="100%" />
+                  </Image.Loading>
+                </Image>
+              </XStack>
+            ))}
           </XStack>
           {hostSecurity.updatedAt ? (
             <SizableText mt="$2" color="$textSubdued" size="$bodyMd">
-              {`Last verified at ${formatDistanceToNow(
-                new Date(hostSecurity.updatedAt),
-              )}`}
+              {`Last verified at ${hostSecurity.updatedAt}`}
             </SizableText>
           ) : null}
         </YStack>
