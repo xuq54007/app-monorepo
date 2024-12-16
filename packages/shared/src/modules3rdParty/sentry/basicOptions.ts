@@ -17,6 +17,8 @@ export const navigationIntegration = reactNavigationIntegration({
   enableTimeToInitialDisplay: true,
 });
 
+export * from './TimeToFullDisplay';
+
 // Check if text contains mnemonic phrases
 const checkAndRedactMnemonicWords = (words: string[]) => {
   if (!Array.isArray(words)) {
