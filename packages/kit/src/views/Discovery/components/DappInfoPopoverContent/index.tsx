@@ -43,10 +43,10 @@ export function DappInfoPopoverContent({
           borderColor="$borderSubdued"
           borderCurve="continuous"
         >
-          {hostSecurity?.dapp.logo ? (
+          {hostSecurity?.dapp?.logo ? (
             <Image.Source
               source={{
-                uri: hostSecurity?.dapp.logo,
+                uri: hostSecurity?.dapp?.logo,
               }}
             />
           ) : null}
@@ -90,7 +90,7 @@ export function DappInfoPopoverContent({
               } as any
             }
           >
-            {hostSecurity?.dapp.description.text ?? ''}
+            {hostSecurity?.dapp?.description.text ?? ''}
           </SizableText>
         </Stack>
       </XStack>
@@ -148,7 +148,7 @@ export function DappInfoPopoverContent({
           </XStack>
         </XStack>
       </YStack>
-      {hostSecurity?.dapp.origins.length ? (
+      {hostSecurity?.dapp?.origins.length ? (
         <YStack>
           <SizableText size="$headingMd">
             {intl.formatMessage({
@@ -156,7 +156,7 @@ export function DappInfoPopoverContent({
             })}
           </SizableText>
           <XStack gap="$2" pt="$3" flexWrap="wrap">
-            {hostSecurity?.dapp.origins.map((item) => (
+            {hostSecurity?.dapp?.origins.map((item) => (
               <XStack
                 key={item.name}
                 px="$2"
