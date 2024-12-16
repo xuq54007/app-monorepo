@@ -1117,7 +1117,10 @@ export default class ServiceSwap extends ServiceBase {
     if (!newHistoryStatePendingList.length) return;
     await Promise.all(
       newHistoryStatePendingList.map(async (swapTxHistory) => {
-        this.historyCurrentStateIntervalIds.push(swapTxHistory.txInfo.txId);
+        this.historyCurrentStateIntervalIds = [
+          ...this.historyCurrentStateIntervalIds,
+          swapTxHistory.txInfo.txId,
+        ];
         await this.swapHistoryStatusRunFetch(swapTxHistory);
       }),
     );
