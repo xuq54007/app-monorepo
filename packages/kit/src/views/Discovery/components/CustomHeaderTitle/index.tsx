@@ -68,6 +68,7 @@ function CustomHeaderTitle({ handleSearchBarPress }: ICustomHeaderTitleProps) {
         }
         renderContent={({ closePopover }) => (
           <DappInfoPopoverContent
+            iconConfig={iconConfig}
             hostSecurity={hostSecurity}
             closePopover={closePopover}
           />
