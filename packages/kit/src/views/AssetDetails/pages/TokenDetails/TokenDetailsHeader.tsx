@@ -81,8 +81,6 @@ function TokenDetailsHeader(props: IProps) {
 
   const { isFocused } = useTabIsRefreshingFocused();
 
-  console.log('isFocused', isFocused);
-
   const { result: tokenDetails, isLoading: isLoadingTokenDetails } =
     usePromiseResult(
       async () => {
