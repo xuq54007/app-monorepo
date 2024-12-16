@@ -26,6 +26,7 @@ export function HdWalletBackupButton({
 }: {
   wallet: IDBWallet | undefined;
 }) {
+  /*
   const navigation = useAppNavigation();
   const intl = useIntl();
 
@@ -113,4 +114,5 @@ export function HdWalletBackupButton({
       }
     />
   );
+  */
 }
