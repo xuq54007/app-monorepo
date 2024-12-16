@@ -1,6 +1,7 @@
 import { useIntl } from 'react-intl';
 import { StyleSheet } from 'react-native';
 
+import type { IKeyOfIcons } from '@onekeyhq/components';
 import {
   Badge,
   Dialog,
@@ -21,9 +22,14 @@ import { DAppRiskyAlertDetail } from '../../../DAppConnection/components/DAppReq
 export function DappInfoPopoverContent({
   hostSecurity,
   closePopover,
+  iconConfig,
 }: {
   hostSecurity?: IHostSecurity;
   closePopover: () => void;
+  iconConfig: {
+    iconName: IKeyOfIcons;
+    iconColor: string;
+  };
 }) {
   const intl = useIntl();
   return (
@@ -53,9 +59,11 @@ export function DappInfoPopoverContent({
           <Image.Fallback>
             <Icon name="GlobusOutline" width="100%" height="100%" />
           </Image.Fallback>
-          <Image.Loading>
-            <Skeleton width="100%" height="100%" />
-          </Image.Loading>
+          {hostSecurity?.dapp?.logo ? (
+            <Image.Loading>
+              <Skeleton width="100%" height="100%" />
+            </Image.Loading>
+          ) : null}
         </Image>
         <Stack flex={1} ml="$3">
           <XStack alignItems="center">
@@ -66,7 +74,7 @@ export function DappInfoPopoverContent({
               }}
               numberOfLines={1}
             >
-              {hostSecurity?.dapp?.name ?? ''}
+              {hostSecurity?.dapp?.name ?? hostSecurity?.host}
             </SizableText>
             {hostSecurity?.dapp?.tags.length ? (
               <Badge
@@ -101,30 +109,32 @@ export function DappInfoPopoverContent({
           })}
         </SizableText>
         <XStack ai="center">
-          <Icon name="BadgeVerifiedSolid" color="$iconSuccess" />
+          <Icon {...iconConfig} />
           <Stack ml="$3" flex={1}>
             <SizableText size="$bodyMdMedium">
               {intl.formatMessage({
                 id: ETranslations.dapp_connect_verified_site,
               })}
             </SizableText>
-            <SizableText size="$bodyMd">
-              {intl.formatMessage(
-                {
-                  id: ETranslations.global_from_provider,
-                },
-                {
-                  provider:
-                    hostSecurity?.checkSources
-                      .filter(
-                        (item) =>
-                          item.riskLevel === EHostSecurityLevel.Security,
-                      )
-                      .map((item) => item.name)
-                      .join(' & ') || '',
-                },
-              )}
-            </SizableText>
+            {hostSecurity?.checkSources?.length ? (
+              <SizableText size="$bodyMd">
+                {intl.formatMessage(
+                  {
+                    id: ETranslations.global_from_provider,
+                  },
+                  {
+                    provider:
+                      hostSecurity?.checkSources
+                        .filter(
+                          (item) =>
+                            item.riskLevel === EHostSecurityLevel.Security,
+                        )
+                        .map((item) => item.name)
+                        .join(' & ') || '',
+                  },
+                )}
+              </SizableText>
+            ) : null}
           </Stack>
           <XStack
             ai="center"
