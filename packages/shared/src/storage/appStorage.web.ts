@@ -2,8 +2,6 @@
 //    redux-persist failed to create sync storage. falling back to noop storage.
 // import storage from 'redux-persist/lib/storage';
 
-import appGlobals from '../appGlobals';
-
 import { createPrintMethod } from './createPrintMethod';
 import mockStorageInstance from './instance/mockStorageInstance';
 import webStorageInstance from './instance/webStorageInstance';
@@ -24,5 +22,11 @@ export const mockStorage = mockStorageInstance;
 - App: AsyncStorage -> RN AsyncStorage
 - Desktop | Web: WebStorage -> IndexedDB
  */
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.$$appStorage = appStorage;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  globalThis.$$appStorage.print = createPrintMethod({ storage: appStorage });
+}
 
 export default buildAppStorageFactory(appStorage);

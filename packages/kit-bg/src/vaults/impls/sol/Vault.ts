@@ -73,7 +73,6 @@ import type {
   IMeasureRpcStatusResult,
 } from '@onekeyhq/shared/types/customRpc';
 import type { IFeeInfoUnit } from '@onekeyhq/shared/types/fee';
-import type { ISwapTxInfo } from '@onekeyhq/shared/types/swap/types';
 import {
   EDecodedTxActionType,
   EDecodedTxStatus,
@@ -228,21 +227,15 @@ export default class Vault extends VaultBase {
 
     nativeTx.feePayer = source;
 
-    const devSettings =
-      await this.backgroundApi.serviceDevSetting.getDevSetting();
-    if (
-      !(devSettings.enabled && devSettings.settings?.disableSolanaPriorityFee)
-    ) {
-      const prioritizationFee = await client.getRecentMaxPrioritizationFees([
-        accountAddress,
-      ]);
+    const prioritizationFee = await client.getRecentMaxPrioritizationFees([
+      accountAddress,
+    ]);
 
-      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-        microLamports: prioritizationFee,
-      });
+    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: prioritizationFee,
+    });
 
-      nativeTx.add(addPriorityFee);
-    }
+    nativeTx.add(addPriorityFee);
 
     for (let i = 0; i < transfersInfo.length; i += 1) {
       const { amount, to, tokenInfo, nftInfo } = transfersInfo[i];
@@ -686,7 +679,7 @@ export default class Vault extends VaultBase {
   override async buildDecodedTx(
     params: IBuildDecodedTxParams,
   ): Promise<IDecodedTx> {
-    const { unsignedTx, transferPayload, saveToLocalHistory } = params;
+    const { unsignedTx, transferPayload } = params;
     const encodedTx = unsignedTx.encodedTx as IEncodedTxSol;
     const nativeTx = (await parseToNativeTx(encodedTx)) as INativeTxSol;
 
@@ -720,10 +713,7 @@ export default class Vault extends VaultBase {
       });
     }
 
-    // to be consistent with onChain tx,
-    // also filter create token account instruction when saving tx locally
     if (
-      !saveToLocalHistory &&
       !unsignedTx.swapInfo &&
       instructions.some(
         (instruction) =>
@@ -1023,50 +1013,19 @@ export default class Vault extends VaultBase {
   ): Promise<IUnsignedTxPro> {
     const encodedTx = params.encodedTx ?? (await this.buildEncodedTx(params));
     if (encodedTx) {
-      return this._buildUnsignedTxFromEncodedTx({
-        encodedTx: encodedTx as IEncodedTxSol,
-        swapInfo: params.swapInfo,
-      });
+      return this._buildUnsignedTxFromEncodedTx(encodedTx as IEncodedTxSol);
     }
     throw new OneKeyInternalError();
   }
 
-  async _buildUnsignedTxFromEncodedTx({
-    encodedTx,
-    swapInfo,
-  }: {
-    encodedTx: IEncodedTxSol;
-    swapInfo?: ISwapTxInfo;
-  }) {
+  async _buildUnsignedTxFromEncodedTx(encodedTx: IEncodedTxSol) {
     const accountAddress = await this.getAccountAddress();
-
-    let newEncodedTx = encodedTx;
-
-    // internal okx sol swap tx need to replace recentBlockhash
-    if (swapInfo && swapInfo.swapBuildResData.OKXTxObject) {
-      const nativeTx = (await parseToNativeTx(encodedTx)) as INativeTxSol;
-      const { recentBlockhash, lastValidBlockHeight } =
-        await this._getRecentBlockHash();
-
-      if (nativeTx instanceof Transaction) {
-        nativeTx.recentBlockhash = recentBlockhash;
-        nativeTx.lastValidBlockHeight = lastValidBlockHeight;
-      } else if (nativeTx instanceof VersionedTransaction) {
-        nativeTx.message.recentBlockhash = recentBlockhash;
-      }
-
-      newEncodedTx = bs58.encode(
-        nativeTx.serialize({
-          requireAllSignatures: false,
-        }),
-      );
-    }
 
     return {
       payload: {
         feePayer: accountAddress,
       },
-      encodedTx: newEncodedTx,
+      encodedTx,
     };
   }
 
@@ -1084,16 +1043,10 @@ export default class Vault extends VaultBase {
     }
 
     if (feeInfo && feeInfoEditable !== false) {
-      const devSettings =
-        await this.backgroundApi.serviceDevSetting.getDevSetting();
-      if (
-        !(devSettings.enabled && devSettings.settings?.disableSolanaPriorityFee)
-      ) {
-        encodedTxNew = await this._attachFeeInfoToEncodedTx({
-          encodedTx: encodedTxNew,
-          feeInfo,
-        });
-      }
+      encodedTxNew = await this._attachFeeInfoToEncodedTx({
+        encodedTx: encodedTxNew,
+        feeInfo,
+      });
     }
 
     unsignedTx.encodedTx = encodedTxNew;
@@ -1347,23 +1300,11 @@ export default class Vault extends VaultBase {
     feeInfo: IFeeInfoUnit;
   }): Promise<IEncodedTxSol> {
     const { encodedTx, feeInfo } = params;
-
-    const devSettings =
-      await this.backgroundApi.serviceDevSetting.getDevSetting();
-    if (devSettings.enabled && devSettings.settings?.disableSolanaPriorityFee) {
-      return '';
-    }
-
     const client = await this.getClient();
     const accountAddress = await this.getAccountAddress();
     let computeUnitPrice = '0';
 
     const nativeTx = (await parseToNativeTx(encodedTx)) as INativeTxSol;
-
-    // check if the tx is partially signed
-    if (nativeTx.signatures && nativeTx.signatures.length > 1) {
-      return '';
-    }
 
     const { instructions } = await parseNativeTxDetail({
       nativeTx,

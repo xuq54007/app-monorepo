@@ -26,9 +26,6 @@ const TokenRiskReminderModal = LazyLoadPage(
 const SwapMainLandModal = LazyLoadPage(
   () => import('../pages/modal/SwapMainLandModal'),
 );
-const SwapLazyMarketModal = LazyLoadPage(
-  () => import('../pages/modal/SwapLazyMarketModal'),
-);
 
 export const ModalSwapStack: IModalFlowNavigatorConfig<
   EModalSwapRoutes,
@@ -68,10 +65,5 @@ export const ModalSwapStack: IModalFlowNavigatorConfig<
     name: EModalSwapRoutes.TokenRiskReminder,
     component: TokenRiskReminderModal,
     translationId: ETranslations.token_selector_risk_reminder_title,
-  },
-  {
-    name: EModalSwapRoutes.SwapLazyMarketModal,
-    component: SwapLazyMarketModal,
-    translationId: ETranslations.swap_page_swap,
   },
 ];

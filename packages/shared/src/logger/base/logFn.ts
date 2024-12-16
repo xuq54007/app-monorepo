@@ -1,4 +1,3 @@
-import appGlobals from '../../appGlobals';
 import platformEnv from '../../platformEnv';
 import { getLoggerExtension } from '../extensions';
 import { defaultLoggerConfig } from '../loggerConfig';
@@ -85,7 +84,7 @@ export const logFn = ({
         }
         break;
       case 'server':
-        appGlobals?.$analytics?.trackEvent(
+        globalThis?.$analytics?.trackEvent(
           methodName,
           (obj.args as Record<string, string>[]).reduce(
             (prev, current, index) => {

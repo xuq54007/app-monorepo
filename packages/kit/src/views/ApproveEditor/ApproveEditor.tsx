@@ -20,12 +20,6 @@ import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
 
 import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
 import { usePromiseResult } from '../../hooks/usePromiseResult';
-import {
-  useSendConfirmActions,
-  useTokenApproveInfoAtom,
-  useUnsignedTxsAtom,
-} from '../../states/jotai/contexts/sendConfirm';
-import { SendConfirmProviderMirror } from '../Send/components/SendConfirmProvider/SendConfirmProviderMirror';
 
 export type IProps = {
   accountId: string;
@@ -36,8 +30,8 @@ export type IProps = {
   tokenDecimals: number;
   tokenSymbol: string;
   approveInfo?: IApproveInfo;
-  onResetTokenApproveInfo?: () => void;
-  onChangeTokenApproveInfo?: ({
+  onResetTokenApproveInfo: () => void;
+  onChangeTokenApproveInfo: ({
     allowance,
     isUnlimited,
   }: {
@@ -51,10 +45,6 @@ const ALLOWANCE_MAX = 10_000_000_000_000;
 function ApproveEditor(props: IProps) {
   const intl = useIntl();
 
-  const [unsignedTxs] = useUnsignedTxsAtom();
-  const [tokenApproveInfo] = useTokenApproveInfoAtom();
-  const { updateUnsignedTxs } = useSendConfirmActions().current;
-
   const {
     accountId,
     networkId,
@@ -67,29 +57,6 @@ function ApproveEditor(props: IProps) {
     onChangeTokenApproveInfo,
     approveInfo,
   } = props;
-
-  const handleUpdateUnsignedTxs = useCallback(
-    async ({
-      allowance: newAllowance,
-      isUnlimited: newIsUnlimited,
-    }: {
-      allowance: string;
-      isUnlimited: boolean;
-    }) => {
-      const newUnsignedTx =
-        await backgroundApiProxy.serviceSend.updateUnsignedTx({
-          accountId,
-          networkId,
-          unsignedTx: unsignedTxs[0],
-          tokenApproveInfo: {
-            allowance: newAllowance,
-            isUnlimited: newIsUnlimited,
-          },
-        });
-      updateUnsignedTxs([newUnsignedTx]);
-    },
-    [accountId, networkId, unsignedTxs, updateUnsignedTxs],
-  );
 
   const { result, isLoading } = usePromiseResult(
     () =>
@@ -259,11 +226,7 @@ function ApproveEditor(props: IProps) {
           const currentIsUnlimited = form.getValues('isUnlimited');
 
           if (currentAllowance !== '') {
-            void handleUpdateUnsignedTxs({
-              allowance: currentAllowance,
-              isUnlimited: currentIsUnlimited,
-            });
-            onChangeTokenApproveInfo?.({
+            onChangeTokenApproveInfo({
               allowance: currentAllowance,
               isUnlimited: currentIsUnlimited,
             });
@@ -275,11 +238,7 @@ function ApproveEditor(props: IProps) {
           id: ETranslations.global_reset,
         })}
         onCancel={() => {
-          void handleUpdateUnsignedTxs({
-            allowance: tokenApproveInfo.originalAllowance,
-            isUnlimited: tokenApproveInfo.originalIsUnlimited,
-          });
-          onResetTokenApproveInfo?.();
+          onResetTokenApproveInfo();
         }}
       />
     </>
@@ -291,12 +250,7 @@ const showApproveEditor = (props: IProps) => {
     title: appLocale.intl.formatMessage({
       id: ETranslations.approve_edit_title,
     }),
-    showExitButton: false,
-    renderContent: (
-      <SendConfirmProviderMirror>
-        <ApproveEditor {...props} />
-      </SendConfirmProviderMirror>
-    ),
+    renderContent: <ApproveEditor {...props} />,
   });
 };
 

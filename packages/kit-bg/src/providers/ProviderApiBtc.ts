@@ -11,12 +11,7 @@ import {
   formatPsbtHex,
   toPsbtNetwork,
 } from '@onekeyhq/core/src/chains/btc/sdkBtc/providerUtils';
-import type {
-  IBtcInput,
-  IBtcOutput,
-} from '@onekeyhq/core/src/chains/btc/types';
-import { IEncodedTxBtc } from '@onekeyhq/core/src/chains/btc/types';
-import type { IEncodedTx, ITxInputToSign } from '@onekeyhq/core/src/types';
+import type { IEncodedTx } from '@onekeyhq/core/src/types';
 import {
   backgroundClass,
   providerApiMethod,
@@ -30,16 +25,16 @@ import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import {
   BtcDappUniSetChainTypes,
   EBtcDappUniSetChainTypeEnum,
-  type IPushPsbtParams,
   type ISendBitcoinParams,
   type ISignMessageParams,
-  type ISignPsbtOptions,
-  type ISignPsbtParams,
-  type ISignPsbtsParams,
   type ISwitchNetworkParams,
-  type IToSignInput,
 } from '@onekeyhq/shared/types/ProviderApis/ProviderApiBtc.type';
-import type { IPushTxParams } from '@onekeyhq/shared/types/ProviderApis/ProviderApiSui.type';
+import type {
+  IPushPsbtParams,
+  IPushTxParams,
+  ISignPsbtParams,
+  ISignPsbtsParams,
+} from '@onekeyhq/shared/types/ProviderApis/ProviderApiSui.type';
 
 import { vaultFactory } from '../vaults/factory';
 
@@ -534,7 +529,7 @@ class ProviderApiBtc extends ProviderApiBase {
     params: {
       psbt: Psbt;
       psbtNetwork: BitcoinJS.networks.Network;
-      options?: ISignPsbtOptions;
+      options: ISignPsbtParams['options'];
     },
   ) {
     const accountsInfo = await this.getAccountsInfo(request);
@@ -557,27 +552,13 @@ class ProviderApiBtc extends ProviderApiBase {
       networkId,
     });
 
-    let inputsToSign: ITxInputToSign[] = [];
-    if (
-      Array.isArray(options?.toSignInputs) &&
-      options?.toSignInputs.length > 0
-    ) {
-      inputsToSign = options.toSignInputs.map((input) => ({
-        index: input.index,
-        publicKey: input.publicKey ?? '',
-        address: input.address ?? '',
-        sighashTypes: input.sighashTypes,
-        disableTweakSigner: input.disableTweakSigner,
-        useTweakedSigner: input.useTweakedSigner,
-      }));
-    } else {
-      inputsToSign = getInputsToSignFromPsbt({
-        psbt,
-        psbtNetwork,
-        account,
-        isBtcWalletProvider: options?.isBtcWalletProvider ?? false,
-      });
-    }
+    const inputsToSign = getInputsToSignFromPsbt({
+      psbt,
+      psbtNetwork,
+      account,
+      isBtcWalletProvider: options.isBtcWalletProvider,
+    });
+
     // Check for change address:
     // 1. More than one output
     // 2. Not all output addresses are the same as the current account address
@@ -594,24 +575,23 @@ class ProviderApiBtc extends ProviderApiBase {
           inputs: (decodedPsbt.inputInfos ?? []).map((v) => ({
             ...v,
             path: '',
-            value: new BigNumber(v.value?.toString() ?? 0).toFixed(),
-          })) as IBtcInput[],
+            value: new BigNumber(v.value).toFixed(),
+          })),
           outputs: (decodedPsbt.outputInfos ?? []).map((v) => ({
             ...v,
-            value: new BigNumber(v.value?.toString() ?? 0).toFixed(),
+            value: new BigNumber(v.value).toFixed(),
             payload: hasChangeAddress
               ? {
                   isChange: v.address === address,
                 }
               : undefined,
-          })) as IBtcOutput[],
+          })),
           inputsForCoinSelect: [],
           outputsForCoinSelect: [],
           fee: new BigNumber(decodedPsbt.fee).toFixed(),
           inputsToSign,
           psbtHex: psbt.toHex(),
           disabledCoinSelect: true,
-          txSize: undefined,
         },
         signOnly: true,
       });
@@ -627,8 +607,8 @@ class ProviderApiBtc extends ProviderApiBase {
     if (options && options.autoFinalized === false) {
       // do not finalize
     } else {
-      inputsToSign.forEach((input: IToSignInput) => {
-        respPsbt.finalizeInput(input.index);
+      inputsToSign.forEach((v) => {
+        respPsbt.finalizeInput(v.index);
       });
     }
     return respPsbt.toHex();

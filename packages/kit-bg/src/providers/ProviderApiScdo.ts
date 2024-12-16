@@ -51,8 +51,9 @@ class ProviderApiScdo extends ProviderApiBase {
     // ignore
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async rpcCall(request: IJsBridgeMessagePayload): Promise<any> {
-    return this._rpcCall(request);
+    return Promise.resolve();
   }
 
   // Provider API

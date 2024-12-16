@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   ListView,
@@ -7,7 +7,6 @@ import {
   Stack,
   renderNestedScrollView,
 } from '@onekeyhq/components';
-import { SEARCH_KEY_MIN_LENGTH } from '@onekeyhq/shared/src/consts/walletConsts';
 import {
   EAppEventBusNames,
   appEventBus,
@@ -24,13 +23,15 @@ import {
   useSmallBalanceTokenListAtom,
   useTokenListAtom,
   useTokenListStateAtom,
+  useTokenSelectorSearchKeyAtom,
+  useTokenSelectorSearchTokenListAtom,
+  useTokenSelectorSearchTokenStateAtom,
 } from '../../states/jotai/contexts/tokenList';
 import useActiveTabDAppInfo from '../../views/DAppConnection/hooks/useActiveTabDAppInfo';
 import { EmptySearch } from '../Empty';
 import { EmptyToken } from '../Empty/EmptyToken';
 import { ListLoading } from '../Loading';
 
-import { perfTokenListView } from './perfTokenListView';
 import { TokenListFooter } from './TokenListFooter';
 import { TokenListHeader } from './TokenListHeader';
 import { TokenListItem } from './TokenListItem';
@@ -54,19 +55,12 @@ type IProps = {
   manageTokenEnabled?: boolean;
   isAllNetworks?: boolean;
   searchAll?: boolean;
+  isTokenSelector?: boolean;
   footerTipText?: string;
   hideValue?: boolean;
-  isTokenSelector?: boolean;
-  tokenSelectorSearchKey?: string;
-  tokenSelectorSearchTokenState?: {
-    isSearching: boolean;
-  };
-  tokenSelectorSearchTokenList?: {
-    tokens: IAccountToken[];
-  };
 };
 
-function TokenListViewCmp(props: IProps) {
+function TokenListView(props: IProps) {
   const {
     onPressToken,
     tableLayout,
@@ -87,56 +81,34 @@ function TokenListViewCmp(props: IProps) {
     isTokenSelector,
     footerTipText,
     hideValue,
-    tokenSelectorSearchKey = '',
-    tokenSelectorSearchTokenState = { isSearching: false },
-    tokenSelectorSearchTokenList = { tokens: [] },
   } = props;
 
   const [tokenList] = useTokenListAtom();
   const [smallBalanceTokenList] = useSmallBalanceTokenListAtom();
   const [tokenListState] = useTokenListStateAtom();
   const [searchKey] = useSearchKeyAtom();
+  const [tokenSelectorSearchKey] = useTokenSelectorSearchKeyAtom();
 
-  const tokens = useMemo(() => {
-    if (isTokenSelector) {
-      return tokenList.tokens.concat(smallBalanceTokenList.smallBalanceTokens);
-    }
-
-    if (searchKey && searchKey.length >= SEARCH_KEY_MIN_LENGTH) {
-      return tokenList.tokens.concat(smallBalanceTokenList.smallBalanceTokens);
-    }
-
-    return tokenList.tokens;
-  }, [
-    isTokenSelector,
-    searchKey,
-    tokenList.tokens,
-    smallBalanceTokenList.smallBalanceTokens,
-  ]);
+  const tokens = isTokenSelector
+    ? tokenList.tokens.concat(smallBalanceTokenList.smallBalanceTokens)
+    : tokenList.tokens;
   const [searchTokenState] = useSearchTokenStateAtom();
+
+  const [tokenSelectorSearchTokenState] =
+    useTokenSelectorSearchTokenStateAtom();
 
   const [searchTokenList] = useSearchTokenListAtom();
 
-  const filteredTokens = useMemo(
-    () =>
-      getFilteredTokenBySearchKey({
-        tokens,
-        searchKey: isTokenSelector ? tokenSelectorSearchKey : searchKey,
-        searchAll,
-        searchTokenList: isTokenSelector
-          ? tokenSelectorSearchTokenList.tokens
-          : searchTokenList.tokens,
-      }),
-    [
-      tokens,
-      isTokenSelector,
-      tokenSelectorSearchKey,
-      searchKey,
-      searchAll,
-      tokenSelectorSearchTokenList.tokens,
-      searchTokenList.tokens,
-    ],
-  );
+  const [tokenSelectorSearchTokenList] = useTokenSelectorSearchTokenListAtom();
+
+  const filteredTokens = getFilteredTokenBySearchKey({
+    tokens,
+    searchKey: isTokenSelector ? tokenSelectorSearchKey : searchKey,
+    searchAll,
+    searchTokenList: isTokenSelector
+      ? tokenSelectorSearchTokenList.tokens
+      : searchTokenList.tokens,
+  });
 
   const { listViewProps, listViewRef, onLayout } =
     useTabListScroll<IAccountToken>({
@@ -162,56 +134,11 @@ function TokenListViewCmp(props: IProps) {
       appEventBus.off(EAppEventBusNames.TabListStateUpdate, fn);
     };
   }, []);
-
-  const showSkeleton = useMemo(
-    () =>
-      (isTokenSelector && tokenSelectorSearchTokenState.isSearching) ||
-      (!isTokenSelector && searchTokenState.isSearching) ||
-      (!tokenListState.initialized && tokenListState.isRefreshing),
-    [
-      isTokenSelector,
-      searchTokenState.isSearching,
-      tokenListState.initialized,
-      tokenListState.isRefreshing,
-      tokenSelectorSearchTokenState.isSearching,
-    ],
-  );
-
-  useEffect(() => {
-    if (showSkeleton) {
-      perfTokenListView.reset();
-    } else {
-      perfTokenListView.done();
-    }
-  }, [showSkeleton]);
-
-  useEffect(() => {
-    if (!tokenListState.initialized) {
-      perfTokenListView.markStart('tokenListStateInitialize');
-    } else {
-      perfTokenListView.markEnd('tokenListStateInitialize');
-    }
-  }, [tokenListState.initialized]);
-
-  useEffect(() => {
-    if (tokenListState.isRefreshing) {
-      perfTokenListView.markStart('tokenListStateRefreshing');
-      perfTokenListView.markStart('tokenListRefreshing_tokenListPageUseEffect');
-      perfTokenListView.markStart(
-        'tokenListRefreshing_tokenListContainerRefreshList',
-      );
-      perfTokenListView.markStart('tokenListRefreshing_allNetworkRequests');
-      perfTokenListView.markStart('tokenListRefreshing_allNetworkCacheData');
-      perfTokenListView.markStart('tokenListRefreshing_initTokenListData');
-      perfTokenListView.markStart('tokenListRefreshing_emptyAccount');
-    } else {
-      perfTokenListView.markEnd('tokenListStateRefreshing');
-      perfTokenListView.markEnd('tokenListRefreshing_1');
-      perfTokenListView.markEnd('tokenListRefreshing_2');
-    }
-  }, [tokenListState.isRefreshing]);
-
-  if (showSkeleton) {
+  if (
+    (isTokenSelector && tokenSelectorSearchTokenState.isSearching) ||
+    (!isTokenSelector && searchTokenState.isSearching) ||
+    (!tokenListState.initialized && tokenListState.isRefreshing)
+  ) {
     return (
       <NestedScrollView style={{ flex: 1 }}>
         <ListLoading isTokenSelectorView={!tableLayout} />
@@ -284,7 +211,5 @@ function TokenListViewCmp(props: IProps) {
     />
   );
 }
-
-const TokenListView = memo(TokenListViewCmp);
 
 export { TokenListView };

@@ -6,13 +6,10 @@ import hexUtils from '@onekeyhq/shared/src/utils/hexUtils';
 import { KeyringHdBase } from '../../base/KeyringHdBase';
 
 import {
-  createSignedExternalMessage,
   getAccountVersion,
-  getWalletContractInstance,
   serializeUnsignedTransaction,
 } from './sdkTon/utils';
 
-import type { IWallet } from './sdkTon/utils';
 import type { IDBAccount } from '../../../dbs/local/types';
 import type {
   IExportAccountSecretKeysParams,
@@ -51,17 +48,11 @@ export class KeyringHd extends KeyringHdBase {
     const encodedTx = params.unsignedTx.encodedTx as IEncodedTxTon;
     const account = await this.vault.getAccount();
     const version = getAccountVersion(account.id);
-
-    const contract = getWalletContractInstance({
+    const serializeUnsignedTx = await serializeUnsignedTransaction({
       version,
-      publicKey: account.pub ?? '',
+      encodedTx,
       backgroundApi: this.vault.backgroundApi,
       networkId: this.vault.networkId,
-    }) as unknown as IWallet;
-
-    const serializeUnsignedTx = await serializeUnsignedTransaction({
-      contract,
-      encodedTx,
     });
     params.unsignedTx.rawTxUnsigned = hexUtils.hexlify(
       await serializeUnsignedTx.signingMessage.toBoc(),
@@ -69,22 +60,7 @@ export class KeyringHd extends KeyringHdBase {
         noPrefix: true,
       },
     );
-
-    const signedTx = await this.baseSignTransaction(params);
-
-    const externalMessage = await createSignedExternalMessage({
-      contract,
-      encodedTx,
-      signature: signedTx.signature ?? '',
-      signingMessage: serializeUnsignedTx.signingMessage,
-    });
-
-    return {
-      ...signedTx,
-      rawTx: Buffer.from(await externalMessage.message.toBoc(false)).toString(
-        'base64',
-      ),
-    };
+    return this.baseSignTransaction(params);
   }
 
   override async signMessage(params: ISignMessageParams): Promise<string[]> {

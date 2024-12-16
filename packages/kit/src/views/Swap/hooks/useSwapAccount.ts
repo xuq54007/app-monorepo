@@ -7,7 +7,6 @@ import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRo
 import { useSettingsAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETabRoutes } from '@onekeyhq/shared/src/routes';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
-import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 import type { ISwapToken } from '@onekeyhq/shared/types/swap/types';
 import { ESwapDirectionType } from '@onekeyhq/shared/types/swap/types';
 
@@ -244,9 +243,6 @@ export function useSwapRecipientAddressInfo(enable: boolean) {
       }
       if (
         swapToAddressInfo.networkId &&
-        !networkUtils.isAllNetwork({
-          networkId: swapToAddressInfo.networkId,
-        }) &&
         fromAccountInfo.accountInfo?.account?.id &&
         fromAccountInfo.accountInfo?.indexedAccount?.id
       ) {

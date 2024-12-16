@@ -184,16 +184,6 @@ class BackgroundApi extends BackgroundApiBase implements IBackgroundApi {
     return value;
   }
 
-  get serviceAppCleanup() {
-    const ServiceAppCleanup =
-      require('../services/ServiceAppCleanup') as typeof import('../services/ServiceAppCleanup');
-    const value = new ServiceAppCleanup.default({
-      backgroundApi: this,
-    });
-    Object.defineProperty(this, 'serviceAppCleanup', { value });
-    return value;
-  }
-
   get serviceHistory() {
     const ServiceHistory =
       require('../services/ServiceHistory') as typeof import('../services/ServiceHistory');

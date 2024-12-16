@@ -4,7 +4,6 @@ import { bridgeSetup } from '@onekeyfe/extension-bridge-hosted';
 import type { IOffscreenApiMessagePayload } from '@onekeyhq/kit-bg/src/apis/IBackgroundApi';
 import offscreenApi from '@onekeyhq/kit-bg/src/offscreens/instance/offscreenApi';
 import { OFFSCREEN_API_MESSAGE_TYPE } from '@onekeyhq/kit-bg/src/offscreens/types';
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 
 export function offscreenSetup() {
   const offscreenBridge = bridgeSetup.offscreen.createOffscreenJsBridge({
@@ -18,7 +17,7 @@ export function offscreenSetup() {
       }
     },
   });
-  appGlobals.extJsBridgeOffscreenToBg = offscreenBridge;
+  globalThis.extJsBridgeOffscreenToBg = offscreenBridge;
 
   return offscreenBridge;
 

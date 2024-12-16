@@ -1,3 +1,4 @@
+import type { PropsWithChildren } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { useIntl } from 'react-intl';
@@ -8,7 +9,7 @@ import {
   Icon,
   NumberSizeableText,
   SizableText,
-  Skeleton,
+  Stack,
   Table,
   View,
   XStack,
@@ -19,7 +20,6 @@ import {
 import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type {
-  IMarketDetailPlatform,
   IMarketDetailPool,
   IMarketDetailTicker,
   IMarketResponsePool,
@@ -91,88 +91,17 @@ function HeaderColumn({
   );
 }
 
-function SkeletonRow() {
-  return (
-    <XStack>
-      <XStack flex={1}>
-        <Skeleton w="$24" h="$3" />
-      </XStack>
-      <XStack flex={1} jc="flex-end">
-        <Skeleton w="$16" h="$3" />
-      </XStack>
-      <XStack flex={1} jc="flex-end">
-        <Skeleton w="$16" h="$3" />
-      </XStack>
-      <XStack flex={1} jc="flex-end">
-        <Skeleton w="$16" h="$3" />
-      </XStack>
-      <XStack flex={1} jc="flex-end">
-        <Skeleton w="$16" h="$3" />
-      </XStack>
-    </XStack>
-  );
-}
-
-function MdSkeletonRow() {
-  return (
-    <XStack>
-      <XStack flex={1}>
-        <Skeleton w="$24" h="$3" />
-      </XStack>
-      <XStack flex={1} jc="flex-end">
-        <Skeleton w="$16" h="$3" />
-      </XStack>
-      <XStack flex={1} jc="flex-end">
-        <Skeleton w="$16" h="$3" />
-      </XStack>
-    </XStack>
-  );
-}
-
-function MarketDetailPoolsSkeletonRow() {
-  const { md } = useMedia();
-  return md ? (
-    <YStack gap="$10" px="$5" pt="$11">
-      <MdSkeletonRow />
-      <MdSkeletonRow />
-      <MdSkeletonRow />
-      <MdSkeletonRow />
-    </YStack>
-  ) : (
-    <YStack gap="$6" px="$5" pt="$11">
-      <SkeletonRow />
-      <SkeletonRow />
-      <SkeletonRow />
-      <SkeletonRow />
-    </YStack>
-  );
-}
-
 export function MarketDetailPools({
-  detailPlatforms,
+  pools,
   tickers,
 }: ITabPageProps & {
+  pools: IMarketResponsePool[];
   tickers?: IMarketDetailTicker[];
-  detailPlatforms: IMarketDetailPlatform;
 }) {
   const [settings] = useSettingsPersistAtom();
   const currency = settings.currencyInfo.symbol;
   const intl = useIntl();
   const { gtXl } = useMedia();
-
-  const { result: pools } = usePromiseResult(
-    async () => {
-      const response = await backgroundApiProxy.serviceMarket.fetchPools(
-        detailPlatforms,
-      );
-      return response;
-    },
-    [detailPlatforms],
-    {
-      initResult: [],
-    },
-  );
-
   const oneKeyNetworkIds = useMemo(() => {
     const result = pools
       .map((i) => i.onekeyNetworkId)
@@ -328,7 +257,6 @@ export function MarketDetailPools({
               <NumberSizeableText
                 userSelect="none"
                 size="$bodyMd"
-                formatterOptions={{ currency }}
                 formatter="marketCap"
                 textAlign="right"
               >
@@ -355,7 +283,6 @@ export function MarketDetailPools({
           <NumberSizeableText
             userSelect="none"
             size="$bodyMd"
-            formatterOptions={{ currency }}
             formatter="marketCap"
             textAlign="right"
           >
@@ -381,7 +308,6 @@ export function MarketDetailPools({
           <NumberSizeableText
             userSelect="none"
             size="$bodyMd"
-            formatterOptions={{ currency }}
             formatter="marketCap"
             textAlign="right"
           >
@@ -502,7 +428,6 @@ export function MarketDetailPools({
             userSelect="none"
             size="$bodyMd"
             formatter="marketCap"
-            formatterOptions={{ currency }}
             textAlign="right"
           >
             {volumeUsdH24}
@@ -568,7 +493,6 @@ export function MarketDetailPools({
           onChange={handleChange}
         />
       }
-      TableEmptyComponent={<MarketDetailPoolsSkeletonRow />}
       renderScrollComponent={renderNestedScrollView}
       onRow={onRow}
       onHeaderRow={onHeaderRow as any}

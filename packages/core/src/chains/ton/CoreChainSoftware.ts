@@ -25,7 +25,12 @@ import {
 } from '../../types';
 
 import { genAddressFromPublicKey } from './sdkTon';
-import { serializeData, serializeProof } from './sdkTon/tx';
+import {
+  getStateInitFromEncodedTx,
+  serializeData,
+  serializeProof,
+  serializeSignedTx,
+} from './sdkTon/tx';
 
 import type { IEncodedTxTon } from './types';
 
@@ -74,12 +79,18 @@ export default class CoreChainSoftware extends CoreChainApiBase {
     const signingMessage = TonWeb.boc.Cell.oneFromBoc(rawTxUnsigned);
     const hash = await signingMessage.hash();
     const [signature] = await signer.sign(Buffer.from(hash));
+    const signedTx = serializeSignedTx({
+      fromAddress: encodedTx.from,
+      signingMessage,
+      signature,
+      stateInit: getStateInitFromEncodedTx(encodedTx),
+    });
+    const txid = '';
+    const rawTx = Buffer.from(await signedTx.toBoc(false)).toString('base64');
     return {
       encodedTx,
-      txid: '',
-      // Core Chain full RawTx
-      rawTx: '',
-      signature: signature.toString('hex'),
+      txid,
+      rawTx,
     };
   }
 

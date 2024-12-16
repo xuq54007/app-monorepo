@@ -42,19 +42,4 @@ export class TokenScene extends BaseScene {
   ) {
     return token;
   }
-
-  @LogToServer()
-  @LogToLocal({ level: 'info' })
-  public unsupportedToken({
-    name,
-    action,
-  }: {
-    name: string;
-    action: 'buy' | 'sell' | 'trade';
-  }) {
-    return {
-      tokenName: name,
-      userAction: action,
-    };
-  }
 }

@@ -113,11 +113,11 @@ export const { atom: isSinglePresetAtom, use: useIsSinglePresetAtom } =
 
 export const { atom: tokenApproveInfoAtom, use: useTokenApproveInfoAtom } =
   contextAtom<{
-    originalAllowance: string;
-    originalIsUnlimited: boolean;
+    allowance: string;
+    isUnlimited: boolean;
   }>({
-    originalAllowance: '',
-    originalIsUnlimited: false,
+    allowance: '',
+    isUnlimited: false,
   });
 
 export const { atom: txAdvancedSettingsAtom, use: useTxAdvancedSettingsAtom } =

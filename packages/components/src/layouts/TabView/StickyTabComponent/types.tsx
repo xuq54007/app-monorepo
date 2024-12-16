@@ -25,8 +25,3 @@ export interface ITabProps extends IScrollViewProps {
   onRefresh?: () => void;
   initialHeaderHeight?: number;
 }
-
-export interface ITabInstance {
-  setVerticalScrollEnabled: (enabled: boolean) => void;
-  scrollToTop: () => void;
-}

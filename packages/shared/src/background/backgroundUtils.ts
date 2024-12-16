@@ -19,7 +19,6 @@ import {
   IMPL_ALGO,
   IMPL_ALPH,
   IMPL_APTOS,
-  IMPL_BFC,
   IMPL_BTC,
   IMPL_CFX,
   IMPL_COSMOS,
@@ -299,7 +298,6 @@ export const scopeNetworks: Record<
   'algo': [IMPL_ALGO],
   'alephium': [IMPL_ALPH],
   'sui': [IMPL_SUI],
-  'bfc': [IMPL_BFC],
   'ton': [IMPL_TON],
   'scdo': [IMPL_SCDO],
   'cardano': [IMPL_ADA],
@@ -309,6 +307,7 @@ export const scopeNetworks: Record<
   'nostr': [IMPL_NOSTR],
   '$hardware_sdk': undefined,
   '$private': undefined,
+  '$privateExternalAccount': [IMPL_BTC, IMPL_TBTC],
   '$walletConnect': undefined,
 };
 
@@ -329,7 +328,6 @@ export const ENABLED_DAPP_SCOPE: IInjectedProviderNamesStrings[] = [
   IInjectedProviderNames.cosmos,
   IInjectedProviderNames.polkadot,
   IInjectedProviderNames.webln,
-  IInjectedProviderNames.bfc,
 ];
 
 export function getNetworkImplsFromDappScope(

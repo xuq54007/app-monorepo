@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { isNil } from 'lodash';
-import { utils } from 'tronweb';
+import TronWeb from 'tronweb';
 
 import type { IEncodedTxTron } from '@onekeyhq/core/src/chains/tron/types';
 import coreChainApi from '@onekeyhq/core/src/instance/coreChainApi';
@@ -27,7 +27,6 @@ import type {
   AllNetworkAddressParams,
   TronTransactionContract,
 } from '@onekeyfe/hd-core';
-import type { Types } from 'tronweb';
 
 export class KeyringHardware extends KeyringHardwareBase {
   override coreApi = coreChainApi.tron.hd;
@@ -139,12 +138,12 @@ export class KeyringHardware extends KeyringHardwareBase {
     let contractCall: TronTransactionContract | undefined;
     switch (encodedTx.raw_data.contract[0].type) {
       case 'TransferContract': {
-        const { amount, to_address: toAddressHex } = encodedTx.raw_data
-          .contract[0].parameter.value as Types.TransferContract;
+        const { amount, to_address: toAddressHex } =
+          encodedTx.raw_data.contract[0].parameter.value;
         contractCall = {
           transferContract: {
             amount,
-            toAddress: utils.address.fromHex(toAddressHex),
+            toAddress: TronWeb.address.fromHex(toAddressHex),
           },
         };
         break;
@@ -154,11 +153,10 @@ export class KeyringHardware extends KeyringHardwareBase {
           contract_address: contractAddressHex,
           call_value: callValue,
           data,
-        } = encodedTx.raw_data.contract[0].parameter
-          .value as Types.TriggerSmartContract;
+        } = encodedTx.raw_data.contract[0].parameter.value;
         contractCall = {
           triggerSmartContract: {
-            contractAddress: utils.address.fromHex(contractAddressHex),
+            contractAddress: TronWeb.address.fromHex(contractAddressHex),
             data,
             callValue,
           },
@@ -167,8 +165,7 @@ export class KeyringHardware extends KeyringHardwareBase {
       }
       case 'FreezeBalanceV2Contract': {
         const { frozen_balance: frozenBalance, resource = 'BANDWIDTH' } =
-          encodedTx.raw_data.contract[0].parameter
-            .value as Types.FreezeBalanceV2Contract;
+          encodedTx.raw_data.contract[0].parameter.value;
         contractCall = {
           freezeBalanceV2Contract: {
             frozenBalance,
@@ -180,8 +177,7 @@ export class KeyringHardware extends KeyringHardwareBase {
       }
       case 'UnfreezeBalanceV2Contract': {
         const { unfreeze_balance: unfreezeBalance, resource = 'BANDWIDTH' } =
-          encodedTx.raw_data.contract[0].parameter
-            .value as Types.UnfreezeBalanceV2Contract;
+          encodedTx.raw_data.contract[0].parameter.value;
         contractCall = {
           unfreezeBalanceV2Contract: {
             unfreezeBalance,
@@ -197,12 +193,11 @@ export class KeyringHardware extends KeyringHardwareBase {
           resource = 'BANDWIDTH',
           balance,
           lock,
-        } = encodedTx.raw_data.contract[0].parameter
-          .value as Types.DelegateResourceContract;
+        } = encodedTx.raw_data.contract[0].parameter.value;
         contractCall = {
           delegateResourceContract: {
             balance,
-            receiverAddress: utils.address.fromHex(receiverAddress),
+            receiverAddress: TronWeb.address.fromHex(receiverAddress),
             ...(lock ? { lock } : null),
             ...(resource === 'BANDWIDTH' ? null : { resource: 1 }),
           },
@@ -215,23 +210,22 @@ export class KeyringHardware extends KeyringHardwareBase {
           receiver_address: receiverAddress,
           resource = 'BANDWIDTH',
           balance,
-        } = encodedTx.raw_data.contract[0].parameter
-          .value as Types.UnDelegateResourceContract;
+        } = encodedTx.raw_data.contract[0].parameter.value;
         contractCall = {
           unDelegateResourceContract: {
             balance,
-            receiverAddress: utils.address.fromHex(receiverAddress),
+            receiverAddress: TronWeb.address.fromHex(receiverAddress),
             ...(resource === 'BANDWIDTH' ? null : { resource: 1 }),
           },
         };
         break;
       }
       case 'WithdrawBalanceContract': {
-        const { owner_address: ownerAddress } = encodedTx.raw_data.contract[0]
-          .parameter.value as Types.WithdrawBalanceContract;
+        const { owner_address: ownerAddress } =
+          encodedTx.raw_data.contract[0].parameter.value;
         contractCall = {
           withdrawBalanceContract: {
-            ownerAddress: utils.address.fromHex(ownerAddress),
+            ownerAddress: TronWeb.address.fromHex(ownerAddress),
           },
         };
         break;
@@ -263,7 +257,7 @@ export class KeyringHardware extends KeyringHardwareBase {
           refBlockHash,
           expiration,
           timestamp,
-          feeLimit: feeLimit as number,
+          feeLimit,
           contract: contractCall as TronTransactionContract,
         },
         ...deviceCommonParams,

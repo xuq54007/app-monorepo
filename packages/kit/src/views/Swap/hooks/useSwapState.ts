@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import BigNumber from 'bignumber.js';
-import { isNil } from 'lodash';
 import { useIntl } from 'react-intl';
 
 import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRouteIsFocused';
-import {
-  useSettingsAtom,
-  useSettingsPersistAtom,
-} from '@onekeyhq/kit-bg/src/states/jotai/atoms';
+import { useSettingsPersistAtom } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
-import {
-  swapQuoteIntervalMaxCount,
-  swapSlippageAutoValue,
-} from '@onekeyhq/shared/types/swap/SwapProvider.constants';
+import { swapQuoteIntervalMaxCount } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
   ISwapCheckWarningDef,
   ISwapState,
@@ -21,7 +14,6 @@ import type {
 import {
   ESwapAlertLevel,
   ESwapDirectionType,
-  ESwapSlippageSegmentKey,
 } from '@onekeyhq/shared/types/swap/types';
 
 import { useDebounce } from '../../../hooks/useDebounce';
@@ -279,34 +271,4 @@ export function useSwapActionState() {
       !quoteEventFetching,
   };
   return stepState;
-}
-
-export function useSwapSlippagePercentageModeInfo() {
-  const [{ swapSlippagePercentageCustomValue, swapSlippagePercentageMode }] =
-    useSettingsAtom();
-  const [quoteResult] = useSwapQuoteCurrentSelectAtom();
-  const res = useMemo(() => {
-    let autoValue = swapSlippageAutoValue;
-    let value = swapSlippageAutoValue;
-    if (!isNil(quoteResult?.autoSuggestedSlippage)) {
-      autoValue = quoteResult.autoSuggestedSlippage;
-    }
-    if (swapSlippagePercentageMode === ESwapSlippageSegmentKey.AUTO) {
-      value = autoValue;
-    } else {
-      value = swapSlippagePercentageCustomValue;
-    }
-    return {
-      slippageItem: {
-        key: swapSlippagePercentageMode,
-        value,
-      },
-      autoValue,
-    };
-  }, [
-    quoteResult?.autoSuggestedSlippage,
-    swapSlippagePercentageCustomValue,
-    swapSlippagePercentageMode,
-  ]);
-  return res;
 }

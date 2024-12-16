@@ -205,13 +205,13 @@ export function useSwapInit(params?: ISwapInitParams) {
           setToToken(params?.importToToken);
         }
       }
-      if (params?.importFromToken && !params?.importToToken) {
-        const fromNetworkDefault =
-          swapDefaultSetTokens[params?.importFromToken.networkId];
-
-        const defaultToToken = !params?.importFromToken?.isNative
-          ? tokenDetailSwapDefaultToTokens[params?.importFromToken.networkId]
-          : fromNetworkDefault?.toToken;
+      if (
+        params?.importFromToken &&
+        !params?.importToToken &&
+        !params?.importFromToken?.isNative
+      ) {
+        const defaultToToken =
+          tokenDetailSwapDefaultToTokens[params?.importFromToken.networkId];
         if (defaultToToken) {
           const defaultTokenSupportTypes =
             checkSupportTokenSwapType(defaultToToken);

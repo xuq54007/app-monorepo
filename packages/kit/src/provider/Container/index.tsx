@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 
 import { RootSiblingParent } from 'react-native-root-siblings';
 
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import LazyLoad from '@onekeyhq/shared/src/lazyLoad';
 import type { IJPushRemotePushMessageInfo } from '@onekeyhq/shared/types/notification';
 
@@ -31,7 +30,7 @@ const PageTrackerContainer = LazyLoad(
 
 function GlobalRootAppNavigationUpdate() {
   const navigation = useAppNavigation();
-  appGlobals.$rootAppNavigation = navigation;
+  globalThis.$rootAppNavigation = navigation;
   return null;
 }
 

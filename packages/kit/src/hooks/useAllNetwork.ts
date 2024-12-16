@@ -2,19 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 
 import { isEmpty } from 'lodash';
 
-import type { IDBAccount } from '@onekeyhq/kit-bg/src/dbs/local/types';
-import type { ICustomTokenDBStruct } from '@onekeyhq/kit-bg/src/dbs/simple/entity/SimpleDbEntityCustomTokens';
+import type {
+  IDBAccount,
+  IDBWallet,
+} from '@onekeyhq/kit-bg/src/dbs/local/types';
 import type { ISimpleDBLocalTokens } from '@onekeyhq/kit-bg/src/dbs/simple/entity/SimpleDbEntityLocalTokens';
 import type { IAllNetworkAccountInfo } from '@onekeyhq/kit-bg/src/services/ServiceAllNetwork/ServiceAllNetwork';
 import { POLLING_DEBOUNCE_INTERVAL } from '@onekeyhq/shared/src/consts/walletConsts';
+import { generateUUID } from '@onekeyhq/shared/src/utils/miscUtils';
 import perfUtils, {
   EPerformanceTimerLogNames,
-} from '@onekeyhq/shared/src/utils/debug/perfUtils';
-import { generateUUID } from '@onekeyhq/shared/src/utils/miscUtils';
-import { promiseAllSettledEnhanced } from '@onekeyhq/shared/src/utils/promiseUtils';
+} from '@onekeyhq/shared/src/utils/perfUtils';
+import type { IServerNetwork } from '@onekeyhq/shared/types';
+import type { INetworkAccount } from '@onekeyhq/shared/types/account';
 
 import backgroundApiProxy from '../background/instance/backgroundApiProxy';
-import { perfTokenListView } from '../components/TokenListView/perfTokenListView';
 
 import { usePromiseResult } from './usePromiseResult';
 
@@ -50,32 +52,27 @@ const currentRequestsUUID = { current: '' };
 // };
 
 function useAllNetworkRequests<T>(params: {
-  accountId: string | undefined;
-  networkId: string | undefined;
-  walletId: string | undefined;
-  isAllNetworks: boolean | undefined;
+  account: INetworkAccount | undefined;
+  network: IServerNetwork | undefined;
+  wallet: IDBWallet | undefined;
   allNetworkRequests: ({
     accountId,
     networkId,
     dbAccount,
     allNetworkDataInit,
-    customTokensRawData,
   }: {
     accountId: string;
     networkId: string;
     dbAccount?: IDBAccount;
     allNetworkDataInit?: boolean;
-    customTokensRawData: ICustomTokenDBStruct | undefined;
   }) => Promise<T | undefined>;
   allNetworkCacheRequests?: ({
-    dbAccount,
     accountId,
     networkId,
     accountAddress,
     xpub,
     simpleDbLocalTokensRawData,
   }: {
-    dbAccount?: IDBAccount;
     accountId: string;
     networkId: string;
     accountAddress: string;
@@ -122,10 +119,9 @@ function useAllNetworkRequests<T>(params: {
   }) => void;
 }) {
   const {
-    accountId: currentAccountId,
-    networkId: currentNetworkId,
-    walletId: currentWalletId,
-    isAllNetworks,
+    account,
+    network,
+    wallet,
     allNetworkRequests,
     allNetworkCacheRequests,
     allNetworkCacheData,
@@ -143,32 +139,15 @@ function useAllNetworkRequests<T>(params: {
   const isFetching = useRef(false);
   const [isEmptyAccount, setIsEmptyAccount] = useState(false);
 
-  useEffect(() => {
-    if (currentAccountId && currentNetworkId && currentWalletId) {
-      perfTokenListView.markStart('useAllNetworkRequestsRun_debounceDelay');
-    }
-  }, [currentAccountId, currentNetworkId, currentWalletId]);
-
   const { run, result } = usePromiseResult(
     async () => {
-      perfTokenListView.markEnd(
-        'useAllNetworkRequestsRun_debounceDelay',
-        '执行 useAllNetworkRequests 的 usePromiseResult debounced 延迟: POLLING_DEBOUNCE_INTERVAL',
-      );
-
-      const perf = perfUtils.createPerf({
-        name: EPerformanceTimerLogNames.allNetwork__useAllNetworkRequests,
-      });
-
-      perfTokenListView.markStart('useAllNetworkRequestsRun');
-
       console.log('useAllNetworkRequestsRun >>>>>>>>>>>>>>');
       const requestsUUID = generateUUID();
 
       if (disabled) return;
       if (isFetching.current) return;
-      if (!currentAccountId || !currentNetworkId || !currentWalletId) return;
-      if (!isAllNetworks) return;
+      if (!account || !network || !wallet) return;
+      if (!network.isAllNetworks) return;
       isFetching.current = true;
 
       if (!allNetworkDataInit.current) {
@@ -176,6 +155,10 @@ function useAllNetworkRequests<T>(params: {
       }
 
       abortAllNetworkRequests?.();
+
+      const perf = perfUtils.createPerf(
+        EPerformanceTimerLogNames.allNetwork__useAllNetworkRequests,
+      );
 
       perf.markStart('getAllNetworkAccountsWithEnabledNetworks');
       const {
@@ -186,8 +169,8 @@ function useAllNetworkRequests<T>(params: {
       } =
         await backgroundApiProxy.serviceAllNetwork.getAllNetworkAccountsWithEnabledNetworks(
           {
-            accountId: currentAccountId,
-            networkId: currentNetworkId,
+            accountId: account.id,
+            networkId: network.id,
             deriveType: undefined,
             nftEnabledOnly: isNFTRequests,
           },
@@ -215,17 +198,17 @@ function useAllNetworkRequests<T>(params: {
       setIsEmptyAccount(false);
 
       onStarted?.({
-        accountId: currentAccountId,
-        networkId: currentNetworkId,
+        accountId: account.id,
+        networkId: network.id,
       });
 
       if (!allNetworkDataInit.current) {
         try {
-          perf.markStart('localTokens_getRawData');
+          perf.markStart('localTokens.getRawData');
           const simpleDbLocalTokensRawData =
             (await backgroundApiProxy.simpleDb.localTokens.getRawData()) ??
             undefined;
-          perf.markEnd('localTokens_getRawData');
+          perf.markEnd('localTokens.getRawData');
 
           perf.markStart('allNetworkCacheRequests', {
             localTokensExists: Boolean(simpleDbLocalTokensRawData),
@@ -235,15 +218,9 @@ function useAllNetworkRequests<T>(params: {
             await Promise.all(
               Array.from(accountsInfo).map(
                 async (networkDataString: IAllNetworkAccountInfo) => {
-                  const {
-                    accountId,
-                    networkId,
-                    accountXpub,
-                    apiAddress,
-                    dbAccount,
-                  } = networkDataString;
+                  const { accountId, networkId, accountXpub, apiAddress } =
+                    networkDataString;
                   const cachedDataResult = await allNetworkCacheRequests?.({
-                    dbAccount,
                     accountId,
                     networkId,
                     xpub: accountXpub,
@@ -260,14 +237,10 @@ function useAllNetworkRequests<T>(params: {
           if (cachedData && !isEmpty(cachedData)) {
             allNetworkDataInit.current = true;
             perf.done();
-            perfTokenListView.markEnd(
-              'useAllNetworkRequestsRun',
-              '执行时间明细请查看 EPerformanceTimerLogNames.allNetwork__useAllNetworkRequests',
-            );
             allNetworkCacheData?.({
               data: cachedData,
-              accountId: currentAccountId,
-              networkId: currentNetworkId,
+              accountId: account.id,
+              networkId: network.id,
             });
           }
         } catch (e) {
@@ -281,16 +254,12 @@ function useAllNetworkRequests<T>(params: {
         'currentRequestsUUID set: =====>>>>>: ',
         currentRequestsUUID.current,
       );
-      const customTokensRawData =
-        (await backgroundApiProxy.simpleDb.customTokens.getRawData()) ??
-        undefined;
 
       if (allNetworkDataInit.current) {
         const allNetworks = accountsInfo;
         const requests = allNetworks.map((networkDataString) => {
           const { accountId, networkId, dbAccount } = networkDataString;
           return allNetworkRequests({
-            customTokensRawData,
             accountId,
             networkId,
             dbAccount,
@@ -299,11 +268,7 @@ function useAllNetworkRequests<T>(params: {
         });
 
         try {
-          resp = (
-            await promiseAllSettledEnhanced(requests, {
-              continueOnError: true,
-            })
-          ).filter(Boolean);
+          resp = (await Promise.all(requests)).filter(Boolean);
         } catch (e) {
           console.error(e);
           resp = null;
@@ -311,8 +276,8 @@ function useAllNetworkRequests<T>(params: {
         }
       } else {
         try {
-          const promises = Array.from(accountsInfoBackendIndexed).map(
-            (networkDataString) => {
+          await Promise.all(
+            Array.from(accountsInfoBackendIndexed).map((networkDataString) => {
               const { accountId, networkId, apiAddress } = networkDataString;
               console.log(
                 'accountsBackedIndexedRequests: =====>>>>>: ',
@@ -324,39 +289,33 @@ function useAllNetworkRequests<T>(params: {
                 accountId,
                 networkId,
                 allNetworkDataInit: allNetworkDataInit.current,
-                customTokensRawData,
               });
-            },
+            }),
           );
-          await promiseAllSettledEnhanced(promises, {
-            continueOnError: true,
-          });
         } catch (e) {
           console.error(e);
           // pass
         }
 
         try {
-          const promises = Array.from(accountsInfoBackendNotIndexed).map(
-            (networkDataString) => {
-              const { accountId, networkId, apiAddress } = networkDataString;
-              console.log(
-                'accountsBackedNotIndexedRequests: =====>>>>>: ',
-                accountId,
-                networkId,
-                apiAddress,
-              );
-              return allNetworkRequests({
-                accountId,
-                networkId,
-                allNetworkDataInit: allNetworkDataInit.current,
-                customTokensRawData,
-              });
-            },
+          await Promise.all(
+            Array.from(accountsInfoBackendNotIndexed).map(
+              (networkDataString) => {
+                const { accountId, networkId, apiAddress } = networkDataString;
+                console.log(
+                  'accountsBackedNotIndexedRequests: =====>>>>>: ',
+                  accountId,
+                  networkId,
+                  apiAddress,
+                );
+                return allNetworkRequests({
+                  accountId,
+                  networkId,
+                  allNetworkDataInit: allNetworkDataInit.current,
+                });
+              },
+            ),
           );
-          await promiseAllSettledEnhanced(promises, {
-            continueOnError: true,
-          });
         } catch (e) {
           console.error(e);
           // pass
@@ -397,18 +356,17 @@ function useAllNetworkRequests<T>(params: {
       allNetworkDataInit.current = true;
       isFetching.current = false;
       onFinished?.({
-        accountId: currentAccountId,
-        networkId: currentNetworkId,
+        accountId: account.id,
+        networkId: network.id,
       });
 
       return resp;
     },
     [
       disabled,
-      currentAccountId,
-      currentNetworkId,
-      currentWalletId,
-      isAllNetworks,
+      account,
+      network,
+      wallet,
       abortAllNetworkRequests,
       isNFTRequests,
       allNetworkAccountsData,
@@ -421,17 +379,16 @@ function useAllNetworkRequests<T>(params: {
     ],
     {
       debounced: POLLING_DEBOUNCE_INTERVAL,
-      // debounced: 0,
       overrideIsFocused: (isPageFocused) =>
         isPageFocused || !!shouldAlwaysFetch,
     },
   );
 
   useEffect(() => {
-    if (currentAccountId && currentNetworkId && currentWalletId) {
+    if (account?.id && network?.id && wallet?.id) {
       allNetworkDataInit.current = false;
     }
-  }, [currentAccountId, currentNetworkId, currentWalletId]);
+  }, [account?.id, network?.id, wallet?.id]);
 
   return {
     run,

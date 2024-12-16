@@ -16,8 +16,6 @@ import {
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import type { ISwapToken } from '@onekeyhq/shared/types/swap/types';
 
-import SwapRefreshButton from './SwapRefreshButton';
-
 interface ISwapQuoteResultRateProps {
   rate?: string;
   isBest?: boolean;
@@ -27,7 +25,6 @@ interface ISwapQuoteResultRateProps {
   providerName?: string;
   isLoading?: boolean;
   onOpenResult?: () => void;
-  refreshAction: (manual?: boolean) => void;
   openResult?: boolean;
 }
 const SwapQuoteResultRate = ({
@@ -40,7 +37,6 @@ const SwapQuoteResultRate = ({
   isLoading,
   onOpenResult,
   openResult,
-  refreshAction,
 }: ISwapQuoteResultRateProps) => {
   const intl = useIntl();
   const [isReverse, setIsReverse] = useState(false);
@@ -113,10 +109,7 @@ const SwapQuoteResultRate = ({
           <Skeleton h="$4" w="$32" />
         </Stack>
       ) : (
-        <XStack gap="$1" alignItems="center">
-          <SwapRefreshButton refreshAction={refreshAction} />
-          {rateContent}
-        </XStack>
+        rateContent
       )}
 
       <XStack alignItems="center" userSelect="none" gap="$1" flex={1}>

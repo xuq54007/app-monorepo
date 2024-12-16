@@ -4,28 +4,27 @@ import BigNumber from 'bignumber.js';
 import { useIntl } from 'react-intl';
 
 import { SizableText } from '@onekeyhq/components';
+import { useSwapSlippagePercentageAtom } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import {
   swapSlippageDecimal,
   swapSlippageWillAheadMinValue,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
-import type { ISwapSlippageSegmentItem } from '@onekeyhq/shared/types/swap/types';
 import { ESwapSlippageSegmentKey } from '@onekeyhq/shared/types/swap/types';
 
 import SwapCommonInfoItem from '../../components/SwapCommonInfoItem';
 
 interface ISwapSlippageTriggerContainerProps {
   isLoading: boolean;
-  slippageItem: ISwapSlippageSegmentItem;
   onPress: () => void;
 }
 
 const SwapSlippageTriggerContainer = ({
   isLoading,
   onPress,
-  slippageItem,
 }: ISwapSlippageTriggerContainerProps) => {
   const intl = useIntl();
+  const [{ slippageItem }] = useSwapSlippagePercentageAtom();
   const displaySlippage = useMemo(
     () =>
       new BigNumber(slippageItem.value)
@@ -53,7 +52,7 @@ const SwapSlippageTriggerContainer = ({
         size="$bodyMdMedium"
         color={
           slippageItem.value > swapSlippageWillAheadMinValue
-            ? '$textCaution'
+            ? '$textCritical'
             : '$text'
         }
       >

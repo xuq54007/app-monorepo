@@ -7,7 +7,6 @@ import type { IAccountSelectorSelectedAccount } from '@onekeyhq/kit-bg/src/dbs/s
 import type { IAccountDeriveTypes } from '@onekeyhq/kit-bg/src/vaults/types';
 import type { IAirGapUrJson } from '@onekeyhq/qr-wallet-sdk';
 
-import appGlobals from '../appGlobals';
 import { defaultLogger } from '../logger/logger';
 import platformEnv from '../platformEnv';
 
@@ -84,7 +83,6 @@ export enum EAppEventBusNames {
   SwapQuoteEvent = 'SwapQuoteEvent',
   AddedCustomNetwork = 'AddedCustomNetwork',
   ShowFindInWebPage = 'ShowFindInWebPage',
-  ChangeTokenDetailTabVerticalScrollEnabled = 'ChangeTokenDetailTabVerticalScrollEnabled',
   // AccountNameChanged = 'AccountNameChanged',
   // CurrencyChanged = 'CurrencyChanged',
   // BackupRequired = 'BackupRequired',
@@ -254,9 +252,6 @@ export interface IAppEventBusPayload {
   [EAppEventBusNames.ShowFindInWebPage]: {
     tabId: string;
   };
-  [EAppEventBusNames.ChangeTokenDetailTabVerticalScrollEnabled]: {
-    enabled: boolean;
-  };
 }
 
 export enum EEventBusBroadcastMethodNames {
@@ -392,7 +387,7 @@ class AppEventBus extends CrossEventEmitter {
 const appEventBus = new AppEventBus();
 
 if (process.env.NODE_ENV !== 'production') {
-  appGlobals.$$appEventBus = appEventBus;
+  globalThis.$$appEventBus = appEventBus;
 }
 
 export { appEventBus };

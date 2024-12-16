@@ -105,7 +105,8 @@ export type INotificationPushSyncAccount = {
 };
 export enum ENotificationPushSyncMethod {
   override = 'override',
-  append = 'append', // append or replace
+  append = 'append',
+  replace = 'replace',
 }
 export enum ENotificationPushTopicTypes {
   accountActivity = 'accountActivity',

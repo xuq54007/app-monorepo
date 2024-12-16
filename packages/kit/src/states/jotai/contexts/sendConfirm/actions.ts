@@ -144,14 +144,7 @@ class ContextJotaiActionsSendConfirm extends ContextJotaiActionsBase {
   });
 
   updateTokenApproveInfo = contextAtomMethod(
-    (
-      get,
-      set,
-      payload: {
-        originalAllowance: string;
-        originalIsUnlimited: boolean;
-      },
-    ) => {
+    (get, set, payload: { allowance: string; isUnlimited: boolean }) => {
       set(tokenApproveInfoAtom(), payload);
     },
   );

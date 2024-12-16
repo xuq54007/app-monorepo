@@ -1,7 +1,6 @@
 import MobileDetect from 'mobile-detect';
 import { Platform } from 'react-native';
 
-import appGlobals from './appGlobals';
 import { isWebInDappMode } from './utils/devModeUtils';
 
 /*
@@ -505,7 +504,7 @@ const platformEnv: IPlatformEnv = {
 };
 
 if (isDev) {
-  appGlobals.$$platformEnv = platformEnv;
+  globalThis.$$platformEnv = platformEnv;
 }
 
 /*

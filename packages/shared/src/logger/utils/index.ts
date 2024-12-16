@@ -1,4 +1,3 @@
-import appGlobals from '../../appGlobals';
 import platformEnv from '../../platformEnv';
 
 import type { IUtilsType } from './types';
@@ -9,7 +8,7 @@ const consoleFunc = (msg: string) => {
     console.log(msg);
   }
   // eslint-disable-next-line
-  appGlobals?.$backgroundApiProxy?.serviceLogger.addMsg(`${msg}\r\n`);
+  global.$backgroundApiProxy.serviceLogger.addMsg(`${msg}\r\n`);
 };
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getLogFilePath = async (filename: string) => {

@@ -33,7 +33,6 @@ import {
   EProtocolOfExchange,
   ESwapApproveTransactionStatus,
   ESwapDirectionType,
-  SwapBuildUseMultiplePopoversNetworkIds,
 } from '@onekeyhq/shared/types/swap/types';
 import type { ISendTxOnSuccessData } from '@onekeyhq/shared/types/tx';
 
@@ -49,17 +48,17 @@ import {
   useSwapSelectFromTokenAtom,
   useSwapSelectToTokenAtom,
   useSwapShouldRefreshQuoteAtom,
+  useSwapSlippagePercentageAtom,
 } from '../../../states/jotai/contexts/swap';
 
 import { useSwapAddressInfo } from './useSwapAccount';
-import { useSwapSlippagePercentageModeInfo } from './useSwapState';
 import { useSwapTxHistoryActions } from './useSwapTxHistory';
 
 export function useSwapBuildTx() {
   const intl = useIntl();
   const [fromToken] = useSwapSelectFromTokenAtom();
   const [toToken] = useSwapSelectToTokenAtom();
-  const { slippageItem } = useSwapSlippagePercentageModeInfo();
+  const [{ slippageItem }] = useSwapSlippagePercentageAtom();
   const [selectQuote] = useSwapQuoteCurrentSelectAtom();
   const [, setSwapQuoteResultList] = useSwapQuoteListAtom();
   const [, setSwapQuoteEventTotalCount] = useSwapQuoteEventTotalCountAtom();
@@ -327,7 +326,6 @@ export function useSwapBuildTx() {
       await navigationToSendConfirm({
         wrappedInfo,
         swapInfo,
-        isInternalSwap: true,
         onSuccess: handleBuildTxSuccess,
         onCancel: handleTxFail,
       });
@@ -568,42 +566,25 @@ export function useSwapBuildTx() {
                 accountUtils.isHwAccount({
                   accountId: swapFromAddressInfo.accountInfo.account.id,
                 }) ||
-                accountUtils.isExternalAccount({
+                accountUtils.isOthersAccount({
                   accountId: swapFromAddressInfo.accountInfo.account.id,
-                }) ||
-                SwapBuildUseMultiplePopoversNetworkIds.includes(
-                  fromToken.networkId,
-                )
+                })
               ) {
                 await navigationToSendConfirm({
                   approvesInfo: [approvesInfo[0]],
-                  isInternalSwap: true,
                   onSuccess: async (data: ISendTxOnSuccessData[]) => {
                     if (approvesInfo.length > 1) {
                       await navigationToSendConfirm({
                         approvesInfo: [approvesInfo[1]],
-                        // tron network does not support use pre fee info
-                        feeInfo:
-                          SwapBuildUseMultiplePopoversNetworkIds.includes(
-                            fromToken.networkId,
-                          )
-                            ? undefined
-                            : data?.[0]?.feeInfo,
-                        isInternalSwap: true,
+                        feeInfo: data?.[0]?.feeInfo,
                         onSuccess: async (dataRes: ISendTxOnSuccessData[]) => {
                           await navigationToSendConfirm({
                             transfersInfo: createBuildTxRes.transferInfo
                               ? [createBuildTxRes.transferInfo]
                               : undefined,
                             encodedTx: createBuildTxRes.encodedTx,
-                            feeInfo:
-                              SwapBuildUseMultiplePopoversNetworkIds.includes(
-                                fromToken.networkId,
-                              )
-                                ? undefined
-                                : dataRes?.[0]?.feeInfo,
+                            feeInfo: dataRes?.[0]?.feeInfo,
                             swapInfo: createBuildTxRes.swapInfo,
-                            isInternalSwap: true,
                             onSuccess: handleBuildTxSuccess,
                             onCancel: cancelBuildTx,
                           });
@@ -617,13 +598,7 @@ export function useSwapBuildTx() {
                           : undefined,
                         encodedTx: createBuildTxRes.encodedTx,
                         swapInfo: createBuildTxRes.swapInfo,
-                        feeInfo:
-                          SwapBuildUseMultiplePopoversNetworkIds.includes(
-                            fromToken.networkId,
-                          )
-                            ? undefined
-                            : data?.[0]?.feeInfo,
-                        isInternalSwap: true,
+                        feeInfo: data?.[0]?.feeInfo,
                         onSuccess: handleBuildTxSuccess,
                         onCancel: cancelBuildTx,
                       });
@@ -633,7 +608,6 @@ export function useSwapBuildTx() {
                 });
               } else {
                 await navigationToSendConfirm({
-                  isInternalSwap: true,
                   transfersInfo: createBuildTxRes.transferInfo
                     ? [createBuildTxRes.transferInfo]
                     : undefined,
@@ -707,7 +681,6 @@ export function useSwapBuildTx() {
             }));
             await navigationToSendConfirm({
               approvesInfo: [approveInfo],
-              isInternalSwap: true,
               onSuccess: handleApproveTxSuccess,
               onCancel: cancelApproveTx,
             });
@@ -758,7 +731,6 @@ export function useSwapBuildTx() {
       try {
         if (createBuildTxRes) {
           await navigationToSendConfirm({
-            isInternalSwap: true,
             transfersInfo: createBuildTxRes.transferInfo
               ? [createBuildTxRes.transferInfo]
               : undefined,

@@ -355,7 +355,6 @@ function HistoryDetails() {
         networkId,
         accountAddress,
         txid,
-        fixConfirmedTxStatus: vaultSettings?.fixConfirmedTxEnabled,
       });
       historyInit.current = true;
       if (
@@ -387,14 +386,7 @@ function HistoryDetails() {
       };
     },
 
-    [
-      accountAddress,
-      accountId,
-      networkId,
-      txid,
-      vaultSettings?.fixConfirmedTxEnabled,
-      historyTxParam,
-    ],
+    [accountId, networkId, accountAddress, txid, historyTxParam],
     {
       watchLoading: true,
       pollingInterval: POLLING_INTERVAL_FOR_HISTORY,

@@ -6,6 +6,7 @@ import {
   initEccLib,
   payments,
 } from 'bitcoinjs-lib';
+import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
 import bs58check from 'bs58check';
 import { ECPairFactory } from 'ecpair';
 import { cloneDeep, isNil, omit } from 'lodash';
@@ -19,7 +20,7 @@ import type {
   IXprvtValidation,
   IXpubValidation,
 } from '@onekeyhq/shared/types/address';
-import type { ISignPsbtOptions } from '@onekeyhq/shared/types/ProviderApis/ProviderApiBtc.type';
+import type { ISignPsbtParams } from '@onekeyhq/shared/types/ProviderApis/ProviderApiSui.type';
 
 import {
   CKDPub,
@@ -29,7 +30,6 @@ import {
 } from '../../../secret';
 import { EAddressEncodings } from '../../../types';
 
-import { toXOnly } from './bip371';
 import { getBtcForkNetwork } from './networks';
 
 import type { IBip32ExtendedKey } from '../../../secret';
@@ -41,7 +41,7 @@ import type {
 import type { IBtcForkNetwork, IBtcForkSigner } from '../types';
 import type { BIP32API } from 'bip32/types/bip32';
 import type { Payment, Psbt, networks } from 'bitcoinjs-lib';
-import type { TinySecp256k1Interface } from 'bitcoinjs-lib/src/cjs/types';
+import type { TinySecp256k1Interface } from 'bitcoinjs-lib/src/types';
 import type { ECPairAPI } from 'ecpair/src/ecpair';
 
 export * from './networks';
@@ -75,7 +75,7 @@ export function getBitcoinECPair() {
   return ECPair;
 }
 
-function tapTweakHash(pubKey: Uint8Array, h: Buffer | undefined): Uint8Array {
+function tapTweakHash(pubKey: Buffer, h: Buffer | undefined): Buffer {
   return crypto.taggedHash(
     'TapTweak',
     Buffer.concat(h ? [pubKey, h] : [pubKey]),
@@ -104,20 +104,20 @@ export function tweakSigner(
     throw new Error('Private key is required for tweaking signer!');
   }
 
-  if (opts.needTweak) {
-    const tweakedPrivateKey = ecc.privateAdd(
-      privateKey,
-      tapTweakHash(toXOnly(publicKey), opts.tweakHash),
-    );
-    if (!tweakedPrivateKey) {
-      throw new Error('Invalid tweaked private key!');
-    }
-    privateKey = tweakedPrivateKey;
+  const tweakedPrivateKey = ecc.privateAdd(
+    privateKey,
+    tapTweakHash(toXOnly(publicKey), opts.tweakHash),
+  );
+  if (!tweakedPrivateKey) {
+    throw new Error('Invalid tweaked private key!');
   }
 
-  return getBitcoinECPair().fromPrivateKey(Buffer.from(privateKey), {
-    network: opts.network,
-  });
+  return getBitcoinECPair().fromPrivateKey(
+    Buffer.from(opts.needTweak ? tweakedPrivateKey : privateKey),
+    {
+      network: opts.network,
+    },
+  );
 }
 
 const TX_OP_RETURN_SIZE_LIMIT = 80;
@@ -174,7 +174,7 @@ export function getInputsToSignFromPsbt({
   account: ICoreApiSignAccount;
   psbt: Psbt;
   psbtNetwork: networks.Network;
-  isBtcWalletProvider: ISignPsbtOptions['isBtcWalletProvider'];
+  isBtcWalletProvider: ISignPsbtParams['options']['isBtcWalletProvider'];
 }) {
   const inputsToSign: ITxInputToSign[] = [];
   psbt.data.inputs.forEach((v, index) => {
@@ -182,12 +182,12 @@ export function getInputsToSignFromPsbt({
     let value = 0;
     if (v.witnessUtxo) {
       script = v.witnessUtxo.script;
-      value = Number(v.witnessUtxo.value);
+      value = v.witnessUtxo.value;
     } else if (v.nonWitnessUtxo) {
       const tx = Transaction.fromBuffer(v.nonWitnessUtxo);
       const output = tx.outs[psbt.txInputs[index].index];
       script = output.script;
-      value = Number(output.value);
+      value = output.value;
     }
     const isSigned = v.finalScriptSig || v.finalScriptWitness;
 

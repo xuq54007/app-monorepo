@@ -1,19 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
-import BigNumber from 'bignumber.js';
-import { debounce } from 'lodash';
 import { useIntl } from 'react-intl';
 
 import type { IPageNavigationProp } from '@onekeyhq/components';
 import {
   Badge,
-  Button,
   Dialog,
-  Divider,
-  EPageType,
-  HeightTransition,
-  Icon,
-  SegmentControl,
   SizableText,
   Stack,
   Switch,
@@ -26,7 +18,6 @@ import {
 } from '@onekeyhq/components/src/layouts/Navigation/Header';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import {
-  EJotaiContextStoreNames,
   useInAppNotificationAtom,
   useSettingsAtom,
   useSettingsPersistAtom,
@@ -35,24 +26,7 @@ import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { EModalRoutes } from '@onekeyhq/shared/src/routes';
 import { EModalSwapRoutes } from '@onekeyhq/shared/src/routes/swap';
 import type { IModalSwapParamList } from '@onekeyhq/shared/src/routes/swap';
-import {
-  swapSlippageCustomDefaultList,
-  swapSlippageItems,
-  swapSlippageMaxValue,
-  swapSlippageWillAheadMinValue,
-  swapSlippageWillFailMinValue,
-} from '@onekeyhq/shared/types/swap/SwapProvider.constants';
-import type { ISwapSlippageSegmentItem } from '@onekeyhq/shared/types/swap/types';
-import {
-  ESwapSlippageCustomStatus,
-  ESwapSlippageSegmentKey,
-  ESwapTxHistoryStatus,
-} from '@onekeyhq/shared/types/swap/types';
-
-import { useSwapSlippagePercentageModeInfo } from '../../hooks/useSwapState';
-import { SwapProviderMirror } from '../SwapProviderMirror';
-
-import { SlippageInput } from './SwapSlippageContentContainer';
+import { ESwapTxHistoryStatus } from '@onekeyhq/shared/types/swap/types';
 
 const SwapSettingsCommonItem = ({
   value,
@@ -85,205 +59,13 @@ const SwapSettingsCommonItem = ({
   </XStack>
 );
 
-const SwapSettingsSlippageItem = ({
-  title,
-  rightTrigger,
-}: {
-  title: string;
-  rightTrigger: React.ReactNode;
-}) => (
-  <XStack justifyContent="space-between" alignItems="center">
-    <XStack>
-      <SizableText userSelect="none" mr="$1" size="$bodyLgMedium" color="$text">
-        {title}
-      </SizableText>
-    </XStack>
-    <XStack gap="$2">{rightTrigger}</XStack>
-  </XStack>
-);
-
-const SwapSlippageCustomContent = ({
-  swapSlippage,
-}: {
-  swapSlippage: ISwapSlippageSegmentItem;
-}) => {
-  const intl = useIntl();
-  const [, setSettings] = useSettingsAtom();
-  const [customValueState, setCustomValueState] = useState<{
-    status: ESwapSlippageCustomStatus;
-    message: string;
-  }>({ status: ESwapSlippageCustomStatus.NORMAL, message: '' });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleSlippageChange = useCallback(
-    debounce((value: string) => {
-      const valueBN = new BigNumber(value);
-      if (
-        valueBN.isNaN() ||
-        valueBN.isNegative() ||
-        valueBN.gt(swapSlippageMaxValue)
-      ) {
-        setCustomValueState({
-          status: ESwapSlippageCustomStatus.ERROR,
-          message: intl.formatMessage({
-            id: ETranslations.slippage_tolerance_error_message,
-          }),
-        });
-        return;
-      }
-      setSettings((s) => ({
-        ...s,
-        swapSlippagePercentageMode: ESwapSlippageSegmentKey.CUSTOM,
-        swapSlippagePercentageCustomValue: valueBN.toNumber(),
-      }));
-      if (valueBN.lte(swapSlippageWillFailMinValue)) {
-        setCustomValueState({
-          status: ESwapSlippageCustomStatus.WRONG,
-          message: intl.formatMessage(
-            {
-              id: ETranslations.slippage_tolerance_warning_message_2,
-            },
-            { number: swapSlippageWillFailMinValue },
-          ),
-        });
-        return;
-      }
-      if (valueBN.gte(swapSlippageWillAheadMinValue)) {
-        setCustomValueState({
-          status: ESwapSlippageCustomStatus.WRONG,
-          message: intl.formatMessage(
-            {
-              id: ETranslations.slippage_tolerance_warning_message_1,
-            },
-            { number: swapSlippageWillAheadMinValue },
-          ),
-        });
-        return;
-      }
-      setCustomValueState({
-        status: ESwapSlippageCustomStatus.NORMAL,
-        message: '',
-      });
-    }, 350),
-    [],
-  );
-  return (
-    <YStack gap="$4">
-      <XStack gap="$2.5">
-        <SlippageInput
-          swapSlippage={swapSlippage}
-          onChangeText={handleSlippageChange}
-        />
-        <XStack>
-          {swapSlippageCustomDefaultList.map((item, index) => (
-            <>
-              <Button
-                key={item}
-                variant="secondary"
-                size="medium"
-                borderTopRightRadius={index !== 2 ? 0 : '$2'}
-                borderBottomRightRadius={index !== 2 ? 0 : '$2'}
-                borderTopLeftRadius={index !== 0 ? 0 : '$2'}
-                borderBottomLeftRadius={index !== 0 ? 0 : '$2'}
-                onPress={() => {
-                  setCustomValueState({
-                    status: ESwapSlippageCustomStatus.NORMAL,
-                    message: '',
-                  });
-                  setSettings((s) => ({
-                    ...s,
-                    swapSlippagePercentageCustomValue: item,
-                    swapSlippagePercentageMode: ESwapSlippageSegmentKey.CUSTOM,
-                  }));
-                }}
-              >{`${item}${
-                index === swapSlippageCustomDefaultList.length - 1 ? '  ' : ''
-              }%`}</Button>
-              {index !== swapSlippageCustomDefaultList.length - 1 ? (
-                <Divider vertical />
-              ) : null}
-            </>
-          ))}
-        </XStack>
-      </XStack>
-      {swapSlippage.key !== ESwapSlippageSegmentKey.AUTO &&
-      customValueState.status !== ESwapSlippageCustomStatus.NORMAL ? (
-        <SizableText
-          size="$bodySmMedium"
-          color={
-            customValueState.status === ESwapSlippageCustomStatus.ERROR
-              ? '$textCritical'
-              : '$textCaution'
-          }
-        >
-          {customValueState.message}
-        </SizableText>
-      ) : null}
-    </YStack>
-  );
-};
-
 const SwapSettingsDialogContent = () => {
   const intl = useIntl();
-  const { slippageItem } = useSwapSlippagePercentageModeInfo();
-  const [
-    { swapBatchApproveAndSwap, swapEnableRecipientAddress },
-    setPersistSettings,
-  ] = useSettingsPersistAtom();
+  const [{ swapBatchApproveAndSwap, swapEnableRecipientAddress }, setSettings] =
+    useSettingsPersistAtom();
   const [, setNoPersistSettings] = useSettingsAtom();
-  const rightTrigger = useMemo(
-    () => (
-      <SegmentControl
-        value={slippageItem.key}
-        options={swapSlippageItems.map((item) => ({
-          label: (
-            <XStack>
-              {item.key === ESwapSlippageSegmentKey.AUTO ? (
-                <Icon
-                  name="Ai3StarOutline"
-                  size="$4.5"
-                  color="$iconSuccess"
-                  mr="$0.5"
-                />
-              ) : null}
-              <SizableText size="$bodyMdMedium">
-                {intl.formatMessage({
-                  id:
-                    item.key === ESwapSlippageSegmentKey.AUTO
-                      ? ETranslations.slippage_tolerance_switch_auto
-                      : ETranslations.slippage_tolerance_switch_custom,
-                })}
-              </SizableText>
-            </XStack>
-          ),
-          value: item.key,
-        }))}
-        onChange={(value) => {
-          const keyValue = value as ESwapSlippageSegmentKey;
-          setNoPersistSettings((s) => ({
-            ...s,
-            swapSlippagePercentageMode: keyValue,
-          }));
-        }}
-      />
-    ),
-    [intl, setNoPersistSettings, slippageItem.key],
-  );
   return (
     <YStack gap="$5">
-      <HeightTransition>
-        <YStack gap="$5">
-          <SwapSettingsSlippageItem
-            title={intl.formatMessage({
-              id: ETranslations.swap_page_provider_slippage_tolerance,
-            })}
-            rightTrigger={rightTrigger}
-          />
-          {slippageItem.key === ESwapSlippageSegmentKey.CUSTOM ? (
-            <SwapSlippageCustomContent swapSlippage={slippageItem} />
-          ) : null}
-        </YStack>
-      </HeightTransition>
-      <Divider />
       <SwapSettingsCommonItem
         title={intl.formatMessage({
           id: ETranslations.swap_page_settings_simple_mode,
@@ -294,7 +76,7 @@ const SwapSettingsDialogContent = () => {
         badgeContent="Beta"
         value={swapBatchApproveAndSwap}
         onChange={(v) => {
-          setPersistSettings((s) => ({
+          setSettings((s) => ({
             ...s,
             swapBatchApproveAndSwap: v,
           }));
@@ -309,7 +91,7 @@ const SwapSettingsDialogContent = () => {
         })}
         value={swapEnableRecipientAddress}
         onChange={(v) => {
-          setPersistSettings((s) => ({
+          setSettings((s) => ({
             ...s,
             swapEnableRecipientAddress: v,
           }));
@@ -325,16 +107,11 @@ const SwapSettingsDialogContent = () => {
   );
 };
 
-const SwapHeaderRightActionContainer = ({
-  pageType,
-}: {
-  pageType?: EPageType;
-}) => {
+const SwapHeaderRightActionContainer = () => {
   const navigation =
     useAppNavigation<IPageNavigationProp<IModalSwapParamList>>();
   const [{ swapHistoryPendingList }] = useInAppNotificationAtom();
   const intl = useIntl();
-  const { slippageItem } = useSwapSlippagePercentageModeInfo();
   const swapPendingStatusList = useMemo(
     () =>
       swapHistoryPendingList.filter(
@@ -344,106 +121,36 @@ const SwapHeaderRightActionContainer = ({
       ),
     [swapHistoryPendingList],
   );
-  const slippageTitle = useMemo(() => {
-    if (slippageItem.key === ESwapSlippageSegmentKey.CUSTOM) {
-      return (
-        <SizableText
-          color={
-            slippageItem.value > swapSlippageWillAheadMinValue
-              ? '$textCaution'
-              : '$text'
-          }
-          size="$bodyMdMedium"
-        >{`${slippageItem.value}%`}</SizableText>
-      );
-    }
-    return null;
-  }, [slippageItem.key, slippageItem.value]);
   const onOpenHistoryListModal = useCallback(() => {
     navigation.pushModal(EModalRoutes.SwapModal, {
       screen: EModalSwapRoutes.SwapHistoryList,
     });
   }, [navigation]);
-
   const onOpenSwapSettings = useCallback(() => {
     Dialog.show({
       title: intl.formatMessage({
         id: ETranslations.swap_page_settings,
       }),
-      renderContent: (
-        <SwapProviderMirror
-          storeName={
-            pageType === EPageType.modal
-              ? EJotaiContextStoreNames.swapModal
-              : EJotaiContextStoreNames.swap
-          }
-        >
-          <SwapSettingsDialogContent />
-        </SwapProviderMirror>
-      ),
+      renderContent: <SwapSettingsDialogContent />,
       showConfirmButton: false,
-      showCancelButton: true,
-      onCancelText: intl.formatMessage({
-        id: ETranslations.global_close,
-      }),
-      showFooter: true,
+      showCancelButton: false,
+      showFooter: false,
     });
-  }, [intl, pageType]);
+  }, [intl]);
 
   return (
     <HeaderButtonGroup>
-      {slippageTitle ? (
-        <Button
-          onPress={onOpenSwapSettings}
-          size="medium"
-          variant="tertiary"
-          borderRadius="$3"
-          bg="$bgSubdued"
-          cursor="pointer"
-        >
-          <XStack alignItems="center" gap="$1">
-            {slippageTitle}
-            <Icon name="SliderHorOutline" size="$6" color="$iconSubdued" />
-          </XStack>
-        </Button>
-      ) : (
-        <HeaderIconButton
-          icon="SliderHorOutline"
-          onPress={onOpenSwapSettings}
-          iconProps={{ size: 24 }}
-          size="medium"
-        />
-      )}
-
       {swapPendingStatusList.length > 0 ? (
-        <Stack
-          m="$0.5"
-          w="$5"
-          h="$5"
-          userSelect="none"
-          borderRadius="$full"
-          borderColor="$icon"
-          borderWidth="1.2px"
-          alignItems="center"
-          justifyContent="center"
-          hoverStyle={{
-            bg: '$bgHover',
-          }}
-          pressStyle={{
-            bg: '$bgActive',
-          }}
-          focusVisibleStyle={{
-            outlineColor: '$focusRing',
-            outlineWidth: 2,
-            outlineStyle: 'solid',
-            outlineOffset: 0,
-          }}
-          onPress={onOpenHistoryListModal}
-        >
-          <SizableText color="$text" size="$bodySm">
-            {`${swapPendingStatusList.length}`}
-          </SizableText>
-        </Stack>
+        <Badge badgeSize="lg" badgeType="info" onPress={onOpenHistoryListModal}>
+          <Stack borderRadius="$full" p={3} bg="$borderInfo">
+            <Stack w="$1.5" h="$1.5" borderRadius="$full" bg="$iconInfo" />
+          </Stack>
+          <Badge.Text cursor="pointer" pl="$2">{`${
+            swapPendingStatusList.length
+          } ${intl.formatMessage({
+            id: ETranslations.swap_history_detail_status_pending,
+          })} `}</Badge.Text>
+        </Badge>
       ) : (
         <HeaderIconButton
           icon="ClockTimeHistoryOutline"
@@ -452,6 +159,12 @@ const SwapHeaderRightActionContainer = ({
           size="medium"
         />
       )}
+      <HeaderIconButton
+        icon="SettingsOutline"
+        onPress={onOpenSwapSettings}
+        iconProps={{ size: 24 }}
+        size="medium"
+      />
     </HeaderButtonGroup>
   );
 };

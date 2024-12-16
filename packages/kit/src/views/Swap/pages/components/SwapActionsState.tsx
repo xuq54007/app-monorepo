@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 
 import { useIntl } from 'react-intl';
 
@@ -13,6 +13,7 @@ import {
   SizableText,
   Stack,
   XStack,
+  YStack,
   useMedia,
   usePageType,
 } from '@onekeyhq/components';
@@ -32,10 +33,7 @@ import {
   useSwapAddressInfo,
   useSwapRecipientAddressInfo,
 } from '../../hooks/useSwapAccount';
-import {
-  useSwapActionState,
-  useSwapSlippagePercentageModeInfo,
-} from '../../hooks/useSwapState';
+import { useSwapActionState } from '../../hooks/useSwapState';
 
 interface ISwapActionsStateProps {
   onBuildTx: () => void;
@@ -45,14 +43,12 @@ interface ISwapActionsStateProps {
     isMax?: boolean,
     shoutResetApprove?: boolean,
   ) => void;
-  onOpenRecipientAddress: () => void;
 }
 
 const SwapActionsState = ({
   onBuildTx,
   onApprove,
   onWrapped,
-  onOpenRecipientAddress,
 }: ISwapActionsStateProps) => {
   const intl = useIntl();
   const [fromToken] = useSwapSelectFromTokenAtom();
@@ -62,16 +58,11 @@ const SwapActionsState = ({
   const swapFromAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
   const { cleanQuoteInterval, quoteAction } = useSwapActions().current;
   const swapActionState = useSwapActionState();
-  const { slippageItem } = useSwapSlippagePercentageModeInfo();
-  const swapSlippageRef = useRef(slippageItem);
   const [{ swapEnableRecipientAddress }] = useSettingsPersistAtom();
-  const [{ swapBatchApproveAndSwap }] = useSettingsPersistAtom();
   const swapRecipientAddressInfo = useSwapRecipientAddressInfo(
     swapEnableRecipientAddress,
   );
-  if (swapSlippageRef.current !== slippageItem) {
-    swapSlippageRef.current = slippageItem;
-  }
+  const [{ swapBatchApproveAndSwap }] = useSettingsPersistAtom();
   const handleApprove = useCallback(() => {
     if (swapActionState.shoutResetApprove) {
       Dialog.confirm({
@@ -106,7 +97,6 @@ const SwapActionsState = ({
   const onActionHandler = useCallback(() => {
     if (swapActionState.isRefreshQuote) {
       void quoteAction(
-        swapSlippageRef.current,
         swapFromAddressInfo?.address,
         swapFromAddressInfo?.accountInfo?.account?.id,
       );
@@ -192,12 +182,12 @@ const SwapActionsState = ({
     ],
   );
 
-  const approveStepComponent = useMemo(() => {
-    if (swapActionState.isApprove && !swapBatchApproveAndSwap) {
-      return (
+  const approveStepComponent = useMemo(
+    () =>
+      swapActionState.isApprove && !swapBatchApproveAndSwap ? (
         <XStack
           gap="$1"
-          {...(pageType === EPageType.modal && !md ? {} : { pb: '$4' })}
+          {...(pageType === EPageType.modal && !md ? {} : { pb: '$5' })}
         >
           <Popover
             title={intl.formatMessage({ id: ETranslations.global_approve })}
@@ -245,18 +235,16 @@ const SwapActionsState = ({
             })}
           </SizableText>
         </XStack>
-      );
-    }
-    return null;
-  }, [
-    fromToken?.symbol,
-    intl,
-    md,
-    pageType,
-    swapActionState.isApprove,
-    swapBatchApproveAndSwap,
-  ]);
-
+      ) : null,
+    [
+      swapActionState.isApprove,
+      swapBatchApproveAndSwap,
+      pageType,
+      md,
+      intl,
+      fromToken?.symbol,
+    ],
+  );
   const recipientComponent = useMemo(() => {
     if (swapActionState.isApprove && !swapBatchApproveAndSwap) {
       return null;
@@ -278,13 +266,7 @@ const SwapActionsState = ({
                 id: ETranslations.swap_page_recipient_send_to,
               })}
             </SizableText>
-            <SizableText
-              flexShrink={0}
-              size="$bodyMd"
-              cursor="pointer"
-              textDecorationLine="underline"
-              onPress={onOpenRecipientAddress}
-            >
+            <SizableText flexShrink={0} size="$bodyMd">
               {swapRecipientAddressInfo?.showAddress}
             </SizableText>
 
@@ -312,17 +294,16 @@ const SwapActionsState = ({
     }
     return null;
   }, [
-    intl,
-    md,
-    onOpenRecipientAddress,
-    pageType,
-    shouldShowRecipient,
     swapActionState.isApprove,
     swapBatchApproveAndSwap,
-    swapRecipientAddressInfo?.accountInfo?.accountName,
-    swapRecipientAddressInfo?.accountInfo?.walletName,
-    swapRecipientAddressInfo?.isExtAccount,
+    shouldShowRecipient,
+    pageType,
+    md,
+    intl,
     swapRecipientAddressInfo?.showAddress,
+    swapRecipientAddressInfo?.accountInfo?.walletName,
+    swapRecipientAddressInfo?.accountInfo?.accountName,
+    swapRecipientAddressInfo?.isExtAccount,
   ]);
 
   const haveTips = useMemo(
@@ -371,7 +352,7 @@ const SwapActionsState = ({
   );
 
   return (
-    <>
+    <YStack p="$5">
       {pageType !== EPageType.modal && !md ? (
         actionComponent
       ) : (
@@ -382,7 +363,7 @@ const SwapActionsState = ({
           confirmButton={actionComponent}
         />
       )}
-    </>
+    </YStack>
   );
 };
 

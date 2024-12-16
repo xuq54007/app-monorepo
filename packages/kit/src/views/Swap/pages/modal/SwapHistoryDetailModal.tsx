@@ -198,11 +198,11 @@ const SwapHistoryDetailModal = () => {
       <XStack alignItems="center" gap="$1">
         <Image
           source={{ uri: txHistory.swapInfo.provider.providerLogo }}
-          w="$5"
-          h="$5"
-          borderRadius="$1"
+          width={20}
+          height={20}
+          borderRadius="$full"
         />
-        <SizableText size="$bodyLg" color="$textSubdued">
+        <SizableText size={14} color="$textSubdued">
           {txHistory.swapInfo.provider.providerName}
         </SizableText>
       </XStack>
@@ -401,12 +401,6 @@ const SwapHistoryDetailModal = () => {
         await backgroundApiProxy.serviceSwap.cleanOneSwapHistory(
           txHistory.txInfo.txId,
         );
-        void backgroundApiProxy.serviceApp.showToast({
-          method: 'success',
-          title: intl.formatMessage({
-            id: ETranslations.settings_clear_successful,
-          }),
-        });
         navigation.pop();
       },
       onConfirmText: intl.formatMessage({

@@ -1,4 +1,4 @@
-import { assign, isEmpty, isNil, uniqBy } from 'lodash';
+import { assign, isEmpty, isNil, merge, uniqBy } from 'lodash';
 
 import { backgroundMethod } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import { OneKeyInternalError } from '@onekeyhq/shared/src/errors';
@@ -99,15 +99,40 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
     confirmedTxsToSave?: IAccountHistoryTx[];
     confirmedTxsToRemove?: IAccountHistoryTx[];
   }) {
-    return this.batchUpdateLocalHistoryTxs([
-      {
-        networkId,
-        accountAddress,
-        xpub,
-        confirmedTxsToSave,
-        confirmedTxsToRemove,
-      },
-    ]);
+    if (!accountAddress && !xpub) {
+      throw new OneKeyInternalError('accountAddress or xpub is required');
+    }
+
+    if (isEmpty(confirmedTxsToSave) && isEmpty(confirmedTxsToRemove)) return;
+
+    const rawData = await this.getRawData();
+
+    const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
+
+    let finalConfirmedTxs = rawData?.confirmedTxs?.[key] || [];
+
+    finalConfirmedTxs = uniqBy(
+      [...(confirmedTxsToSave ?? []), ...finalConfirmedTxs],
+      (tx) => tx.id,
+    );
+
+    if (confirmedTxsToRemove && !isEmpty(confirmedTxsToRemove)) {
+      finalConfirmedTxs = finalConfirmedTxs.filter(
+        (tx) => !confirmedTxsToRemove.find((item) => item.id === tx.id),
+      );
+    }
+
+    const mergedConfirmedTxs = assign({}, rawData?.confirmedTxs, {
+      [key]: finalConfirmedTxs.slice(0, 50),
+    });
+
+    const pendingTxs = rawData?.pendingTxs || {};
+
+    return this.setRawData({
+      ...(rawData ?? {}),
+      pendingTxs,
+      confirmedTxs: mergedConfirmedTxs,
+    });
   }
 
   @backgroundMethod()
@@ -186,172 +211,56 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
     onChainHistoryTxs?: IAccountHistoryTx[];
     pendingTxs?: IAccountHistoryTx[];
   }) {
-    return this.batchUpdateLocalHistoryTxs([
-      {
-        networkId,
-        accountAddress,
-        xpub,
-        confirmedTxs,
-        onChainHistoryTxs,
-        pendingTxs: pendingTxsFromOut,
-      },
-    ]);
-  }
-
-  @backgroundMethod()
-  async batchUpdateLocalHistoryTxs(
-    params: {
-      networkId: string;
-      accountAddress?: string;
-      xpub?: string;
-      confirmedTxs?: IAccountHistoryTx[];
-      onChainHistoryTxs?: IAccountHistoryTx[];
-      pendingTxs?: IAccountHistoryTx[];
-      confirmedTxsToSave?: IAccountHistoryTx[];
-      confirmedTxsToRemove?: IAccountHistoryTx[];
-    }[],
-  ) {
-    const rawData = await this.getRawData();
-
-    const pendingTxsToUpdateMap: Record<string, IAccountHistoryTx[]> = {};
-    const confirmedTxsToUpdateMap: Record<string, IAccountHistoryTx[]> = {};
-
-    for (const param of params) {
-      const {
-        networkId,
-        accountAddress,
-        xpub,
-        confirmedTxs,
-        onChainHistoryTxs,
-        pendingTxs: pendingTxsFromOut,
-        confirmedTxsToSave,
-        confirmedTxsToRemove,
-      } = param;
-      if (!accountAddress && !xpub) {
-        throw new OneKeyInternalError('accountAddress or xpub is required');
-      }
-      const key = buildAccountLocalAssetsKey({
-        networkId,
-        accountAddress,
-        xpub,
-      });
-
-      // pendingTxsToUpdate build
-      let pendingTxsToUpdate: IAccountHistoryTx[] | undefined;
-      const currentPendingTxs = rawData?.pendingTxs?.[key];
-      if (pendingTxsFromOut) {
-        if (isEmpty(pendingTxsFromOut) && isEmpty(currentPendingTxs)) {
-          pendingTxsToUpdate = undefined;
-        } else {
-          pendingTxsToUpdate = pendingTxsFromOut;
-        }
-      } else {
-        // eslint-disable-next-line no-lonely-if
-        if (isEmpty(confirmedTxs) && isEmpty(onChainHistoryTxs)) {
-          pendingTxsToUpdate = undefined;
-        } else if (currentPendingTxs?.length) {
-          //
-          const newPendingTxs: IAccountHistoryTx[] = [];
-          for (const pendingTx of currentPendingTxs) {
-            const onChainHistoryTx = onChainHistoryTxs?.find(
-              (item) =>
-                item.id === pendingTx.id ||
-                (item.originalId && item.originalId === pendingTx.id),
-            );
-
-            const confirmedTx = confirmedTxs?.find(
-              (item) =>
-                item.id === pendingTx.id ||
-                (item.originalId && item.originalId === pendingTx.id),
-            );
-
-            if (!onChainHistoryTx && !confirmedTx) {
-              newPendingTxs.push(pendingTx);
-            }
-          }
-          pendingTxsToUpdate = newPendingTxs;
-        }
-      }
-      if (pendingTxsToUpdate) {
-        pendingTxsToUpdateMap[key] = pendingTxsToUpdate;
-      }
-
-      // confirmedTxsToUpdate build
-      let confirmedTxsToUpdate: IAccountHistoryTx[] | undefined;
-      if (isEmpty(confirmedTxsToSave) && isEmpty(confirmedTxsToRemove)) {
-        confirmedTxsToUpdate = undefined;
-      } else {
-        let finalConfirmedTxs = rawData?.confirmedTxs?.[key] || [];
-        finalConfirmedTxs = uniqBy(
-          [...(confirmedTxsToSave ?? []), ...finalConfirmedTxs],
-          (tx) => tx.id,
-        );
-        if (confirmedTxsToRemove && !isEmpty(confirmedTxsToRemove)) {
-          finalConfirmedTxs = finalConfirmedTxs.filter(
-            (tx) => !confirmedTxsToRemove.find((item) => item.id === tx.id),
-          );
-        }
-        confirmedTxsToUpdate = finalConfirmedTxs.slice(0, 50);
-      }
-      if (confirmedTxsToUpdate) {
-        confirmedTxsToUpdateMap[key] = confirmedTxsToUpdate;
-      }
-    }
-
-    if (isEmpty(pendingTxsToUpdateMap) && isEmpty(confirmedTxsToUpdateMap)) {
-      return;
-    }
-
-    return this.setRawData({
-      ...rawData,
-      pendingTxs: assign({}, rawData?.pendingTxs, pendingTxsToUpdateMap),
-      confirmedTxs: assign({}, rawData?.confirmedTxs, confirmedTxsToUpdateMap),
-    });
-  }
-
-  @backgroundMethod()
-  public async updateLocalHistoryConfirmedTxStatus(params: {
-    networkId: string;
-    accountAddress?: string;
-    xpub?: string;
-    txid: string;
-    status: EDecodedTxStatus;
-  }) {
-    const { networkId, accountAddress, xpub, txid, status } = params;
-
     if (!accountAddress && !xpub) {
       throw new OneKeyInternalError('accountAddress or xpub is required');
     }
+
     const key = buildAccountLocalAssetsKey({ networkId, accountAddress, xpub });
 
     const rawData = await this.getRawData();
 
-    const confirmedTxs = rawData?.confirmedTxs?.[key] || [];
+    if (pendingTxsFromOut) {
+      if (isEmpty(pendingTxsFromOut) && isEmpty(rawData?.pendingTxs[key]))
+        return;
 
-    const targetTxIndex = confirmedTxs.findIndex(
-      (tx) => tx.decodedTx.txid === txid,
-    );
+      return this.setRawData({
+        ...rawData,
+        confirmedTxs: rawData?.confirmedTxs || {},
+        pendingTxs: assign({}, rawData?.pendingTxs, {
+          [key]: pendingTxsFromOut,
+        }),
+      });
+    }
 
-    if (
-      targetTxIndex === -1 ||
-      confirmedTxs[targetTxIndex].decodedTx.status === status
-    )
-      return;
+    if (isEmpty(confirmedTxs) && isEmpty(onChainHistoryTxs)) return;
 
-    const updatedConfirmedTxs = [...confirmedTxs];
-    updatedConfirmedTxs[targetTxIndex] = {
-      ...updatedConfirmedTxs[targetTxIndex],
-      decodedTx: {
-        ...updatedConfirmedTxs[targetTxIndex].decodedTx,
-        status,
-      },
-    };
+    const pendingTxs = rawData?.pendingTxs?.[key] || [];
+
+    if (!pendingTxs || !pendingTxs.length) return;
+
+    const newPendingTxs: IAccountHistoryTx[] = [];
+    for (const pendingTx of pendingTxs) {
+      const onChainHistoryTx = onChainHistoryTxs?.find(
+        (item) =>
+          item.id === pendingTx.id ||
+          (item.originalId && item.originalId === pendingTx.id),
+      );
+
+      const confirmedTx = confirmedTxs?.find(
+        (item) =>
+          item.id === pendingTx.id ||
+          (item.originalId && item.originalId === pendingTx.id),
+      );
+
+      if (!onChainHistoryTx && !confirmedTx) {
+        newPendingTxs.push(pendingTx);
+      }
+    }
 
     return this.setRawData({
-      pendingTxs: rawData?.pendingTxs || {},
-      confirmedTxs: assign({}, rawData?.confirmedTxs, {
-        [key]: updatedConfirmedTxs,
-      }),
+      ...rawData,
+      confirmedTxs: rawData?.confirmedTxs || {},
+      pendingTxs: assign({}, rawData?.pendingTxs, { [key]: newPendingTxs }),
     });
   }
 
@@ -528,7 +437,7 @@ export class SimpleDbEntityLocalHistory extends SimpleDbEntityBase<ILocalHistory
 
   @backgroundMethod()
   async clearLocalHistoryPendingTxs() {
-    return this.setRawData((rawData) => {
+    return this.setRawData(({ rawData }) => {
       const confirmedTxs = rawData?.confirmedTxs || {};
       return {
         ...(rawData ?? {}),

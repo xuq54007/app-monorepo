@@ -1,6 +1,5 @@
 import RNRestart from 'react-native-restart';
 
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import {
   backgroundClass,
   backgroundMethod,
@@ -124,7 +123,7 @@ class ServiceApp extends ServiceBase {
     if (platformEnv.isWeb || platformEnv.isDesktop) {
       // reset route/href
       try {
-        appGlobals.$navigationRef.current?.navigate(ERootRoutes.Main, {
+        globalThis.$navigationRef.current?.navigate(ERootRoutes.Main, {
           screen: ETabRoutes.Home,
           params: {
             screen: ETabHomeRoutes.TabHome,

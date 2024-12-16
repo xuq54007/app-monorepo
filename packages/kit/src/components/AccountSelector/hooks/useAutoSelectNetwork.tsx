@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useDebugComponentRemountLog } from '@onekeyhq/shared/src/utils/debug/debugUtils';
+import { useDebugComponentRemountLog } from '@onekeyhq/shared/src/utils/debugUtils';
 
 import {
   useAccountSelectorActions,

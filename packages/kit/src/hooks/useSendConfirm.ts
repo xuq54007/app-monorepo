@@ -43,7 +43,6 @@ type IBuildUnsignedTxParams = {
   useFeeInTx?: boolean;
   feeInfoEditable?: boolean;
   feeInfo?: IFeeInfoUnit;
-  isInternalSwap?: boolean;
 };
 
 function useSendConfirm(params: IParams) {
@@ -63,7 +62,6 @@ function useSendConfirm(params: IParams) {
         useFeeInTx,
         feeInfoEditable,
         approvesInfo,
-        swapInfo,
         encodedTx,
         transfersInfo,
         ...rest
@@ -85,7 +83,6 @@ function useSendConfirm(params: IParams) {
                   accountId,
                   approveInfo,
                   prevNonce,
-                  ...rest,
                 },
               );
             prevNonce = unsignedTx.nonce;
@@ -97,7 +94,6 @@ function useSendConfirm(params: IParams) {
               accountId,
               encodedTx,
               transfersInfo,
-              swapInfo,
               prevNonce,
               ...rest,
             }),
@@ -108,7 +104,6 @@ function useSendConfirm(params: IParams) {
               networkId,
               accountId,
               approveInfo: approvesInfo?.[0],
-              swapInfo,
               encodedTx,
               transfersInfo,
               ...rest,

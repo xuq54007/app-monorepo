@@ -56,7 +56,7 @@ const invalidExternalAccount: IDBExternalAccount = {
     evmInjected: {
       global: 'ethereum',
       name: 'string',
-      icon: 'https://uni.onekey-asset.com/static/chain/btc.pn',
+      icon: 'https://onekey-asset.com/assets/btc/btc.pn',
     },
   },
 } as IDBExternalAccount;
@@ -89,7 +89,7 @@ const ToastGallery = () => (
             {/* always loading */}
             <AccountAvatar
               size="small"
-              src="https://uni.onekey-asset.com/static/chain/btc.pn"
+              src="https://onekey-asset.com/assets/btc/btc.pn"
             />
             <AccountAvatar
               size="small"
@@ -109,7 +109,7 @@ const ToastGallery = () => (
               <YStack gap="$4">
                 <Button
                   onPress={() => {
-                    setUri('https://uni.onekey-asset.com/static/chain/btc.pn');
+                    setUri('https://onekey-asset.com/assets/btc/btc.pn');
                   }}
                 >
                   Change to invalid URI

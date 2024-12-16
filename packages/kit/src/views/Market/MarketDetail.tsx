@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { CommonActions, StackActions } from '@react-navigation/native';
+import { useIntl } from 'react-intl';
 
 import {
   HeaderIconButton,
@@ -18,17 +19,16 @@ import {
 import type { IPageScreenProps } from '@onekeyhq/components';
 import { EJotaiContextStoreNames } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
 import { EOneKeyDeepLinkPath } from '@onekeyhq/shared/src/consts/deeplinkConsts';
+import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { EWatchlistFrom } from '@onekeyhq/shared/src/logger/scopes/market/scenes/token';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { ETabMarketRoutes } from '@onekeyhq/shared/src/routes';
 import type { ITabMarketParamList } from '@onekeyhq/shared/src/routes';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import uriUtils from '@onekeyhq/shared/src/utils/uriUtils';
-import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
 import type { IMarketTokenDetail } from '@onekeyhq/shared/types/market';
 
 import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
-import { AccountSelectorProviderMirror } from '../../components/AccountSelector';
 import { OpenInAppButton } from '../../components/OpenInAppButton';
 import useAppNavigation from '../../hooks/useAppNavigation';
 import { useDeferredPromise } from '../../hooks/useDeferredPromise';
@@ -39,8 +39,8 @@ import { MarketHomeHeaderSearchBar } from './components/MarketHomeHeaderSearchBa
 import { MarketStar } from './components/MarketStar';
 import { MarketTokenIcon } from './components/MarketTokenIcon';
 import { MarketTokenPrice } from './components/MarketTokenPrice';
-import { MarketTradeButton } from './components/MarketTradeButton';
 import { PriceChangePercentage } from './components/PriceChangePercentage';
+import { TextCell } from './components/TextCell';
 import { TokenDetailTabs } from './components/TokenDetailTabs';
 import { TokenPriceChart } from './components/TokenPriceChart';
 import { buildMarketFullUrl } from './marketUtils';
@@ -53,6 +53,7 @@ function TokenDetailHeader({
   coinGeckoId: string;
   token: IMarketTokenDetail;
 }) {
+  const intl = useIntl();
   const { gtMd } = useMedia();
   const { result: token } = usePromiseResult(
     () => backgroundApiProxy.serviceMarket.fetchMarketTokenDetail(coinGeckoId),
@@ -100,8 +101,34 @@ function TokenDetailHeader({
           {performance.priceChangePercentage24h}
         </PriceChangePercentage>
       </YStack>
-      <MarketTradeButton coinGeckoId={coinGeckoId} token={token} />
-      {gtMd ? <MarketDetailOverview token={token} /> : null}
+      {gtMd ? (
+        <MarketDetailOverview token={token} />
+      ) : (
+        <XStack
+          flex={1}
+          ai="center"
+          alignContent="stretch"
+          flexWrap="wrap"
+          gap="$5"
+        >
+          <TextCell
+            title={intl.formatMessage({ id: ETranslations.market_24h_vol_usd })}
+          >
+            {volume24h || '-'}
+          </TextCell>
+          <TextCell
+            title={intl.formatMessage({ id: ETranslations.global_market_cap })}
+            rank={marketCapRank}
+          >
+            {marketCap || '-'}
+          </TextCell>
+          <TextCell
+            title={intl.formatMessage({ id: ETranslations.global_fdv })}
+          >
+            {fdv || '-'}
+          </TextCell>
+        </XStack>
+      )}
     </YStack>
   );
 }
@@ -284,14 +311,12 @@ function MarketDetail({
   const tokenPriceChart = useMemo(
     () => (
       <TokenPriceChart
-        isFetching={!tokenDetail}
-        tickers={tokenDetail?.tickers}
         coinGeckoId={coinGeckoId}
         defer={defer}
         symbol={tokenDetail?.symbol}
       />
     ),
-    [coinGeckoId, defer, tokenDetail],
+    [coinGeckoId, defer, tokenDetail?.symbol],
   );
 
   return (
@@ -312,7 +337,6 @@ function MarketDetail({
                 <TokenDetailTabs
                   defer={defer}
                   token={tokenDetail}
-                  coinGeckoId={coinGeckoId}
                   listHeaderComponent={tokenPriceChart}
                 />
               </YStack>
@@ -324,8 +348,12 @@ function MarketDetail({
             isRefreshing={isRefreshing}
             onRefresh={onRefresh}
             token={tokenDetail}
-            coinGeckoId={coinGeckoId}
-            listHeaderComponent={tokenDetailHeader}
+            listHeaderComponent={
+              <YStack>
+                {tokenDetailHeader}
+                {tokenDetail ? tokenPriceChart : null}
+              </YStack>
+            }
           />
         )}
       </Page.Body>
@@ -337,18 +365,10 @@ export default function MarketDetailWithProvider(
   props: IPageScreenProps<ITabMarketParamList, ETabMarketRoutes.MarketDetail>,
 ) {
   return (
-    <AccountSelectorProviderMirror
-      config={{
-        sceneName: EAccountSelectorSceneName.home,
-        sceneUrl: '',
-      }}
-      enabledNum={[0]}
+    <MarketWatchListProviderMirror
+      storeName={EJotaiContextStoreNames.marketWatchList}
     >
-      <MarketWatchListProviderMirror
-        storeName={EJotaiContextStoreNames.marketWatchList}
-      >
-        <MarketDetail {...props} />
-      </MarketWatchListProviderMirror>
-    </AccountSelectorProviderMirror>
+      <MarketDetail {...props} />
+    </MarketWatchListProviderMirror>
   );
 }

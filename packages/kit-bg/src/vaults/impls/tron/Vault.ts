@@ -55,7 +55,6 @@ import { KeyringWatching } from './KeyringWatching';
 import type { IDBWalletType } from '../../../dbs/local/types';
 import type { KeyringBase } from '../../base/KeyringBase';
 import type {
-  IApproveInfo,
   IBroadcastTransactionByCustomRpcParams,
   IBroadcastTransactionParams,
   IBuildAccountAddressDetailParams,
@@ -71,7 +70,6 @@ import type {
   IUpdateUnsignedTxParams,
   IValidateGeneralInputParams,
 } from '../../types';
-import type { Types } from 'tronweb';
 
 const INFINITE_AMOUNT_HEX =
   '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
@@ -111,72 +109,13 @@ export default class Vault extends VaultBase {
   override buildEncodedTx(
     params: IBuildEncodedTxParams,
   ): Promise<IEncodedTxTron> {
-    const { transfersInfo, approveInfo } = params;
+    const { transfersInfo } = params;
 
     if (transfersInfo && !isEmpty(transfersInfo)) {
       return this._buildEncodedTxFromTransfer(params);
     }
 
-    if (approveInfo) {
-      return this._buildEncodedTxFromApprove(params);
-    }
-
     throw new OneKeyInternalError();
-  }
-
-  async _buildEncodedTxFromApprove(params: IBuildEncodedTxParams) {
-    const { approveInfo } = params;
-    const { owner, spender, amount, tokenInfo, isMax } =
-      approveInfo as IApproveInfo;
-
-    if (!tokenInfo) {
-      throw new Error('buildEncodedTx ERROR: approveInfo.tokenInfo is missing');
-    }
-
-    const amountHex = toBigIntHex(
-      isMax
-        ? new BigNumber(2).pow(256).minus(1)
-        : new BigNumber(amount).shiftedBy(tokenInfo.decimals),
-    );
-
-    const [
-      {
-        result: { result },
-        transaction,
-      },
-    ] = await this.backgroundApi.serviceAccountProfile.sendProxyRequest<{
-      result: { result: boolean };
-      transaction: Types.Transaction;
-    }>({
-      networkId: this.networkId,
-      body: [
-        {
-          route: 'tronweb',
-          params: {
-            method: 'transactionBuilder.triggerSmartContract',
-            params: [
-              tokenInfo.address,
-              'approve(address,uint256)',
-              {},
-              [
-                { type: 'address', value: spender },
-                {
-                  type: 'uint256',
-                  value: amountHex,
-                },
-              ],
-              owner,
-            ],
-          },
-        },
-      ],
-    });
-    if (!result) {
-      throw new OneKeyInternalError(
-        'Unable to build token approve transaction',
-      );
-    }
-    return transaction;
   }
 
   async _buildEncodedTxFromTransfer(
@@ -205,7 +144,7 @@ export default class Vault extends VaultBase {
           },
         ] = await this.backgroundApi.serviceAccountProfile.sendProxyRequest<{
           result: { result: boolean };
-          transaction: Types.Transaction;
+          transaction: IUnsignedTransaction;
         }>({
           networkId: this.networkId,
           body: [
@@ -242,7 +181,7 @@ export default class Vault extends VaultBase {
 
       try {
         const [transaction] =
-          await this.backgroundApi.serviceAccountProfile.sendProxyRequest<Types.Transaction>(
+          await this.backgroundApi.serviceAccountProfile.sendProxyRequest<IUnsignedTransaction>(
             {
               networkId: this.networkId,
               body: [
@@ -284,7 +223,7 @@ export default class Vault extends VaultBase {
   }
 
   async _buildEncodedTxFromBatchTransfer(transfersInfo: ITransferInfo[]) {
-    return {} as Types.Transaction;
+    return {} as IUnsignedTransaction;
   }
 
   override async buildDecodedTx(
@@ -358,8 +297,7 @@ export default class Vault extends VaultBase {
       amount,
       owner_address: fromAddressHex,
       to_address: toAddressHex,
-    } = encodedTx.raw_data.contract[0].parameter
-      .value as Types.TransferContract;
+    } = (encodedTx.raw_data.contract[0] as ISendTrxCall).parameter.value;
 
     const accountAddress = await this.getAccountAddress();
     const nativeToken = await this.backgroundApi.serviceToken.getToken({
@@ -370,9 +308,8 @@ export default class Vault extends VaultBase {
 
     if (!nativeToken) return;
 
-    const from =
-      TronWeb.utils.address.fromHex(fromAddressHex) ?? accountAddress;
-    const to = TronWeb.utils.address.fromHex(toAddressHex);
+    const from = TronWeb.address.fromHex(fromAddressHex) ?? accountAddress;
+    const to = TronWeb.address.fromHex(toAddressHex);
     const transfer: IDecodedTxTransferInfo = {
       from,
       to,
@@ -404,16 +341,16 @@ export default class Vault extends VaultBase {
   }) {
     const {
       contract_address: contractAddressHex,
-      data = '',
+      data,
       owner_address: fromAddressHex,
-    } = encodedTx.raw_data.contract[0].parameter
-      .value as Types.TriggerSmartContract;
+    } = (encodedTx.raw_data.contract[0] as ITriggerSmartContractCall).parameter
+      .value;
 
     let action;
 
     try {
-      const fromAddress = TronWeb.utils.address.fromHex(fromAddressHex);
-      const tokenAddress = TronWeb.utils.address.fromHex(contractAddressHex);
+      const fromAddress = TronWeb.address.fromHex(fromAddressHex);
+      const tokenAddress = TronWeb.address.fromHex(contractAddressHex);
 
       const token = await this.backgroundApi.serviceToken.getToken({
         accountId: this.accountId,
@@ -437,7 +374,7 @@ export default class Vault extends VaultBase {
 
         const transfer: IDecodedTxTransferInfo = {
           from: fromAddress,
-          to: TronWeb.utils.address.fromHex(toAddressHex),
+          to: TronWeb.address.fromHex(toAddressHex),
           tokenIdOnNetwork: token.address,
           icon: token.logoURI ?? '',
           name: token.name,
@@ -448,7 +385,7 @@ export default class Vault extends VaultBase {
 
         action = await this.buildTxTransferAssetAction({
           from: fromAddress,
-          to: TronWeb.utils.address.fromHex(toAddressHex),
+          to: TronWeb.address.fromHex(toAddressHex),
           transfers: [transfer],
         });
       }
@@ -465,7 +402,7 @@ export default class Vault extends VaultBase {
           tokenApprove: {
             from: fromAddress,
             to: tokenAddress,
-            spender: TronWeb.utils.address.fromHex(spenderAddressHex),
+            spender: TronWeb.address.fromHex(spenderAddressHex),
             amount: amountBN.shiftedBy(-token.decimals).toFixed(),
             icon: token.logoURI ?? '',
             name: token.name,
@@ -558,7 +495,7 @@ export default class Vault extends VaultBase {
           },
         ] = await this.backgroundApi.serviceAccountProfile.sendProxyRequest<{
           result: { result: boolean };
-          transaction: Types.Transaction;
+          transaction: IUnsignedTransaction;
         }>({
           networkId: this.networkId,
           body: [
@@ -609,11 +546,10 @@ export default class Vault extends VaultBase {
       !isNil(nativeAmountInfo.maxSendAmount)
     ) {
       const { owner_address: fromAddressHex, to_address: toAddressHex } =
-        encodedTx.raw_data.contract[0].parameter
-          .value as Types.TransferContract;
+        encodedTx.raw_data.contract[0].parameter.value;
 
       const [transaction] =
-        await this.backgroundApi.serviceAccountProfile.sendProxyRequest<Types.Transaction>(
+        await this.backgroundApi.serviceAccountProfile.sendProxyRequest<IUnsignedTransaction>(
           {
             networkId: this.networkId,
             body: [
@@ -622,11 +558,11 @@ export default class Vault extends VaultBase {
                 params: {
                   method: 'transactionBuilder.sendTrx',
                   params: [
-                    TronWeb.utils.address.fromHex(toAddressHex),
+                    TronWeb.address.fromHex(toAddressHex),
                     new BigNumber(nativeAmountInfo.maxSendAmount)
                       .shiftedBy(network.decimals)
                       .toNumber(),
-                    TronWeb.utils.address.fromHex(fromAddressHex),
+                    TronWeb.address.fromHex(fromAddressHex),
                   ],
                 },
               },
@@ -640,8 +576,8 @@ export default class Vault extends VaultBase {
   }
 
   override validateAddress(address: string): Promise<IAddressValidation> {
-    if (TronWeb.utils.address.isAddress(address)) {
-      const resolvedAddress = TronWeb.utils.address.fromHex(address);
+    if (TronWeb.isAddress(address)) {
+      const resolvedAddress = TronWeb.address.fromHex(address);
       return Promise.resolve({
         isValid: true,
         normalizedAddress: resolvedAddress,
@@ -704,13 +640,11 @@ export default class Vault extends VaultBase {
   override async getCustomRpcEndpointStatus(
     params: IMeasureRpcStatusParams,
   ): Promise<IMeasureRpcStatusResult> {
-    const tronWeb = new TronWeb.TronWeb({ fullHost: params.rpcUrl });
+    const tronWeb = new TronWeb({ fullHost: params.rpcUrl });
     const start = performance.now();
     const {
       result: { number: blockNumber },
-    } = await tronWeb.fullNode.request<{
-      result: { number: string };
-    }>(
+    } = await tronWeb.fullNode.request(
       'jsonrpc',
       {
         jsonrpc: '2.0',
@@ -735,7 +669,7 @@ export default class Vault extends VaultBase {
     if (!rpcUrl) {
       throw new OneKeyInternalError('Invalid rpc url');
     }
-    const tronWeb = new TronWeb.TronWeb({ fullHost: rpcUrl });
+    const tronWeb = new TronWeb({ fullHost: rpcUrl });
     const ret = await tronWeb.trx.sendRawTransaction(
       JSON.parse(signedTx.rawTx),
     );
@@ -777,7 +711,7 @@ export default class Vault extends VaultBase {
     const [{ result, transaction }] =
       await this.backgroundApi.serviceAccountProfile.sendProxyRequest<{
         result: { result: boolean };
-        transaction: Types.Transaction;
+        transaction: IUnsignedTransaction;
       }>({
         networkId: this.networkId,
         body: [
@@ -815,20 +749,6 @@ export default class Vault extends VaultBase {
         'Unable to build token transfer transaction',
       );
     }
-
-    (
-      transaction.raw_data.contract[0].parameter
-        .value as Types.TriggerSmartContract
-    ).data = data.slice(2);
-
-    const txPb = TronWeb.utils.transaction.txJsonToPb(transaction);
-
-    const txRawDataHex = TronWeb.utils.transaction.txPbToRawDataHex(txPb);
-    const txID = TronWeb.utils.transaction.txPbToTxID(txPb);
-
-    transaction.raw_data_hex = txRawDataHex;
-    transaction.txID = txID.slice(2);
-
     return transaction;
   }
 }

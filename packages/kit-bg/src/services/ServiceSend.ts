@@ -60,19 +60,12 @@ class ServiceSend extends ServiceBase {
   async buildDecodedTx(
     params: ISendTxBaseParams & IBuildDecodedTxParams,
   ): Promise<IDecodedTx> {
-    const {
-      networkId,
-      accountId,
-      unsignedTx,
-      feeInfo,
-      transferPayload,
-      saveToLocalHistory,
-    } = params;
+    const { networkId, accountId, unsignedTx, feeInfo, transferPayload } =
+      params;
     const vault = await vaultFactory.getVault({ networkId, accountId });
     const decodedTx = await vault.buildDecodedTx({
       unsignedTx,
       transferPayload,
-      saveToLocalHistory,
     });
 
     if (feeInfo) {
@@ -100,7 +93,6 @@ class ServiceSend extends ServiceBase {
       specifiedFeeRate,
       prevNonce,
       feeInfo,
-      swapInfo,
     } = params;
     const vault = await vaultFactory.getVault({ networkId, accountId });
     return vault.buildUnsignedTx({
@@ -111,7 +103,6 @@ class ServiceSend extends ServiceBase {
       specifiedFeeRate,
       prevNonce,
       feeInfo,
-      swapInfo,
     });
   }
 
@@ -398,7 +389,6 @@ class ServiceSend extends ServiceBase {
           unsignedTx,
           feeInfo,
           transferPayload,
-          saveToLocalHistory: true,
         });
 
         const data = {
@@ -519,7 +509,6 @@ class ServiceSend extends ServiceBase {
       specifiedFeeRate,
       prevNonce,
       feeInfo,
-      isInternalSwap,
     } = params;
 
     let newUnsignedTx = unsignedTx;
@@ -537,15 +526,11 @@ class ServiceSend extends ServiceBase {
         approveInfo,
         transfersInfo,
         wrappedInfo,
-        swapInfo,
         specifiedFeeRate,
         prevNonce,
         feeInfo,
       });
     }
-
-    newUnsignedTx.isInternalSwap = isInternalSwap;
-
     if (swapInfo) {
       newUnsignedTx.swapInfo = swapInfo;
     }

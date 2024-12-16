@@ -12,27 +12,11 @@ import {
 } from '@onekeyhq/components';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
-import { formatDistanceToNow } from '@onekeyhq/shared/src/utils/dateUtils';
 import { openUrlInApp } from '@onekeyhq/shared/src/utils/openUrlUtils';
 import type { IMarketDetailTicker } from '@onekeyhq/shared/types/market';
 
 import { MarketPoolIcon } from './MarketPoolIcon';
 import { PoolDetailsItem } from './PoolDetailDialog';
-
-// Trust Score is displayed in Green/Yellow/Red or None on under the “Trust Score” column.
-// https://www.coingecko.com/en/methodology
-function renderTrustScore(trustScore: string) {
-  switch (trustScore) {
-    case 'green':
-      return '🟢';
-    case 'yellow':
-      return '🟡';
-    case 'red':
-      return '🔴';
-    default:
-      return '⚪';
-  }
-}
 
 export function PairDetailDialog({
   item: {
@@ -41,9 +25,7 @@ export function PairDetailDialog({
     target,
     market,
     last,
-    depth_data: depthData,
     volume,
-    last_updated_at: lastUpdateAt,
     bid_ask_spread_percentage: spread,
     trust_score: trustScore,
     trade_url: tradeUrl,
@@ -89,33 +71,8 @@ export function PairDetailDialog({
         </PoolDetailsItem>
         <PoolDetailsItem
           title={intl.formatMessage({
-            id: ETranslations.market_plus_2_percent_depth,
-          })}
-          isNumeric
-          currency
-          formatter="price"
-        >
-          {depthData?.['+2%'] || '-'}
-        </PoolDetailsItem>
-      </XStack>
-
-      <XStack gap="$4">
-        <PoolDetailsItem
-          title={intl.formatMessage({
-            id: ETranslations.market_minus_2_percent_depth,
-          })}
-          currency
-          isNumeric
-          formatter="price"
-        >
-          {depthData?.['-2%'] || '-'}
-        </PoolDetailsItem>
-        <PoolDetailsItem
-          title={intl.formatMessage({
             id: ETranslations.market_twenty_four_hour_volume,
           })}
-          formatter="marketCap"
-          currency
           isNumeric
         >
           {String(volume)}
@@ -137,7 +94,9 @@ export function PairDetailDialog({
           })}
           isNumeric
         >
-          {formatDistanceToNow(new Date(lastUpdateAt))}
+          {intl.formatMessage({
+            id: ETranslations.market_last_updated,
+          })}
         </PoolDetailsItem>
       </XStack>
       <XStack gap="$4">
@@ -147,7 +106,7 @@ export function PairDetailDialog({
           })}
           bordered={false}
         >
-          {renderTrustScore(trustScore)}
+          {trustScore === 'green' ? '🟢' : ''}
         </PoolDetailsItem>
       </XStack>
       <XStack gap="$1.5" ai="center" pt="$2">

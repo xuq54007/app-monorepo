@@ -2,7 +2,6 @@ import { IInjectedProviderNames } from '@onekeyfe/cross-inpage-provider-types';
 import { isFunction } from 'lodash';
 
 import '@onekeyhq/kit-bg/src/webembeds/instance/webembedApiProxy';
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import {
   backgroundClass,
   backgroundMethod,
@@ -67,7 +66,7 @@ class BackgroundApiBase implements IBackgroundApiBridge {
     jotaiBgSync.setBackgroundApi(this as any);
     this.allAtoms = jotaiInit();
     if (process.env.NODE_ENV !== 'production') {
-      appGlobals.$$backgroundApi = this as any;
+      globalThis.$$backgroundApi = this as any;
     }
     // this.startDemoNowTimeUpdateInterval();
     appEventBus.registerBroadcastMethods(
@@ -175,7 +174,8 @@ class BackgroundApiBase implements IBackgroundApiBridge {
       );
     }
     if (
-      scope === IInjectedProviderNames.$private &&
+      (scope === IInjectedProviderNames.$private ||
+        scope === IInjectedProviderNames.$privateExternalAccount) &&
       !isProviderApiPrivateAllowedOrigin(origin) &&
       !isProviderApiPrivateAllowedMethod(payloadData?.method)
     ) {

@@ -9,6 +9,7 @@ import {
 import BigNumber from 'bignumber.js';
 import * as BitcoinJS from 'bitcoinjs-lib';
 import { Psbt, Transaction, payments } from 'bitcoinjs-lib';
+import { toXOnly } from 'bitcoinjs-lib/src/psbt/bip371';
 import { isEmpty } from 'lodash';
 
 import { checkIsDefined } from '@onekeyhq/shared/src/utils/assertUtils';
@@ -17,15 +18,16 @@ import type { IServerNetwork } from '@onekeyhq/shared/types';
 
 import { EAddressEncodings } from '../../../types';
 
-import { toXOnly } from './bip371';
-
 import type { ICoreApiSignBtcExtraInfo, IUnsignedTxPro } from '../../../types';
 import type {
   IBtcForkNetwork,
   IBtcForkTransactionMixin,
   IEncodedTxBtc,
 } from '../types';
-import type { Bip32Derivation, TapBip32Derivation } from 'bip174';
+import type {
+  Bip32Derivation,
+  TapBip32Derivation,
+} from 'bip174/src/lib/interfaces';
 
 export function formatPsbtHex(psbtHex: string) {
   let formatData = '';
@@ -58,17 +60,17 @@ export function decodedPsbt({
 }) {
   const inputs = psbt.txInputs.map((input, index) => {
     const txid = Buffer.from(input.hash).reverse().toString('hex');
-    let value: bigint | undefined;
+    let value: number | undefined = 0;
     let script: Buffer | undefined;
     const v = psbt.data.inputs[index];
     if (v.witnessUtxo) {
-      script = Buffer.from(v.witnessUtxo?.script);
-      value = BigInt(v.witnessUtxo?.value);
+      script = v.witnessUtxo?.script;
+      value = v.witnessUtxo?.value;
     } else if (v.nonWitnessUtxo) {
       const tx = Transaction.fromBuffer(v.nonWitnessUtxo);
       const output = tx.outs[input.index];
-      script = Buffer.from(output.script);
-      value = BigInt(output.value);
+      script = output.script;
+      value = output.value;
     }
 
     let address = '';
@@ -87,7 +89,7 @@ export function decodedPsbt({
   const outputs = psbt.txOutputs.map((output) => {
     let address = '';
     try {
-      address = scriptPkToAddress(Buffer.from(output.script), psbtNetwork);
+      address = scriptPkToAddress(output.script, psbtNetwork);
     } catch (err) {
       //
     }
@@ -98,15 +100,9 @@ export function decodedPsbt({
     };
   });
 
-  const inputValue = inputs.reduce(
-    (sum, input) => sum + (input.value ?? 0n),
-    0n,
-  );
-  const outputValue = outputs.reduce(
-    (sum, output) => sum + BigInt(output.value),
-    0n,
-  );
-  const fee = Number(inputValue - outputValue);
+  const inputValue = inputs.reduce((sum, input) => sum + input.value, 0);
+  const outputValue = outputs.reduce((sum, output) => sum + output.value, 0);
+  const fee = inputValue - outputValue;
 
   const result = {
     inputInfos: inputs,
@@ -226,7 +222,7 @@ export async function buildPsbt({
             );
             mixin.witnessUtxo = {
               script: payment.output as Buffer,
-              value: BigInt(value),
+              value,
             };
           }
           break;
@@ -242,7 +238,7 @@ export async function buildPsbt({
           if (isInputMixin) {
             mixin.witnessUtxo = {
               script: payment.output as Buffer,
-              value: BigInt(value),
+              value,
             };
           }
           mixin.redeemScript = payment.redeem?.output as Buffer;
@@ -259,7 +255,7 @@ export async function buildPsbt({
           if (isInputMixin) {
             mixin.witnessUtxo = {
               script: payment.output as Buffer,
-              value: BigInt(value),
+              value,
             };
           }
           mixin.tapInternalKey = payment.internalPubkey;
@@ -310,7 +306,7 @@ export async function buildPsbt({
       });
       psbt.addOutput({
         script: checkIsDefined(embed.output),
-        value: 0n,
+        value: 0,
       });
     } else {
       const outputValue: number = new BigNumber(output.value).toNumber();
@@ -333,7 +329,7 @@ export async function buildPsbt({
 
       psbt.addOutput({
         address: output.address,
-        value: BigInt(outputValue),
+        value: outputValue,
         ...mixinOutput,
       });
     }

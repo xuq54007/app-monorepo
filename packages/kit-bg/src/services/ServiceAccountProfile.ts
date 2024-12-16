@@ -441,12 +441,12 @@ class ServiceAccountProfile extends ServiceBase {
   }) {
     const { currency, value, updateAll } = params;
 
-    const currencyMap = (await currencyPersistAtom.get()).currencyMap;
+    const currencyItems = (await currencyPersistAtom.get()).currencyItems;
 
     let usdValue: Record<string, string> = value;
 
     if (currency !== 'usd') {
-      const currencyInfo = currencyMap[currency];
+      const currencyInfo = currencyItems.find((item) => item.id === currency);
 
       if (!currencyInfo) {
         throw new Error('Currency not found');

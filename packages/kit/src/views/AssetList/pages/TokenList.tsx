@@ -26,7 +26,6 @@ import { EModalAssetDetailRoutes } from '@onekeyhq/shared/src/routes';
 import type { IToken } from '@onekeyhq/shared/types/token';
 
 import { TokenListView } from '../../../components/TokenListView';
-import { perfTokenListView } from '../../../components/TokenListView/perfTokenListView';
 import useAppNavigation from '../../../hooks/useAppNavigation';
 import {
   useTokenListActions,
@@ -135,7 +134,6 @@ function TokenList() {
       refreshTokenListMap({
         tokens: tokenMap,
       });
-      perfTokenListView.markEnd('tokenListRefreshing_tokenListPageUseEffect');
       updateTokenListState({ initialized: true, isRefreshing: false });
     }
   }, [

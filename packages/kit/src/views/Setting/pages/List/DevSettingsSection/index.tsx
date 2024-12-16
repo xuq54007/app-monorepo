@@ -32,8 +32,6 @@ import {
 } from '@onekeyhq/shared/src/modules3rdParty/expo-notifications';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { EModalSettingRoutes } from '@onekeyhq/shared/src/routes';
-import appStorage from '@onekeyhq/shared/src/storage/appStorage';
-import { EAppSyncStorageKeys } from '@onekeyhq/shared/src/storage/syncStorage';
 import {
   isBgApiSerializableCheckingDisabled,
   toggleBgApiSerializableChecking,
@@ -46,12 +44,11 @@ import {
 import { stableStringify } from '@onekeyhq/shared/src/utils/stringUtils';
 
 import { AddressBookDevSetting } from './AddressBookDevSetting';
-import { CrashDevSettings } from './CrashDevSettings';
+import { CrashDevSettings } from './CrasshDevSettings';
 import { NetInfo } from './NetInfo';
 import { NotificationDevSettings } from './NotificationDevSettings';
 import { SectionFieldItem } from './SectionFieldItem';
 import { SectionPressItem } from './SectionPressItem';
-import { SentryCrashSettings } from './SentryCrashSettings';
 import { StartTimePanel } from './StartTimePanel';
 
 let correctDevOnlyPwd = '';
@@ -217,24 +214,6 @@ export const DevSettingsSection = () => {
       >
         <Switch size={ESwitchSize.small} />
       </SectionFieldItem>
-      <SectionFieldItem
-        name="disableSolanaPriorityFee"
-        title="禁用 Solana 交易优先费"
-        subtitle={
-          devSettings.settings?.disableSolanaPriorityFee ? '禁用' : '启用'
-        }
-      >
-        <Switch
-          size={ESwitchSize.small}
-          onChange={() => {
-            void backgroundApiProxy.serviceDevSetting.updateDevSetting(
-              'disableSolanaPriorityFee',
-              !devSettings.settings?.disableSolanaPriorityFee,
-            );
-          }}
-          value={devSettings.settings?.disableSolanaPriorityFee}
-        />
-      </SectionFieldItem>
       <SectionPressItem
         title="force RTL"
         subtitle="强制启用 RTL 布局"
@@ -246,32 +225,7 @@ export const DevSettingsSection = () => {
           value={I18nManager.isRTL}
         />
       </SectionPressItem>
-      <SectionFieldItem
-        name="disableNumberShortcuts"
-        title="禁止数字快捷键"
-        onValueChange={(value: boolean) => {
-          globalThis.desktopApi.disableShortcuts({
-            disableNumberShortcuts: value,
-          });
-          setTimeout(() => {
-            backgroundApiProxy.serviceApp.restartApp();
-          }, 300);
-        }}
-      >
-        <Switch size={ESwitchSize.small} />
-      </SectionFieldItem>
-      <SectionFieldItem
-        name="disableSearchAndAccountSelectorShortcuts"
-        title="禁止搜索及账户选择器快捷键"
-        onValueChange={(value: boolean) => {
-          globalThis.desktopApi.disableShortcuts({
-            disableSearchAndAccountSelectorShortcuts: value,
-          });
-          setTimeout(() => {
-            backgroundApiProxy.serviceApp.restartApp();
-          }, 300);
-        }}
-      >
+      <SectionFieldItem name="showTradingView" title="显示 Trading View">
         <Switch size={ESwitchSize.small} />
       </SectionFieldItem>
       <SectionFieldItem
@@ -308,27 +262,6 @@ export const DevSettingsSection = () => {
           defaultChecked={!isBgApiSerializableCheckingDisabled()}
           onChange={(v) => {
             toggleBgApiSerializableChecking(v);
-          }}
-        />
-      </ListItem>
-
-      <ListItem
-        title="DebugRenderTracker 组件渲染高亮"
-        subtitle="启用后会导致 FlatList 无法滚动，仅供测试"
-      >
-        <Switch
-          isUncontrolled
-          size={ESwitchSize.small}
-          defaultChecked={
-            appStorage.syncStorage.getBoolean(
-              EAppSyncStorageKeys.onekey_debug_render_tracker,
-            ) ?? false
-          }
-          onChange={(v) => {
-            appStorage.syncStorage.set(
-              EAppSyncStorageKeys.onekey_debug_render_tracker,
-              v,
-            );
           }}
         />
       </ListItem>
@@ -587,7 +520,6 @@ export const DevSettingsSection = () => {
       ) : null}
 
       <AddressBookDevSetting />
-      <SentryCrashSettings />
       <CrashDevSettings />
     </Section>
   );

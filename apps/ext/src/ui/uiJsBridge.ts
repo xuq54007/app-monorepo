@@ -1,7 +1,6 @@
 import { bridgeSetup } from '@onekeyfe/extension-bridge-hosted';
 
 import { jotaiUpdateFromUiByBgBroadcast } from '@onekeyhq/kit-bg/src/states/jotai/jotaiInit';
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import type {
   IGlobalEventBusSyncBroadcastParams,
   IGlobalStatesSyncBroadcastParams,
@@ -34,7 +33,7 @@ function init() {
     }
   };
   // TODO rename global.$extensionJsBridgeUiToBg
-  appGlobals.extJsBridgeUiToBg = bridgeSetup.ui.createUiJsBridge({
+  globalThis.extJsBridgeUiToBg = bridgeSetup.ui.createUiJsBridge({
     receiveHandler: jsBridgeReceiveHandler,
     onPortConnect() {
       // use <WaitBackgroundReady /> instead

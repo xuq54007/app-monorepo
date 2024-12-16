@@ -20,6 +20,7 @@ import {
   useSendFeeStatusAtom,
   useSendSelectedFeeInfoAtom,
   useSendTxStatusAtom,
+  useTokenApproveInfoAtom,
   useTxAdvancedSettingsAtom,
   useUnsignedTxsAtom,
 } from '@onekeyhq/kit/src/states/jotai/contexts/sendConfirm';
@@ -79,6 +80,7 @@ function SendConfirmActionsContainer(props: IProps) {
   const [nativeTokenTransferAmountToUpdate] =
     useNativeTokenTransferAmountToUpdateAtom();
   const [preCheckTxStatus] = usePreCheckTxStatusAtom();
+  const [tokenApproveInfo] = useTokenApproveInfoAtom();
   const [txAdvancedSettings] = useTxAdvancedSettingsAtom();
   const { updateSendTxStatus } = useSendConfirmActions().current;
   const successfullySentTxs = useRef<string[]>([]);
@@ -136,6 +138,7 @@ function SendConfirmActionsContainer(props: IProps) {
         accountId,
         networkId,
         unsignedTxs,
+        tokenApproveInfo,
         feeInfos: sendSelectedFeeInfo?.feeInfos,
         nonceInfo: txAdvancedSettings.nonce
           ? { nonce: Number(txAdvancedSettings.nonce) }
@@ -267,6 +270,7 @@ function SendConfirmActionsContainer(props: IProps) {
     nativeTokenTransferAmountToUpdate.amountToUpdate,
     onFail,
     dappApprove,
+    tokenApproveInfo,
     txAdvancedSettings.nonce,
     feeInfoEditable,
     checkFeeInfoIsOverflow,

@@ -28,7 +28,9 @@ export const TabComponent = (
     onRefresh: onRefreshCallBack,
     initialHeaderHeight = 0,
   }: ITabProps,
-  forwardRef: any,
+  // fix missing forwardRef warnings.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _: any,
 ) => {
   const lastIndex = useRef(initialScrollIndex);
   const stickyConfig = useMemo(
@@ -182,11 +184,9 @@ export const TabComponent = (
     },
     [headerHeight, initialHeaderHeight],
   );
-
   return (
     // @ts-expect-error
     <NestedTabView
-      ref={forwardRef}
       key={key}
       headerHeight={headerHeight}
       defaultIndex={initialScrollIndex}

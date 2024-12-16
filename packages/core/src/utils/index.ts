@@ -1,6 +1,7 @@
-import coinselectUtils from '@onekeyfe/coinselect/utils';
+import coinselectUtils from 'coinselect/utils';
 
 import type { IDBUtxoAccount } from '@onekeyhq/kit-bg/src/dbs/local/types';
+import { INDEX_PLACEHOLDER } from '@onekeyhq/shared/src/engine/engineConsts';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 
 import type { IEncodedTxBtc } from '../chains/btc/types';

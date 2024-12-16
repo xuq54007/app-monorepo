@@ -26,7 +26,6 @@ type IPriceChartProps = {
   data?: IMarketTokenChart;
   children: ReactNode;
   isFetching: boolean;
-  height: number;
 };
 
 type IOnHoverFunction = ({
@@ -37,12 +36,7 @@ type IOnHoverFunction = ({
   price?: number | string;
 }) => void;
 
-export function PriceChart({
-  data,
-  isFetching,
-  height,
-  children,
-}: IPriceChartProps) {
+export function PriceChart({ data, isFetching, children }: IPriceChartProps) {
   const { formatDate } = useFormatDate();
   const intl = useIntl();
 
@@ -97,7 +91,7 @@ export function PriceChart({
 
   const emptyView = useMemo(() => {
     if (isFetching) {
-      return <Spinner />;
+      return <Spinner $platform-native={{ mt: -190 }} />;
     }
     return (
       <Empty
@@ -108,24 +102,11 @@ export function PriceChart({
     );
   }, [intl, isFetching]);
 
-  const viewHeight = useMemo(() => {
-    if (gtMd) {
-      return height;
-    }
-    if (platformEnv.isNative) {
-      return height * 0.9;
-    }
-    return height * 0.45;
-  }, [gtMd, height]);
-  const mdViewHeight = useMemo(
-    () => (platformEnv.isNative ? height * 0.65 : height * 0.7),
-    [height],
-  );
   const chartView =
     data && data.length > 0 ? (
       <ChartView
         isFetching={isFetching}
-        height={viewHeight}
+        height={gtMd ? 298 : 326}
         data={data}
         onHover={onHover}
       />
@@ -136,7 +117,7 @@ export function PriceChart({
   const chartViewWithSpinner = isFetching ? <Spinner /> : chartView;
   return gtMd ? (
     <>
-      <XStack justifyContent="space-between" h="$10">
+      <XStack justifyContent="space-between">
         {isFetching ? (
           <YStack gap="$2">
             <Skeleton w="$10" h="$3" />
@@ -148,6 +129,7 @@ export function PriceChart({
         {children}
       </XStack>
       <Stack
+        h={240}
         mt={32}
         $gtMd={{ mt: '$1' }}
         justifyContent="center"
@@ -159,9 +141,15 @@ export function PriceChart({
   ) : (
     <>
       {priceLabel}
-      <Stack h={mdViewHeight} justifyContent="center" alignItems="center">
+      <Stack
+        h={190}
+        mt={platformEnv.isNative ? 68 : 24}
+        justifyContent="center"
+        alignItems="center"
+      >
         {platformEnv.isNative ? chartView : chartViewWithSpinner}
       </Stack>
+      <Stack mt={8}>{children}</Stack>
     </>
   );
 }

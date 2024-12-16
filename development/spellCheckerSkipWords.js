@@ -773,6 +773,4 @@ module.exports = [
   'OKX',
   'Okx',
   'cacheable',
-  'benfen',
-  'bfc',
 ];

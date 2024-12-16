@@ -26,11 +26,9 @@ import {
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
-import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
 import type { IMarketCategory } from '@onekeyhq/shared/types/market';
 
 import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
-import { AccountSelectorProviderMirror } from '../../components/AccountSelector';
 import { usePromiseResult } from '../../hooks/usePromiseResult';
 import useHomePageWidth from '../Home/hooks/useHomePageWidth';
 
@@ -184,18 +182,10 @@ function MarketHome() {
 
 export default function MarketHomeWithProvider() {
   return (
-    <AccountSelectorProviderMirror
-      config={{
-        sceneName: EAccountSelectorSceneName.home,
-        sceneUrl: '',
-      }}
-      enabledNum={[0]}
+    <MarketWatchListProviderMirror
+      storeName={EJotaiContextStoreNames.marketWatchList}
     >
-      <MarketWatchListProviderMirror
-        storeName={EJotaiContextStoreNames.marketWatchList}
-      >
-        <MarketHome />
-      </MarketWatchListProviderMirror>
-    </AccountSelectorProviderMirror>
+      <MarketHome />
+    </MarketWatchListProviderMirror>
   );
 }

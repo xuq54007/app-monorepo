@@ -305,7 +305,6 @@ function TxActionCommonListView(
                   <SizableText size="$bodyMd" color="$textSubdued">
                     {formatTime(new Date(timestamp), {
                       hideSeconds: true,
-                      hideMilliseconds: true,
                     })}
                   </SizableText>
                   {description && description.children ? (

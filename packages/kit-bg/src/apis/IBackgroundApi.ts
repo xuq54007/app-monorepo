@@ -16,7 +16,6 @@ import type ServiceAccountSelector from '../services/ServiceAccountSelector';
 import type ServiceAddressBook from '../services/ServiceAddressBook';
 import type ServiceAllNetwork from '../services/ServiceAllNetwork';
 import type ServiceApp from '../services/ServiceApp';
-import type ServiceAppCleanup from '../services/ServiceAppCleanup';
 import type ServiceAppUpdate from '../services/ServiceAppUpdate';
 import type ServiceBatchCreateAccount from '../services/ServiceBatchCreateAccount';
 import type ServiceBootstrap from '../services/ServiceBootstrap';
@@ -138,7 +137,6 @@ export interface IBackgroundApi extends IBackgroundApiBridge {
   serviceAllNetwork: ServiceAllNetwork;
   serviceToken: ServiceToken;
   serviceNFT: ServiceNFT;
-  serviceAppCleanup: ServiceAppCleanup;
   serviceHistory: ServiceHistory;
   serviceDefi: ServiceDefi;
   serviceValidator: ServiceValidator;

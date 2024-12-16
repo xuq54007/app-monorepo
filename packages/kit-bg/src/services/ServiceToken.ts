@@ -10,7 +10,7 @@ import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import { buildAccountLocalAssetsKey } from '@onekeyhq/shared/src/utils/accountUtils';
 import perfUtils, {
   EPerformanceTimerLogNames,
-} from '@onekeyhq/shared/src/utils/debug/perfUtils';
+} from '@onekeyhq/shared/src/utils/perfUtils';
 import {
   getEmptyTokenData,
   getMergedTokenData,
@@ -90,7 +90,6 @@ class ServiceToken extends ServiceBase {
       allNetworksAccountId,
       allNetworksNetworkId,
       saveToLocal,
-      customTokensRawData,
       ...rest
     } = params;
     const { networkId } = rest;
@@ -107,7 +106,6 @@ class ServiceToken extends ServiceBase {
       accountId,
       networkId,
       dbAccount,
-      customTokensRawData,
     };
     const [xpub, accountAddress, customTokens, hiddenTokens, vaultSettings] =
       await Promise.all([
@@ -527,9 +525,9 @@ class ServiceToken extends ServiceBase {
     xpub?: string;
     simpleDbLocalTokensRawData?: ISimpleDBLocalTokens;
   }) {
-    const perf = perfUtils.createPerf({
-      name: EPerformanceTimerLogNames.allNetwork__getAccountLocalTokens,
-    });
+    const perf = perfUtils.createPerf(
+      EPerformanceTimerLogNames.allNetwork__getAccountLocalTokens,
+    );
 
     const { accountId, networkId, simpleDbLocalTokensRawData } = params;
 

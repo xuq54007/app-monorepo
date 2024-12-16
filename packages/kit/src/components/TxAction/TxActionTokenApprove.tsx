@@ -1,9 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 
 import BigNumber from 'bignumber.js';
 import { useIntl } from 'react-intl';
 
-import { Button, SizableText, XStack } from '@onekeyhq/components';
+import {
+  Button,
+  NumberSizeableText,
+  SizableText,
+  XStack,
+} from '@onekeyhq/components';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
 
@@ -172,12 +177,40 @@ function TxActionTokenApproveDetailView(props: ITxActionProps) {
   });
 
   const { updateTokenApproveInfo } = useSendConfirmActions().current;
-  const approveInfoInit = useRef(false);
+  const [tokenApproveInfo] = useTokenApproveInfoAtom();
+
+  const handleResetApproveInfo = useCallback(() => {
+    updateTokenApproveInfo({
+      allowance: '',
+      isUnlimited: false,
+    });
+  }, [updateTokenApproveInfo]);
+
+  const handleChangeApproveInfo = useCallback(
+    ({
+      allowance,
+      isUnlimited,
+    }: {
+      allowance: string;
+      isUnlimited: boolean;
+    }) => {
+      updateTokenApproveInfo({
+        allowance,
+        isUnlimited,
+      });
+    },
+    [updateTokenApproveInfo],
+  );
 
   let content: React.ReactNode = approveLabel;
-  const amount = originalApproveAmount;
-  const isUnlimited = approveIsMax;
-  if (!content) {
+  let amount = originalApproveAmount;
+  let isUnlimited = approveIsMax;
+  if (tokenApproveInfo.allowance !== '' || !content) {
+    if (tokenApproveInfo.allowance !== '') {
+      amount = tokenApproveInfo.allowance;
+      isUnlimited = tokenApproveInfo.isUnlimited;
+    }
+
     if (new BigNumber(amount).eq(0)) {
       content = intl.formatMessage(
         {
@@ -237,6 +270,8 @@ function TxActionTokenApproveDetailView(props: ITxActionProps) {
               tokenSymbol,
               tokenAddress,
               approveInfo: decodedTx.approveInfo,
+              onResetTokenApproveInfo: handleResetApproveInfo,
+              onChangeTokenApproveInfo: handleChangeApproveInfo,
             })
           }
         >
@@ -245,15 +280,6 @@ function TxActionTokenApproveDetailView(props: ITxActionProps) {
       </XStack>
     );
   }
-
-  useEffect(() => {
-    if (approveInfoInit.current || originalApproveAmount === '') return;
-    updateTokenApproveInfo({
-      originalAllowance: originalApproveAmount,
-      originalIsUnlimited: approveIsMax,
-    });
-    approveInfoInit.current = true;
-  }, [updateTokenApproveInfo, originalApproveAmount, approveIsMax]);
 
   return (
     <TxActionCommonDetailView

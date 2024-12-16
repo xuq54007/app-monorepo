@@ -55,7 +55,7 @@ export default function ChartWrapper({
         fill="none"
         gestureEnabled={!isFetching}
         hapticsEnabled={platformEnv.isNativeIOS}
-        height={height / 2}
+        height={height}
         hitSlop={30}
         longPressGestureHandlerProps={{
           minDurationMs: 60,

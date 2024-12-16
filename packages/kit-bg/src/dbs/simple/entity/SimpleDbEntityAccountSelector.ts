@@ -60,7 +60,7 @@ export interface IAccountSelectorPersistInfo {
 export class SimpleDbEntityAccountSelector extends SimpleDbEntityBase<IAccountSelectorPersistInfo> {
   entityName = 'accountSelector';
 
-  override enableCache = true;
+  override enableCache = false;
 
   @backgroundMethod()
   async saveSelectedAccount({
@@ -84,7 +84,7 @@ export class SimpleDbEntityAccountSelector extends SimpleDbEntityBase<IAccountSe
       sceneName,
       sceneUrl,
     });
-    await this.setRawData((data) => {
+    await this.setRawData(({ rawData: data }) => {
       // eslint-disable-next-line no-param-reassign
       data = data || {
         selectorInfo: {},
@@ -175,7 +175,7 @@ export class SimpleDbEntityAccountSelector extends SimpleDbEntityBase<IAccountSe
     const key = accountSelectorUtils.buildGlobalDeriveTypesMapKey({
       networkId,
     });
-    await this.setRawData((rawData) => {
+    await this.setRawData(({ rawData }) => {
       if (!rawData) {
         throw new Error('rawData is undefined');
       }

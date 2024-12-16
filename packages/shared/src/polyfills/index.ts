@@ -1,6 +1,5 @@
 /* eslint-disable import/order */
 // walletconnect react-native-compat polyfill
-import './reactCreateElementShim';
 import './walletConnectCompact';
 import './polyfillsPlatform';
 

@@ -85,7 +85,9 @@ function normalizeConfig({ platform, config }) {
 
   config.plugins = [
     ...(config.plugins || []),
-    !isJest && ['@sentry/babel-plugin-component-annotate'],
+    isDev &&
+      !isJest &&
+      !isNative && ['@sentry/babel-plugin-component-annotate'],
     [
       // Expose env variable to app client-side code, so you can access it like `process.env.XXXXX`
       'transform-inline-environment-variables',

@@ -1,7 +1,6 @@
 import { debounce, merge } from 'lodash';
 import natsort from 'natsort';
 
-import appGlobals from '../appGlobals';
 import appStorage from '../storage/appStorage';
 
 import type { BaseScene } from './base/baseScene';
@@ -23,7 +22,7 @@ function buildLoggerConfig(): ILoggerConfig {
     enabled: {},
   };
   const defaultLoggerInstance =
-    (appGlobals.$defaultLogger as unknown as Record<string, BaseScope>) || {};
+    (globalThis.$$defaultLogger as unknown as Record<string, BaseScope>) || {};
   Object.keys(defaultLoggerInstance)
     .sort((a, b) => natsort({ insensitive: true })(a, b))
     .forEach((scope) => {

@@ -6,7 +6,7 @@ import type { RSAKey } from 'jsrsasign';
 
 const KEY_LENGTH = 1024;
 
-function rsaGenerateKeypair() {
+function generateKeypair() {
   const rsaKeypair = KEYUTIL.generateKeypair('RSA', KEY_LENGTH);
   return {
     publicKey: KEYUTIL.getPEM(rsaKeypair.pubKeyObj),
@@ -35,4 +35,4 @@ function rsaDecrypt(privateKey: string, encryptData: string) {
   }
 }
 
-export { rsaGenerateKeypair, rsaEncrypt, rsaDecrypt };
+export { generateKeypair, rsaEncrypt, rsaDecrypt };

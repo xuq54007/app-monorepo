@@ -1,13 +1,12 @@
 import qs from 'querystring';
 
-import { debounce, isArray, isNil, isObject, omitBy } from 'lodash';
+import { isArray, isNil, isObject, omitBy } from 'lodash';
 
 import {
   backgroundClass,
   backgroundMethod,
 } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import { getNetworkIdsMap } from '@onekeyhq/shared/src/config/networkIds';
-import { buildAccountLocalAssetsKey } from '@onekeyhq/shared/src/utils/accountUtils';
 import { memoizee } from '@onekeyhq/shared/src/utils/cacheUtils';
 import timerUtils from '@onekeyhq/shared/src/utils/timerUtils';
 import { EServiceEndpointEnum } from '@onekeyhq/shared/types/endpoint';
@@ -23,7 +22,6 @@ import { EReasonForNeedPassword } from '@onekeyhq/shared/types/setting';
 
 import ServiceBase from './ServiceBase';
 
-import type { IDBAccount } from '../dbs/local/types';
 import type { DeviceUploadResourceParams } from '@onekeyfe/hd-core';
 
 @backgroundClass()
@@ -33,8 +31,6 @@ class ServiceNFT extends ServiceBase {
   }
 
   _fetchAccountNFTsControllers: AbortController[] = [];
-
-  _localAccountNFTsCache: Record<string, IAccountNFT[]> = {};
 
   @backgroundMethod()
   public async uploadNFTImageToDevice(params: {
@@ -68,7 +64,6 @@ class ServiceNFT extends ServiceBase {
   @backgroundMethod()
   public async fetchAccountNFTs(params: IFetchAccountNFTsParams) {
     const {
-      dbAccount,
       accountId,
       networkId,
       isAllNetworks,
@@ -78,8 +73,6 @@ class ServiceNFT extends ServiceBase {
       saveToLocal,
       ...rest
     } = params;
-
-    // console.log('fetchAccountNFTs', params);
 
     if (
       isAllNetworks &&
@@ -96,12 +89,10 @@ class ServiceNFT extends ServiceBase {
 
     const [xpub, accountAddress] = await Promise.all([
       this.backgroundApi.serviceAccount.getAccountXpub({
-        dbAccount,
         accountId,
         networkId,
       }),
       this.backgroundApi.serviceAccount.getAccountAddressForApi({
-        dbAccount,
         accountId,
         networkId,
       }),
@@ -152,7 +143,6 @@ class ServiceNFT extends ServiceBase {
 
     if (saveToLocal) {
       await this.updateAccountLocalNFTs({
-        dbAccount,
         accountId,
         networkId,
         nfts: resp.data.data.data,
@@ -246,64 +236,41 @@ class ServiceNFT extends ServiceBase {
 
   @backgroundMethod()
   public async updateAccountLocalNFTs(params: {
-    dbAccount?: IDBAccount;
     accountId: string;
     networkId: string;
     nfts: IAccountNFT[];
   }) {
-    const { dbAccount, accountId, networkId, nfts } = params;
+    const { accountId, networkId, nfts } = params;
     const [xpub, accountAddress] = await Promise.all([
       this.backgroundApi.serviceAccount.getAccountXpub({
-        dbAccount,
         accountId,
         networkId,
       }),
       this.backgroundApi.serviceAccount.getAccountAddressForApi({
-        dbAccount,
         accountId,
         networkId,
       }),
     ]);
-
-    const key = buildAccountLocalAssetsKey({
+    await this.backgroundApi.simpleDb.localNFTs.updateAccountNFTs({
       networkId,
       accountAddress,
       xpub,
+      nfts,
     });
-
-    this._localAccountNFTsCache[key] = nfts;
-    await this._updateAccountLocalNFTsDebounced();
   }
-
-  _updateAccountLocalNFTsDebounced = debounce(
-    async () => {
-      await this.backgroundApi.simpleDb.localNFTs.updateAccountNFTsByCache(
-        this._localAccountNFTsCache,
-      );
-      this._localAccountNFTsCache = {};
-    },
-    3000,
-    {
-      leading: false,
-      trailing: true,
-    },
-  );
 
   @backgroundMethod()
   public async getAccountLocalNFTs(params: {
-    dbAccount?: IDBAccount;
     accountId: string;
     networkId: string;
   }) {
-    const { dbAccount, accountId, networkId } = params;
+    const { accountId, networkId } = params;
     const [xpub, accountAddress] = await Promise.all([
       this.backgroundApi.serviceAccount.getAccountXpub({
-        dbAccount,
         accountId,
         networkId,
       }),
       this.backgroundApi.serviceAccount.getAccountAddressForApi({
-        dbAccount,
         accountId,
         networkId,
       }),

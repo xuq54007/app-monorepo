@@ -1,5 +1,3 @@
-import appGlobals from '../appGlobals';
-
 import { AccountScope } from './scopes/account';
 import { AccountSelectorScope } from './scopes/accountSelector';
 import { AddressInputScope } from './scopes/addressInput';
@@ -58,6 +56,6 @@ export class DefaultLogger {
 }
 
 const defaultLogger = new DefaultLogger();
-appGlobals.$defaultLogger = defaultLogger;
+globalThis.$$defaultLogger = defaultLogger;
 
 export { defaultLogger };

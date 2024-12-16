@@ -28,8 +28,6 @@ import { EDAppModalPageStatus } from '@onekeyhq/shared/types/dappConnection';
 import { ESendFeeStatus } from '@onekeyhq/shared/types/fee';
 import { ESendPreCheckTimingEnum } from '@onekeyhq/shared/types/send';
 
-import { SendConfirmProviderMirror } from '../../components/SendConfirmProvider/SendConfirmProviderMirror';
-
 import SendConfirmActionsContainer from './SendConfirmActionsContainer';
 import TxActionsContainer from './TxActionsContainer';
 import { TxAdvancedSettingsContainer } from './TxAdvancedSettingsContainer';
@@ -260,12 +258,8 @@ function SendConfirmContainer() {
   );
 }
 
-const SendConfirmContainerWithProvider = memo(() => (
-  <SendConfirmProviderMirror>
-    <SendConfirmContainer />
-  </SendConfirmProviderMirror>
-));
-SendConfirmContainerWithProvider.displayName =
-  'SendConfirmContainerWithProvider';
+const SendConfirmContainerWithProvider = memo(
+  withSendConfirmProvider(SendConfirmContainer),
+);
 
 export { SendConfirmContainer, SendConfirmContainerWithProvider };

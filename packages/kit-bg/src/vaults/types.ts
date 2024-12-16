@@ -247,10 +247,6 @@ export type IVaultSettings = {
   canEditData?: boolean;
 
   withTxMessage?: boolean;
-
-  fixConfirmedTxEnabled?: boolean;
-
-  supportBatchEstimateFee?: Record<string, boolean>;
 };
 
 export type IVaultFactoryOptions = {
@@ -527,7 +523,6 @@ export interface IBuildDecodedTxParams {
   unsignedTx: IUnsignedTxPro;
   feeInfo?: ISendSelectedFeeInfo;
   transferPayload?: ITransferPayload;
-  saveToLocalHistory?: boolean;
 }
 export interface IBuildUnsignedTxParams {
   unsignedTx?: IUnsignedTxPro;
@@ -541,7 +536,6 @@ export interface IBuildUnsignedTxParams {
   prevNonce?: number;
   feeInfo?: IFeeInfoUnit;
   transferPayload?: ITransferPayload;
-  isInternalSwap?: boolean;
 }
 
 export type ITokenApproveInfo = { allowance: string; isUnlimited: boolean };
@@ -615,9 +609,6 @@ export interface IBuildHistoryTxParams {
   localHistoryPendingTxs?: IAccountHistoryTx[];
   index?: number;
   allNetworkHistoryExtraItems?: IAllNetworkHistoryExtraItem[];
-  dbAccountCache?: {
-    [accountId: string]: IDBAccount;
-  };
 }
 
 export type IGetPrivateKeyFromImportedParams = {

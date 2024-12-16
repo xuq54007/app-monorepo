@@ -1,6 +1,5 @@
 import Axios from 'axios';
 
-import appGlobals from '../appGlobals';
 import platformEnv from '../platformEnv';
 import { headerPlatform } from '../request/Interceptor';
 
@@ -124,4 +123,4 @@ export class Analytics {
 }
 
 export const analytics = new Analytics();
-appGlobals.$analytics = analytics;
+globalThis.$analytics = analytics;

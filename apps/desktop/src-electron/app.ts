@@ -44,14 +44,11 @@ import * as store from './libs/store';
 import { parseContentPList } from './libs/utils';
 import initProcess, { restartBridge } from './process';
 import { resourcesPath, staticPath } from './resoucePath';
-import { initSentry } from './sentry';
 import {
   checkAvailabilityAsync,
   requestVerificationAsync,
   startServices,
 } from './service';
-
-initSentry();
 
 logger.initialize();
 logger.transports.file.maxSize = 1024 * 1024 * 10;
@@ -330,6 +327,8 @@ function handleDeepLinkUrl(
     platform: process.platform,
   };
 
+  console.log('handleDeepLinkUrl >>>> ', eventData);
+
   const sendEventData = () => {
     isAppReady = true;
 
@@ -537,19 +536,6 @@ function createMainWindow() {
   });
 
   ipcMain.on(
-    ipcMessageKeys.APP_UPDATE_DISABLE_SHORTCUTS,
-    (
-      event,
-      params: {
-        disableNumberShortcuts: boolean;
-        disableSearchAndAccountSelectorShortcuts: boolean;
-      },
-    ) => {
-      store.setDisableKeyboardShortcuts(params);
-    },
-  );
-
-  ipcMain.on(
     ipcMessageKeys.APP_GET_MEDIA_ACCESS_STATUS,
     (event, prefType: IMediaType) => {
       const result = systemPreferences?.getMediaAccessStatus?.(prefType);
@@ -723,10 +709,6 @@ function createMainWindow() {
 
   ipcMain.on(ipcMessageKeys.APP_OPEN_LOGGER_FILE, () => {
     void shell.openPath(path.dirname(logger.transports.file.getFile().path));
-  });
-
-  ipcMain.on(ipcMessageKeys.APP_TEST_CRASH, () => {
-    throw new Error('Test Electron Native crash');
   });
 
   ipcMain.on(ipcMessageKeys.CLEAR_WEBVIEW_CACHE, () => {
@@ -1034,3 +1016,8 @@ app.on('will-finish-launching', () => {
   // @ts-expect-error
   app.on('open-url', handleDeepLinkUrl);
 });
+
+logger.info(' ========= Desktop main app start!!!!!!!!!!!!!  ========== ');
+const userDataPath = app.getPath('userData');
+console.log(JSON.stringify({ userDataPath }, null, 2));
+logger.info(' =================== ');

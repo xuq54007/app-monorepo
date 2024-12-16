@@ -30,8 +30,8 @@ class RealmSchemaConnectedSite extends RealmObjectBase<IDBConnectedSite> {
   get record(): IDBConnectedSite {
     return {
       id: this.id,
-      networkIds: Array.from(this.networkIds || []),
-      addresses: Array.from(this.addresses || []),
+      networkIds: this.networkIds,
+      addresses: this.addresses,
       url: this.url,
       createdAt: this.createdAt,
     };

@@ -1,5 +1,4 @@
 /* eslint-disable new-cap */
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import { INTERNAL_METHOD_PREFIX } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import { memoizee } from '@onekeyhq/shared/src/utils/cacheUtils';
 
@@ -32,7 +31,7 @@ const createOffscreenApiModule = memoizee(
             };
             // chrome.runtime.sendMessage(message);
             // TODO backgroundApiProxyInOffscreen
-            void appGlobals.extJsBridgeOffscreenToBg.request({ data: message });
+            void globalThis.extJsBridgeOffscreenToBg.request({ data: message });
           });
         }
         return HardwareLowLevelSDK;

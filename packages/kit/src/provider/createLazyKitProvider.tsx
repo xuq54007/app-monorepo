@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 
 // import '../background/instance/backgroundApiProxy';
 
-// TODO why not use lazy feature?
 export function createLazyKitProviderLegacy({
   displayName,
 }: {

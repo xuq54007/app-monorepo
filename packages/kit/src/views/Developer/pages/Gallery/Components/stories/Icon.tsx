@@ -25,7 +25,6 @@ const IconGallery = () => (
             <Icon name="AirpodsSolid" color="$iconHover" />
             <Icon name="AirpodsSolid" color="$iconInverse" />
             <Icon name="AirpodsSolid" color="$iconActive" />
-            <Icon name="AirpodsSolid" color="$iconSuccess" />
           </XStack>
         ),
       },

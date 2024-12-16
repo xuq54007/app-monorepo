@@ -1,15 +1,8 @@
 import type { PropsWithChildren } from 'react';
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 
 import type { IXStackProps } from '@onekeyhq/components';
-import {
-  DebugRenderTracker,
-  Divider,
-  Skeleton,
-  Stack,
-  XStack,
-  YStack,
-} from '@onekeyhq/components';
+import { Divider, Skeleton, Stack, XStack, YStack } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import NumberSizeableTextWrapper from '@onekeyhq/kit/src/components/NumberSizeableTextWrapper';
 import { ReviewControl } from '@onekeyhq/kit/src/components/ReviewControl';
@@ -48,7 +41,13 @@ function ActionsRowContainer(props: PropsWithChildren<IXStackProps>) {
   );
 }
 
-function TokenDetailsHeader(props: IProps) {
+function TokenDetailsHeader(
+  props: IProps & {
+    setOverviewInit: (value: boolean) => void;
+    overviewInit: boolean;
+    historyInit: boolean;
+  },
+) {
   const {
     accountId,
     networkId,
@@ -58,6 +57,9 @@ function TokenDetailsHeader(props: IProps) {
     tokenInfo,
     isAllNetworks,
     indexedAccountId,
+    setOverviewInit,
+    overviewInit,
+    historyInit,
   } = props;
   const navigation = useAppNavigation();
 
@@ -77,6 +79,11 @@ function TokenDetailsHeader(props: IProps) {
     deriveType,
   });
 
+  const initialized = useMemo(
+    () => overviewInit && historyInit,
+    [overviewInit, historyInit],
+  );
+
   const { result: tokenDetails, isLoading: isLoadingTokenDetails } =
     usePromiseResult(
       async () => {
@@ -86,9 +93,10 @@ function TokenDetailsHeader(props: IProps) {
             networkId,
             contractList: [tokenInfo.address],
           });
+        setOverviewInit(true);
         return tokensDetails[0];
       },
-      [accountId, networkId, tokenInfo.address],
+      [accountId, networkId, setOverviewInit, tokenInfo.address],
       {
         watchLoading: true,
       },
@@ -110,7 +118,6 @@ function TokenDetailsHeader(props: IProps) {
             logoURI: tokenInfo.logoURI,
             networkLogoURI: network?.logoURI,
           },
-          importDeriveType: deriveType,
           ...(actionType && {
             swapTabSwitchType: actionType,
           }),
@@ -127,7 +134,6 @@ function TokenDetailsHeader(props: IProps) {
       tokenInfo.logoURI,
       tokenInfo.name,
       tokenInfo.symbol,
-      deriveType,
     ],
   );
 
@@ -186,108 +192,111 @@ function TokenDetailsHeader(props: IProps) {
   ]);
 
   return (
-    <DebugRenderTracker timesBadgePosition="top-right">
-      <>
-        {/* Overview */}
-        <Stack px="$5" py="$5">
-          {/* Balance */}
-          <XStack alignItems="center" mb="$5">
-            {renderTokenIcon()}
-            <Stack ml="$3" flex={1}>
-              {isLoadingTokenDetails ? (
-                <YStack>
-                  <Stack py="$1.5">
-                    <Skeleton h="$6" w="$40" />
-                  </Stack>
-                  <Stack py="$1">
-                    <Skeleton h="$4" w="$28" />
-                  </Stack>
-                </YStack>
-              ) : (
-                <>
-                  <NumberSizeableTextWrapper
-                    hideValue
-                    size="$heading3xl"
-                    formatter="balance"
-                    formatterOptions={{ tokenSymbol: tokenInfo.symbol }}
-                  >
-                    {tokenDetails?.balanceParsed ?? '0'}
-                  </NumberSizeableTextWrapper>
-                  <NumberSizeableTextWrapper
-                    hideValue
-                    formatter="value"
-                    formatterOptions={{
-                      currency: settings.currencyInfo.symbol,
-                    }}
-                    color="$textSubdued"
-                    size="$bodyLgMedium"
-                  >
-                    {tokenDetails?.fiatValue ?? '0'}
-                  </NumberSizeableTextWrapper>
-                </>
-              )}
-            </Stack>
-          </XStack>
-          {/* Actions */}
-          <RawActions flexDirection="column" gap="$5">
-            <ActionsRowContainer>
-              <ReviewControl>
-                <ActionBuy
-                  networkId={networkId}
-                  accountId={accountId}
-                  walletType={wallet?.type}
-                  tokenAddress={tokenInfo.address}
-                />
-              </ReviewControl>
+    <>
+      {/* Overview */}
+      <Stack px="$5" py="$5">
+        {/* Balance */}
+        <XStack alignItems="center" mb="$5">
+          {renderTokenIcon()}
+          <Stack ml="$3" flex={1}>
+            {isLoadingTokenDetails ? (
+              <YStack>
+                <Stack py="$1.5">
+                  <Skeleton h="$6" w="$40" />
+                </Stack>
+                <Stack py="$1">
+                  <Skeleton h="$4" w="$28" />
+                </Stack>
+              </YStack>
+            ) : (
+              <>
+                <NumberSizeableTextWrapper
+                  hideValue
+                  size="$heading3xl"
+                  formatter="balance"
+                  formatterOptions={{ tokenSymbol: tokenInfo.symbol }}
+                >
+                  {tokenDetails?.balanceParsed ?? '0'}
+                </NumberSizeableTextWrapper>
+                <NumberSizeableTextWrapper
+                  hideValue
+                  formatter="value"
+                  formatterOptions={{
+                    currency: settings.currencyInfo.symbol,
+                  }}
+                  color="$textSubdued"
+                  size="$bodyLgMedium"
+                >
+                  {tokenDetails?.fiatValue ?? '0'}
+                </NumberSizeableTextWrapper>
+              </>
+            )}
+          </Stack>
+        </XStack>
+        {/* Actions */}
+        <RawActions flexDirection="column" gap="$5">
+          <ActionsRowContainer>
+            <ReviewControl>
+              <ActionBuy
+                networkId={networkId}
+                accountId={accountId}
+                walletType={wallet?.type}
+                tokenAddress={tokenInfo.address}
+                disabled={!initialized}
+              />
+            </ReviewControl>
 
-              <RawActions.Swap
-                onPress={handleOnSwap}
-                disabled={disableSwapAction}
+            <RawActions.Swap
+              onPress={handleOnSwap}
+              disabled={disableSwapAction || !initialized}
+            />
+            <RawActions.Bridge
+              onPress={handleOnBridge}
+              disabled={disableSwapAction || !initialized}
+            />
+            <ReviewControl>
+              <ActionSell
+                networkId={networkId}
+                accountId={accountId}
+                walletType={wallet?.type}
+                tokenAddress={tokenInfo.address}
+                disabled={!initialized}
               />
-              <RawActions.Bridge
-                onPress={handleOnBridge}
-                disabled={disableSwapAction}
-              />
-              <ReviewControl>
-                <ActionSell
-                  networkId={networkId}
-                  accountId={accountId}
-                  walletType={wallet?.type}
-                  tokenAddress={tokenInfo.address}
-                />
-              </ReviewControl>
-            </ActionsRowContainer>
-            <ActionsRowContainer>
-              <RawActions.Send onPress={handleSendPress} />
-              <RawActions.Receive
-                disabled={isReceiveDisabled}
-                onPress={() => handleOnReceive(tokenInfo)}
-              />
-              <Stack
-                w={50}
-                $gtSm={{
-                  display: 'none',
-                }}
-              />
-              <Stack
-                w={50}
-                $gtSm={{
-                  display: 'none',
-                }}
-              />
-            </ActionsRowContainer>
-          </RawActions>
-        </Stack>
-        <TokenDetailStakingEntry
-          networkId={networkId}
-          accountId={accountId}
-          indexedAccountId={indexedAccountId}
-          tokenAddress={tokenInfo.address}
-        />
-        {/* History */}
-        <Divider mb="$3" />
-      </>
-    </DebugRenderTracker>
+            </ReviewControl>
+          </ActionsRowContainer>
+          <ActionsRowContainer>
+            <RawActions.Send
+              onPress={handleSendPress}
+              disabled={!initialized}
+            />
+            <RawActions.Receive
+              disabled={isReceiveDisabled || !initialized}
+              onPress={() => handleOnReceive(tokenInfo)}
+            />
+            <Stack
+              w={50}
+              $gtSm={{
+                display: 'none',
+              }}
+            />
+            <Stack
+              w={50}
+              $gtSm={{
+                display: 'none',
+              }}
+            />
+          </ActionsRowContainer>
+        </RawActions>
+      </Stack>
+      <TokenDetailStakingEntry
+        networkId={networkId}
+        accountId={accountId}
+        indexedAccountId={indexedAccountId}
+        tokenAddress={tokenInfo.address}
+      />
+      {/* History */}
+      <Divider mb="$3" />
+    </>
   );
 }
 

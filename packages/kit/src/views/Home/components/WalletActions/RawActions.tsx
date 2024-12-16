@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { Children } from 'react';
 
 import { useIntl } from 'react-intl';
@@ -24,7 +23,7 @@ import { ETranslations } from '@onekeyhq/shared/src/locale';
 
 export type IActionItemsProps = {
   icon?: IKeyOfIcons;
-  label?: string | ReactNode;
+  label?: string;
   showButtonStyle?: boolean;
   hiddenIfDisabled?: boolean;
   verticalContainerProps?: IStackProps;

@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo } from 'react';
 
 import BigNumber from 'bignumber.js';
 
@@ -45,23 +45,6 @@ const SwapQuoteInput = ({
   const [swapQuoteCurrentSelect] = useSwapQuoteCurrentSelectAtom();
   const [fromTokenBalance] = useSwapSelectedFromTokenBalanceAtom();
   const [toTokenBalance] = useSwapSelectedToTokenBalanceAtom();
-  const onSelectPercentageStage = useCallback(
-    (stage: number) => {
-      const fromTokenBalanceBN = new BigNumber(fromTokenBalance ?? 0);
-      const amountBN = fromTokenBalanceBN.multipliedBy(stage / 100);
-      const amountAfterDecimal = amountBN.decimalPlaces(
-        fromToken?.decimals ?? 6,
-        BigNumber.ROUND_DOWN,
-      );
-      if (
-        !amountAfterDecimal.isNaN() &&
-        validateAmountInput(amountAfterDecimal.toFixed(), fromToken?.decimals)
-      ) {
-        setFromInputAmount(amountAfterDecimal.toFixed());
-      }
-    },
-    [fromTokenBalance, fromToken?.decimals, setFromInputAmount],
-  );
   useSwapQuote();
   useSwapFromAccountNetworkSync();
   useSwapApproving();
@@ -77,7 +60,6 @@ const SwapQuoteInput = ({
             setFromInputAmount(value);
           }
         }}
-        onSelectPercentageStage={onSelectPercentageStage}
         amountValue={fromInputAmount}
         onBalanceMaxPress={() => {
           let maxAmount = fromTokenBalance;

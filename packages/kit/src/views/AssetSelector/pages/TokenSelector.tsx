@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { useRoute } from '@react-navigation/core';
 import { useIntl } from 'react-intl';
@@ -8,7 +8,10 @@ import { Page } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { TokenListView } from '@onekeyhq/kit/src/components/TokenListView';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
-import { useTokenListActions } from '@onekeyhq/kit/src/states/jotai/contexts/tokenList';
+import {
+  useTokenListActions,
+  useTokenSelectorSearchKeyAtom,
+} from '@onekeyhq/kit/src/states/jotai/contexts/tokenList';
 import type { IAllNetworkAccountInfo } from '@onekeyhq/kit-bg/src/services/ServiceAllNetwork/ServiceAllNetwork';
 import type { IVaultSettings } from '@onekeyhq/kit-bg/src/vaults/types';
 import { SEARCH_KEY_MIN_LENGTH } from '@onekeyhq/shared/src/consts/walletConsts';
@@ -33,7 +36,12 @@ const num = 0;
 
 function TokenSelector() {
   const intl = useIntl();
-  const { updateCreateAccountState } = useTokenListActions().current;
+  const {
+    updateTokenSelectorSearchKey,
+    updateTokenSelectorSearchTokenState,
+    refreshTokenSelectorSearchTokenList,
+    updateCreateAccountState,
+  } = useTokenListActions().current;
 
   const route =
     useRoute<
@@ -58,13 +66,7 @@ function TokenSelector() {
 
   const { network, account } = useAccountData({ networkId, accountId });
 
-  const [searchKey, setSearchKey] = useState('');
-  const [searchTokenState, setSearchTokenState] = useState({
-    isSearching: false,
-  });
-  const [searchTokenList, setSearchTokenList] = useState<{
-    tokens: IAccountToken[];
-  }>({ tokens: [] });
+  const [searchKey] = useTokenSelectorSearchKeyAtom();
 
   const handleTokenOnPress = useCallback(
     async (token: IAccountToken) => {
@@ -117,7 +119,6 @@ function TokenSelector() {
                 ...params,
                 includingNonExistingAccount: true,
                 deriveType,
-                excludeTestNetwork: false,
               });
             accounts = accountsInfo;
           }
@@ -201,7 +202,7 @@ function TokenSelector() {
   );
 
   const debounceUpdateSearchKey = useDebouncedCallback(
-    setSearchKey,
+    updateTokenSelectorSearchKey,
     searchAll ? 1000 : 200,
   );
 
@@ -225,7 +226,7 @@ function TokenSelector() {
 
   const searchTokensBySearchKey = useCallback(
     async (keywords: string) => {
-      setSearchTokenState({ isSearching: true });
+      updateTokenSelectorSearchTokenState({ isSearching: true });
       await backgroundApiProxy.serviceToken.abortSearchTokens();
       try {
         const result = await backgroundApiProxy.serviceToken.searchTokens({
@@ -233,30 +234,41 @@ function TokenSelector() {
           networkId,
           keywords,
         });
-        setSearchTokenList({ tokens: result });
+        refreshTokenSelectorSearchTokenList({ tokens: result });
       } catch (e) {
         console.log(e);
       }
-      setSearchTokenState({ isSearching: false });
+      updateTokenSelectorSearchTokenState({ isSearching: false });
     },
-    [accountId, networkId],
+    [
+      accountId,
+      networkId,
+      refreshTokenSelectorSearchTokenList,
+      updateTokenSelectorSearchTokenState,
+    ],
   );
 
   useEffect(() => {
     if (searchAll && searchKey && searchKey.length >= SEARCH_KEY_MIN_LENGTH) {
       void searchTokensBySearchKey(searchKey);
     } else {
-      setSearchTokenState({ isSearching: false });
-      setSearchTokenList({ tokens: [] });
+      updateTokenSelectorSearchTokenState({ isSearching: false });
+      refreshTokenSelectorSearchTokenList({ tokens: [] });
       void backgroundApiProxy.serviceToken.abortSearchTokens();
     }
-  }, [searchAll, searchKey, searchTokensBySearchKey]);
+  }, [
+    refreshTokenSelectorSearchTokenList,
+    searchAll,
+    searchKey,
+    searchTokensBySearchKey,
+    updateTokenSelectorSearchTokenState,
+  ]);
 
   return (
     <Page
       safeAreaEnabled={false}
-      onClose={() => setSearchKey('')}
-      onUnmounted={() => setSearchKey('')}
+      onClose={() => updateTokenSelectorSearchKey('')}
+      onUnmounted={() => updateTokenSelectorSearchKey('')}
     >
       <Page.Header
         title={
@@ -274,11 +286,8 @@ function TokenSelector() {
           isAllNetworks={isAllNetworks ?? network?.isAllNetworks}
           withNetwork={isAllNetworks ?? network?.isAllNetworks}
           searchAll={searchAll}
-          footerTipText={footerTipText}
           isTokenSelector
-          tokenSelectorSearchKey={searchKey}
-          tokenSelectorSearchTokenState={searchTokenState}
-          tokenSelectorSearchTokenList={searchTokenList}
+          footerTipText={footerTipText}
         />
       </Page.Body>
     </Page>

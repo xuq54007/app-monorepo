@@ -1,15 +1,10 @@
-/* eslint-disable react/no-unstable-nested-components */
-import { memo, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useRoute } from '@react-navigation/core';
 import { isEmpty } from 'lodash';
 import { useIntl } from 'react-intl';
 
-import type {
-  IActionListSection,
-  IListViewProps,
-  ISectionListProps,
-} from '@onekeyhq/components';
+import type { IActionListSection, IListViewProps } from '@onekeyhq/components';
 import {
   ActionList,
   Page,
@@ -31,7 +26,6 @@ import type {
   IAccountDeriveTypes,
 } from '@onekeyhq/kit-bg/src/vaults/types';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
-import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type {
   EModalAssetDetailRoutes,
   IModalAssetDetailsParamList,
@@ -58,13 +52,11 @@ export type IProps = {
   isBlocked?: boolean;
   riskyTokens?: string[];
   isAllNetworks?: boolean;
-  isTabView?: boolean;
   listViewContentContainerStyle?: IListViewProps<IAccountHistoryTx>['contentContainerStyle'];
   indexedAccountId?: string;
-  ListHeaderComponent?: ISectionListProps<any>['ListHeaderComponent'];
 };
 
-function TokenDetailsView() {
+function TokenDetails() {
   const intl = useIntl();
 
   const route =
@@ -165,7 +157,6 @@ function TokenDetailsView() {
     [fontColor],
   );
 
-  const listViewContentContainerStyle = useMemo(() => ({ pt: '$5' }), []);
   const tabs = useMemo(() => {
     if (accountId && networkId && walletId) {
       return result?.networkAccounts.map((item) => ({
@@ -181,9 +172,8 @@ function TokenDetailsView() {
             deriveType={item.deriveType}
             tokenInfo={tokenInfo}
             isAllNetworks={isAllNetworks}
-            listViewContentContainerStyle={listViewContentContainerStyle}
+            listViewContentContainerStyle={{ pt: '$5' }}
             indexedAccountId={account?.indexedAccountId}
-            isTabView
           />
         ),
       }));
@@ -198,36 +188,32 @@ function TokenDetailsView() {
     intl,
     tokenInfo,
     isAllNetworks,
-    listViewContentContainerStyle,
     account?.indexedAccountId,
   ]);
 
   const renderTokenDetailsView = useCallback(() => {
-    if (isLoading)
-      return (
-        <Stack
-          flex={1}
-          height="100%"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <Spinner size="large" />
-        </Stack>
-      );
     if (
       vaultSettings?.mergeDeriveAssetsEnabled &&
       isAllNetworks &&
       !accountUtils.isOthersWallet({ walletId })
     ) {
+      if (isLoading)
+        return (
+          <Stack
+            flex={1}
+            height="100%"
+            alignItems="center"
+            justifyContent="center"
+          >
+            <Spinner size="large" />
+          </Stack>
+        );
       if (tabs && !isEmpty(tabs)) {
         return (
           <Tab.Page
             data={tabs}
-            contentItemWidth={platformEnv.isNative ? undefined : (640 as any)}
             initialScrollIndex={0}
-            focusable
             showsVerticalScrollIndicator={false}
-            windowSize={tabs.length}
           />
         );
       }
@@ -244,11 +230,10 @@ function TokenDetailsView() {
         tokenInfo={tokenInfo}
         isAllNetworks={isAllNetworks}
         indexedAccountId={account?.indexedAccountId}
-        listViewContentContainerStyle={listViewContentContainerStyle}
+        listViewContentContainerStyle={{ pt: '$5' }}
       />
     );
   }, [
-    listViewContentContainerStyle,
     accountId,
     deriveInfo,
     deriveType,
@@ -263,7 +248,7 @@ function TokenDetailsView() {
   ]);
 
   return (
-    <Page safeAreaEnabled={false}>
+    <Page scrollEnabled safeAreaEnabled={false}>
       <Page.Header
         headerTitle={tokenInfo.name}
         headerTitleStyle={headerTitleStyle}
@@ -273,8 +258,6 @@ function TokenDetailsView() {
     </Page>
   );
 }
-
-const TokenDetails = memo(TokenDetailsView);
 
 export default function TokenDetailsModal() {
   return (

@@ -9,7 +9,6 @@ import { isArray, isNil, isNumber, isObject, isString } from 'lodash';
 import { Image as RNImage } from 'react-native';
 import RNFS from 'react-native-fs';
 
-import appGlobals from '../appGlobals';
 import platformEnv from '../platformEnv';
 
 import bufferUtils from './bufferUtils';
@@ -65,7 +64,7 @@ function convertToBlackAndWhiteImageBase64(
   mime: string,
 ): Promise<string> {
   if (platformEnv.isNative) {
-    return appGlobals.$webembedApiProxy.imageUtils.convertToBlackAndWhiteImageBase64(
+    return globalThis.$webembedApiProxy.imageUtils.convertToBlackAndWhiteImageBase64(
       colorImageBase64,
       mime,
     );
@@ -505,7 +504,7 @@ async function base64ImageToBitmap({
   height: number;
 }): Promise<string> {
   if (platformEnv.isNative) {
-    return appGlobals.$webembedApiProxy.imageUtils.base64ImageToBitmap({
+    return globalThis.$webembedApiProxy.imageUtils.base64ImageToBitmap({
       base64,
       width,
       height,

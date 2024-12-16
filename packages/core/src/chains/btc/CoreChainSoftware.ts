@@ -1,10 +1,11 @@
-import { sha256 as _sha256 } from '@noble/hashes/sha256';
 import {
   address as BitcoinJsAddress,
+  crypto as BitcoinJsCrypto,
   Transaction as BitcoinJsTransaction,
   Psbt,
   payments,
 } from 'bitcoinjs-lib';
+import { isTaprootInput } from 'bitcoinjs-lib/src/psbt/bip371';
 import bitcoinMessage from 'bitcoinjs-message';
 import bs58check from 'bs58check';
 import { encode as VaruintBitCoinEncode } from 'varuint-bitcoin';
@@ -56,7 +57,6 @@ import {
   validateBtcXprvt,
   validateBtcXpub,
 } from './sdkBtc';
-import { isTaprootInput } from './sdkBtc/bip371';
 import { buildPsbt } from './sdkBtc/providerUtils';
 
 import type { IGetAddressFromXpubResult } from './sdkBtc';
@@ -83,29 +83,20 @@ import type {
   ITxInputToSign,
   IUnsignedMessageBtc,
 } from '../../types';
-import type { PsbtInput } from 'bip174';
+import type { PsbtInput } from 'bip174/src/lib/interfaces';
 import type { Signer, networks } from 'bitcoinjs-lib';
 
 const curveName: ICurveName = 'secp256k1';
 // const a  = tweakSigner()
 
 const validator = (
-  pubkey: Uint8Array,
-  msghash: Uint8Array,
-  signature: Uint8Array,
-): boolean => {
-  const pubkeyBuffer = Buffer.from(pubkey);
-  const msghashBuffer = Buffer.from(msghash);
-  const signatureBuffer = Buffer.from(signature);
-
-  return verify(curveName, pubkeyBuffer, msghashBuffer, signatureBuffer);
-};
-
-export function sha256(buffer: Buffer): Buffer {
-  return Buffer.from(_sha256(Uint8Array.from(buffer)));
-}
+  pubkey: Buffer,
+  msghash: Buffer,
+  signature: Buffer,
+): boolean => verify(curveName, pubkey, msghash, signature);
 
 const bip0322Hash = (message: string) => {
+  const { sha256 } = BitcoinJsCrypto;
   const tag = 'BIP0322-signed-message';
   const tagHash = sha256(Buffer.from(tag));
   const result = sha256(
@@ -114,10 +105,8 @@ const bip0322Hash = (message: string) => {
   return result.toString('hex');
 };
 
-const encodeVarString = (buffer: Buffer) => {
-  const lengthBytes = VaruintBitCoinEncode(buffer.byteLength);
-  return Buffer.concat([Buffer.from(lengthBytes.buffer), buffer]);
-};
+const encodeVarString = (buffer: Buffer) =>
+  Buffer.concat([VaruintBitCoinEncode(buffer.byteLength), buffer]);
 
 export default class CoreChainSoftwareBtc extends CoreChainApiBase {
   async getCoinName({ network }: { network: IServerNetwork }) {
@@ -355,39 +344,28 @@ export default class CoreChainSoftwareBtc extends CoreChainApiBase {
     network,
     signer,
     input,
-    disableTweakSigner,
-    useTweakedSigner,
   }: {
     network: IBtcForkNetwork;
     signer: ISigner;
     input: PsbtInput;
-    disableTweakSigner?: boolean;
-    useTweakedSigner?: boolean;
   }): Promise<Signer> {
     const publicKey = await signer.getPubkey(true);
 
     // P2TR taproot
     if (isTaprootInput(input)) {
-      let needTweak =
-        typeof useTweakedSigner === 'boolean' ? useTweakedSigner : true;
-
-      if (!disableTweakSigner) {
-        // script path spend
-        if (
-          input.tapLeafScript &&
-          input.tapLeafScript?.length > 0 &&
-          !input.tapMerkleRoot
-        ) {
-          input.tapLeafScript.forEach((e) => {
-            if (e.controlBlock && e.script) {
-              needTweak = false;
-            }
-          });
-        }
-      } else {
-        needTweak = false;
+      let needTweak = true;
+      // script path spend
+      if (
+        input.tapLeafScript &&
+        input.tapLeafScript?.length > 0 &&
+        !input.tapMerkleRoot
+      ) {
+        input.tapLeafScript.forEach((e) => {
+          if (e.controlBlock && e.script) {
+            needTweak = false;
+          }
+        });
       }
-
       if (input.tapInternalKey) {
         const privateKey = await signer.getPrvkey();
         const tweakedSigner = tweakSigner(privateKey, publicKey, {
@@ -586,7 +564,7 @@ export default class CoreChainSoftwareBtc extends CoreChainApiBase {
     const txToSpend = new BitcoinJsTransaction();
     txToSpend.version = 0;
     txToSpend.addInput(prevoutHash, prevoutIndex, sequence, scriptSig);
-    txToSpend.addOutput(outputScript, BigInt(0));
+    txToSpend.addOutput(outputScript, 0);
 
     const psbtToSign = new Psbt();
     psbtToSign.setVersion(0);
@@ -596,13 +574,10 @@ export default class CoreChainSoftwareBtc extends CoreChainApiBase {
       sequence: 0,
       witnessUtxo: {
         script: outputScript,
-        value: BigInt(0),
+        value: 0,
       },
     });
-    psbtToSign.addOutput({
-      script: Buffer.from('6a', 'hex'),
-      value: BigInt(0),
-    });
+    psbtToSign.addOutput({ script: Buffer.from('6a', 'hex'), value: 0 });
 
     const inputsToSign = getInputsToSignFromPsbt({
       psbt: psbtToSign,
@@ -627,8 +602,8 @@ export default class CoreChainSoftwareBtc extends CoreChainApiBase {
 
     const len = VaruintBitCoinEncode(txToSign.ins[0].witness.length);
     const signature = Buffer.concat([
-      Buffer.from(len.buffer),
-      ...txToSign.ins[0].witness.map((w) => encodeVarString(Buffer.from(w))),
+      len,
+      ...txToSign.ins[0].witness.map((w) => encodeVarString(w)),
     ]);
 
     return signature;
@@ -656,28 +631,17 @@ export default class CoreChainSoftwareBtc extends CoreChainApiBase {
         network,
         signer,
         input: psbt.data.inputs[input.index],
-        disableTweakSigner: input.disableTweakSigner,
-        useTweakedSigner: input.useTweakedSigner,
       });
       await psbt.signInputAsync(input.index, bitcoinSigner, input.sighashTypes);
     }
 
     let rawTx = '';
-    let finalizedPsbtHex = '';
-    try {
-      const finalizedPsbt = Psbt.fromHex(psbt.toHex(), { network });
-      inputsToSign.forEach((v) => {
-        finalizedPsbt.finalizeInput(v.index);
-      });
-
-      if (!signOnly) {
-        rawTx = finalizedPsbt.extractTransaction().toHex();
-      }
-      finalizedPsbtHex = finalizedPsbt.toHex();
-    } catch (error) {
-      console.error('Failed to finalize PSBT:', error);
-      // if can't finalize, use original psbt
-      finalizedPsbtHex = psbt.toHex();
+    const finalizedPsbt = Psbt.fromHex(psbt.toHex(), { network });
+    inputsToSign.forEach((v) => {
+      finalizedPsbt.finalizeInput(v.index);
+    });
+    if (!signOnly) {
+      rawTx = finalizedPsbt.extractTransaction().toHex();
     }
 
     return {
@@ -685,7 +649,7 @@ export default class CoreChainSoftwareBtc extends CoreChainApiBase {
       txid: '',
       rawTx,
       psbtHex: psbt.toHex(),
-      finalizedPsbtHex,
+      finalizedPsbtHex: finalizedPsbt.toHex(),
     };
   }
 
@@ -943,45 +907,35 @@ export default class CoreChainSoftwareBtc extends CoreChainApiBase {
       let pubkeyStr5;
       try {
         const r1 = paymentsFn.p2tr({ output: b2, network });
-        pubkeyStr1 = r1?.pubkey
-          ? Buffer.from(r1.pubkey).toString('hex')
-          : undefined;
+        pubkeyStr1 = r1?.pubkey?.toString('hex');
       } catch (error) {
         // Handle the error here
       }
 
       try {
         const r2 = payments.p2pkh({ output: b2, network });
-        pubkeyStr2 = r2?.pubkey
-          ? Buffer.from(r2.pubkey).toString('hex')
-          : undefined;
+        pubkeyStr2 = r2?.pubkey?.toString('hex');
       } catch (error) {
         // Handle the error here
       }
 
       try {
         const r3 = payments.p2sh({ output: b2, network });
-        pubkeyStr3 = r3?.pubkey
-          ? Buffer.from(r3.pubkey).toString('hex')
-          : undefined;
+        pubkeyStr3 = r3?.pubkey?.toString('hex');
       } catch (error) {
         // Handle the error here
       }
 
       try {
         const r4 = payments.p2wpkh({ output: b2, network });
-        pubkeyStr4 = r4?.pubkey
-          ? Buffer.from(r4.pubkey).toString('hex')
-          : undefined;
+        pubkeyStr4 = r4?.pubkey?.toString('hex');
       } catch (error) {
         // Handle the error here
       }
 
       try {
         const r5 = payments.p2wsh({ output: b2, network });
-        pubkeyStr5 = r5?.pubkey
-          ? Buffer.from(r5.pubkey).toString('hex')
-          : undefined;
+        pubkeyStr5 = r5?.pubkey?.toString('hex');
       } catch (error) {
         // Handle the error here
       }

@@ -5,7 +5,6 @@ import {
   IMPL_ALPH,
   IMPL_APTOS,
   IMPL_BCH,
-  IMPL_BFC,
   IMPL_BTC,
   IMPL_CFX,
   IMPL_CKB,
@@ -102,7 +101,6 @@ export async function getVaultSettings({ networkId }: { networkId: string }) {
     [IMPL_ALLNETWORKS]: () => import('./impls/all/settings'),
     [IMPL_SCDO]: () => import('./impls/scdo/settings'),
     [IMPL_ALPH]: () => import('./impls/alph/settings'),
-    [IMPL_BFC]: () => import('./impls/bfc/settings'),
   };
   const loader = settingsLoader[impl];
   if (!loader) {

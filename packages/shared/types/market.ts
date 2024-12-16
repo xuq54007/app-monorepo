@@ -52,17 +52,13 @@ export interface IMarketPerformance {
   priceChangePercentage1y: number;
 }
 
-export interface IMarketDetailPlatformNetwork {
-  contract_address: string;
-  onekeyNetworkId?: string;
-  hideContractAddress?: boolean;
-  coingeckoNetworkId?: string;
-  isNative?: true;
-  tokenAddress?: string;
-}
-
 export interface IMarketDetailPlatform {
-  [key: string]: IMarketDetailPlatformNetwork;
+  [key: string]: {
+    contract_address: string;
+    onekeyNetworkId?: string;
+    hideContractAddress?: boolean;
+    coingeckoNetworkId?: string;
+  };
 }
 
 export interface IMarketResponsePool {
@@ -115,7 +111,6 @@ export interface IMarketDetailTicker {
     '-2%': string;
   } | null;
   last: number;
-  last_updated_at: string;
   logo: string;
   volume: number;
   trust_score: string;
@@ -132,7 +127,6 @@ export interface IMarketTokenDetail {
   links: IMarketDetailLinks;
   stats: IMarketDetailStats;
   detailPlatforms: IMarketDetailPlatform;
-  platforms: Record<string, string>;
   tickers?: IMarketDetailTicker[];
 }
 

@@ -47,7 +47,7 @@ const SwapRateInfoItem = ({
       cursor="pointer"
       onPress={handleExchangeRate}
     >
-      <SizableText color="$textSubdued" size="$bodyMd">
+      <SizableText color="$textSubdued" size={14}>
         {rateContent}
       </SizableText>
     </XStack>

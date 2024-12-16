@@ -1,13 +1,15 @@
+/* eslint-disable spellcheck/spell-checker */
+// Learn more https://docs.expo.dev/guides/monorepos
+const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 const fs = require('fs-extra');
-const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 // Find the project and workspace directories
 const projectRoot = __dirname;
 // This can be replaced with `find-yarn-workspace-root`
 // const workspaceRoot = path.resolve(projectRoot, '../..');
 
-const config = getSentryExpoConfig(projectRoot);
+const config = getDefaultConfig(projectRoot);
 
 config.projectRoot = projectRoot;
 

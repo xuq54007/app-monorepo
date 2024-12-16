@@ -10,7 +10,7 @@ import type { ParamListBase } from '@react-navigation/routers';
 import type { Animated, StyleProp, ViewStyle } from 'react-native';
 
 export type ICommonScreenOptions = {
-  headerShown?: boolean;
+  showHeader?: boolean;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { debounce, isEmpty } from 'lodash';
+import { AppState } from 'react-native';
 
-import {
-  getCurrentVisibilityState,
-  onVisibilityStateChange,
-} from '@onekeyhq/components';
 import { useRouteIsFocused as useIsFocused } from '@onekeyhq/kit/src/hooks/useRouteIsFocused';
 import { useNetInfo } from '@onekeyhq/shared/src/modules3rdParty/@react-native-community/netinfo';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
@@ -81,18 +78,48 @@ export function usePromiseResult<T>(
   }, [defer]);
 
   useEffect(() => {
-    const handleVisibilityStateChange = (visible: boolean) => {
-      if (visible) {
+    resolveDefer();
+    // Native app will trigger visibilityChange event
+    if (platformEnv.isNative) {
+      const subscription = AppState.addEventListener(
+        'change',
+        (nextAppState) => {
+          if (nextAppState === 'active') {
+            resolveDefer();
+            return;
+          }
+          resetDefer();
+        },
+      );
+      return () => {
+        subscription.remove();
+      };
+    }
+    // Web app will trigger visibilityChange event
+    const handleVisibilityStateChange = () => {
+      const string = document.visibilityState;
+      if (string === 'hidden') {
         resetDefer();
-      } else {
+      } else if (string === 'visible') {
         resolveDefer();
       }
     };
-    handleVisibilityStateChange(getCurrentVisibilityState());
-    const removeSubscription = onVisibilityStateChange(
+    document.addEventListener(
+      'visibilitychange',
       handleVisibilityStateChange,
+      false,
     );
-    return removeSubscription;
+    window.addEventListener('focus', resolveDefer);
+    window.addEventListener('blur', resetDefer);
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        handleVisibilityStateChange,
+        false,
+      );
+      window.removeEventListener('focus', resolveDefer);
+      window.removeEventListener('blur', resetDefer);
+    };
   }, [resetDefer, resolveDefer]);
 
   const [result, setResult] = useState<T | undefined>(

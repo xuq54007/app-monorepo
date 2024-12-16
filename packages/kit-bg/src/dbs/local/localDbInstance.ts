@@ -1,5 +1,3 @@
-import dbPerfMonitor from '@onekeyhq/shared/src/utils/debug/dbPerfMonitor';
-
 import { LocalDbIndexed } from './indexed/LocalDbIndexed';
 
 import type { LocalDbBase } from './LocalDbBase';
@@ -7,6 +5,7 @@ import type { LocalDbBase } from './LocalDbBase';
 // TODO ensureBackgroundObject
 
 const localDb: LocalDbBase = new LocalDbIndexed();
-
-dbPerfMonitor.logIndexedDBCreateTx();
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.$$localDb = localDb;
+}
 export default localDb;

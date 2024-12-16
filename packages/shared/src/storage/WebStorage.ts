@@ -1,8 +1,6 @@
 /* eslint-disable  @typescript-eslint/no-unused-vars */
 import localforage from 'localforage';
 
-import appGlobals from '../appGlobals';
-
 import type { AsyncStorageStatic } from '@react-native-async-storage/async-storage';
 import type {
   Callback,
@@ -17,7 +15,7 @@ localforage.config({
 });
 
 if (process.env.NODE_ENV !== 'production') {
-  appGlobals.$$localforage = localforage;
+  globalThis.$$localforage = localforage;
 }
 class WebStorage implements AsyncStorageStatic {
   isMigrated = false;

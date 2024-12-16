@@ -9,7 +9,7 @@ import type {
   TapBip32Derivation,
   TapInternalKey,
   WitnessUtxo,
-} from 'bip174';
+} from 'bip174/src/lib/interfaces';
 import type { Network, Signer } from 'bitcoinjs-lib';
 
 export interface IBtcForkNetwork extends Network {
@@ -60,10 +60,8 @@ export type ICoinSelectUTXO = {
   txId: string;
   vout: number;
   value: number;
-  amount: string;
   address: string;
   path: string;
-  confirmations?: number;
   forceSelect?: boolean;
 };
 
@@ -79,18 +77,11 @@ export type ICoinSelectResultPro = {
 };
 
 export type IInputsForCoinSelect = ICoinSelectUTXO[];
-export enum EOutputsTypeForCoinSelect {
-  Payment = 'payment',
-  SendMax = 'send-max',
-  OpReturn = 'opreturn',
-}
 export type IOutputsForCoinSelect = {
-  type: EOutputsTypeForCoinSelect;
   address: string;
   value?: number;
-  amount?: string;
+  isMax?: boolean;
   script?: string;
-  dataHex?: string;
 }[];
 
 export type IEncodedTxBtc = {
@@ -102,7 +93,6 @@ export type IEncodedTxBtc = {
   psbtHex?: string;
   inputsToSign?: ITxInputToSign[];
   disabledCoinSelect?: boolean;
-  txSize: number | undefined;
 };
 
 export type ITxInput = {

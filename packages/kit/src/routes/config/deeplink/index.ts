@@ -2,7 +2,6 @@ import * as Linking from 'expo-linking';
 import { isString } from 'lodash';
 
 import type { IDesktopOpenUrlEventData } from '@onekeyhq/desktop/src-electron/app';
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import type { IEOneKeyDeepLinkParams } from '@onekeyhq/shared/src/consts/deeplinkConsts';
 import {
   EOneKeyDeepLinkPath,
@@ -42,7 +41,7 @@ async function processDeepLinkUrlAccount({
       scheme === ONEKEY_APP_DEEP_LINK_NAME
     ) {
       console.log('processDeepLinkUrlAccount: >>>>> ', parsedUrl);
-      const navigation = appGlobals.$rootAppNavigation;
+      const navigation = globalThis.$rootAppNavigation;
       switch (hostname) {
         case EOneKeyDeepLinkPath.url_account: {
           const query =

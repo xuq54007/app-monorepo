@@ -21,16 +21,16 @@ function BasicCurrency({
   children,
   ...props
 }: ICurrencyProps) {
-  const [{ currencyMap }] = useCurrencyPersistAtom();
+  const [{ currencyItems }] = useCurrencyPersistAtom();
   const [{ currencyInfo }] = useSettingsPersistAtom();
   const sourceCurrencyInfo = useMemo(
-    () => currencyMap[sourceCurrency],
-    [currencyMap, sourceCurrency],
+    () => currencyItems.find((i) => i.id === sourceCurrency),
+    [currencyItems, sourceCurrency],
   );
-  const targetCurrencyInfo = useMemo(
-    () => currencyMap[targetCurrency ?? currencyInfo.id],
-    [currencyInfo.id, currencyMap, targetCurrency],
-  );
+  const targetCurrencyInfo = useMemo(() => {
+    const currencyId = targetCurrency ?? currencyInfo.id;
+    return currencyItems.find((i) => i.id === currencyId);
+  }, [currencyInfo.id, currencyItems, targetCurrency]);
 
   const value = useMemo(
     () =>

@@ -158,7 +158,6 @@ export type IDecodedTxTransferInfo = {
   isOwn?: boolean; // for UTXO
   label?: string;
   price?: string;
-  networkId?: string;
 };
 
 export type IDecodedTxActionFunctionCall = IDecodedTxActionBase & {

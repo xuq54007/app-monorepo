@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import BigNumber from 'bignumber.js';
 import { isNaN, isNil } from 'lodash';
@@ -107,7 +107,6 @@ function TxAdvancedSettingsContainer(props: IProps) {
   const canEditNonce = useMemo(
     () =>
       unsignedTxs.length === 1 &&
-      !unsignedTxs[0].isInternalSwap &&
       vaultSettings?.canEditNonce &&
       settings.isCustomNonceEnabled &&
       !isNil(unsignedTxs[0].nonce),
@@ -250,10 +249,6 @@ function TxAdvancedSettingsContainer(props: IProps) {
       updateTxAdvancedSettings,
     ],
   );
-
-  useEffect(() => {
-    form.setValue('data', dataContent);
-  }, [dataContent, form]);
 
   if (
     isInternalStakingTx ||

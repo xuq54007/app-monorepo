@@ -206,22 +206,6 @@ const settings: IVaultSettings = {
   stakingConfig,
 
   withTxMessage: true,
-
-  supportBatchEstimateFee: {
-    [networkIdMap.eth]: true,
-    [networkIdMap.sepolia]: true,
-    [networkIdMap.arbitrum]: true,
-    [networkIdMap.avalanche]: true,
-    [networkIdMap.base]: true,
-    [networkIdMap.optimism]: true,
-    [networkIdMap.polygon]: true,
-    [networkIdMap.blast]: true,
-    [networkIdMap.bob]: true,
-    [networkIdMap.metis]: true,
-    [networkIdMap.mode]: true,
-    [networkIdMap.taiko]: true,
-    [networkIdMap.mantle]: true,
-  },
 };
 
 export default Object.freeze(settings);

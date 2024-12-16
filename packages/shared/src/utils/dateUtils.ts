@@ -38,7 +38,6 @@ export type IFormatDateOptions = {
   hideTimeForever?: boolean;
   hideSeconds?: boolean;
   formatTemplate?: string;
-  hideMilliseconds?: boolean;
 };
 
 export type IFormatMonthOptions = {
@@ -218,15 +217,10 @@ export function formatTime(date: Date | string, options?: IFormatDateOptions) {
     parsedDate = date;
   }
 
-  // HH:mm:ss.SSS
-  let formatTemplate = options?.formatTemplate || 'HH:mm:ss.SSS';
+  let formatTemplate = options?.formatTemplate || 'HH:mm:ss';
 
   if (options?.hideSeconds) {
     formatTemplate = formatTemplate.replace('HH:mm:ss', 'HH:mm');
-  }
-
-  if (options?.hideMilliseconds) {
-    formatTemplate = formatTemplate.replace('.SSS', '');
   }
 
   return formatDateFns(parsedDate, formatTemplate) ?? '';
@@ -244,9 +238,3 @@ export function formatMillisecondsToBlocks(
   const seconds = millisecondsToSeconds(milliseconds);
   return Math.ceil(seconds / blockIntervalSeconds);
 }
-
-export default {
-  formatDate,
-  formatMonth,
-  formatTime,
-};

@@ -88,11 +88,11 @@ function StakeTypeBadge({
     </Stack>
   );
 }
-function AssetProtocolIntroButton({
+const AssetProtocolIntroButton = ({
   providerTypes,
 }: {
   providerTypes?: IStakeProtocolListItem['provider']['type'][];
-}) {
+}) => {
   const intl = useIntl();
   const onPress = useCallback(() => {
     Dialog.show({
@@ -111,13 +111,13 @@ function AssetProtocolIntroButton({
       onPress={onPress}
     />
   ) : null;
-}
+};
 
-function ProviderTypeBadge({
+const ProviderTypeBadge = ({
   type,
 }: {
   type?: IStakeProtocolListItem['provider']['type'];
-}) {
+}) => {
   const intl = useIntl();
   if (!type) {
     return null;
@@ -128,13 +128,13 @@ function ProviderTypeBadge({
       ? intl.formatMessage({ id: ETranslations.earn_native_staking })
       : intl.formatMessage({ id: ETranslations.earn_liquid_staking });
   return <StakeTypeBadge stakeType={stakeType} label={label} />;
-}
+};
 
-function AssetProtocolListContent({
+const AssetProtocolListContent = ({
   items,
 }: {
   items: IStakeProtocolListItem[];
-}) {
+}) => {
   const appRoute = useAppRoute<
     IModalStakingParamList,
     EModalStakingRoutes.AssetProtocolList
@@ -217,29 +217,27 @@ function AssetProtocolListContent({
       )}
     />
   );
-}
+};
 
-function LoadingSkeleton() {
-  return (
-    <Stack>
-      {Array.from({ length: 3 }).map((_, index) => (
-        <ListItem key={index}>
-          <Skeleton w="$10" h="$10" borderRadius="$2" />
-          <YStack>
-            <YStack py="$1">
-              <Skeleton h="$4" w={120} borderRadius="$2" />
-            </YStack>
-            <YStack py="$1">
-              <Skeleton h="$3" w={80} borderRadius="$2" />
-            </YStack>
+const LoadingSkeleton = () => (
+  <Stack>
+    {Array.from({ length: 3 }).map((_, index) => (
+      <ListItem key={index}>
+        <Skeleton w="$10" h="$10" borderRadius="$2" />
+        <YStack>
+          <YStack py="$1">
+            <Skeleton h="$4" w={120} borderRadius="$2" />
           </YStack>
-        </ListItem>
-      ))}
-    </Stack>
-  );
-}
+          <YStack py="$1">
+            <Skeleton h="$3" w={80} borderRadius="$2" />
+          </YStack>
+        </YStack>
+      </ListItem>
+    ))}
+  </Stack>
+);
 
-function AssetProtocolList() {
+const AssetProtocolList = () => {
   const appRoute = useAppRoute<
     IModalStakingParamList,
     EModalStakingRoutes.AssetProtocolList
@@ -286,7 +284,7 @@ function AssetProtocolList() {
               : ETranslations.provider_title,
           },
           {
-            symbol: symbol.toUpperCase(),
+            symbol,
           },
         )}
         headerRight={headerRight}
@@ -305,6 +303,6 @@ function AssetProtocolList() {
       </Page.Body>
     </Page>
   );
-}
+};
 
 export default AssetProtocolList;

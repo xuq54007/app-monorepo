@@ -2,10 +2,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Toast } from '@onekeyhq/components';
 import { SyncHomeAccountToDappAccountProvider } from '@onekeyhq/kit/src/views/Discovery/components/SyncDappAccountToHomeProvider';
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import LazyLoad from '@onekeyhq/shared/src/lazyLoad';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
-import { useDebugComponentRemountLog } from '@onekeyhq/shared/src/utils/debug/debugUtils';
+import { useDebugComponentRemountLog } from '@onekeyhq/shared/src/utils/debugUtils';
 
 import { GlobalJotaiReady } from '../components/GlobalJotaiReady';
 import PasswordVerifyPromptMount from '../components/Password/container/PasswordVerifyPromptMount';
@@ -13,7 +12,6 @@ import { SystemLocaleTracker } from '../components/SystemLocaleTracker';
 
 import { ColdStartByNotification, Container } from './Container';
 import InAppNotification from './Container/InAppNotification';
-import { NetworkReachabilityTracker } from './Container/NetworkReachabilityTracker';
 import { StateActiveContainer } from './Container/StateActiveContainer';
 import { SplashProvider } from './SplashProvider';
 import { ThemeProvider } from './ThemeProvider';
@@ -25,7 +23,9 @@ if (platformEnv.isRuntimeBrowser) {
   globalThis._frameTimestamp = null;
 }
 
-appGlobals.$Toast = Toast;
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.$$Toast = Toast;
+}
 
 const LastActivityTracker = LazyLoad(
   () => import('../components/LastActivityTracker'),
@@ -46,7 +46,6 @@ export function KitProvider(props: any = {}) {
     <GlobalJotaiReady>
       <GestureHandlerRootView style={flexStyle}>
         <ThemeProvider>
-          <NetworkReachabilityTracker />
           <SplashProvider>
             <Container />
           </SplashProvider>

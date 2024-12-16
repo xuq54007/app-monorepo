@@ -54,15 +54,13 @@ import {
   type IModalWalletAddressParamList,
 } from '@onekeyhq/shared/src/routes';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
-import debugUtils, {
-  useDebugHooksDepsChangedChecker,
-} from '@onekeyhq/shared/src/utils/debug/debugUtils';
-import perfUtils, {
-  EPerformanceTimerLogNames,
-} from '@onekeyhq/shared/src/utils/debug/perfUtils';
+import debugUtils from '@onekeyhq/shared/src/utils/debugUtils';
 import networkUtils, {
   isEnabledNetworksInAllNetworks,
 } from '@onekeyhq/shared/src/utils/networkUtils';
+import perfUtils, {
+  EPerformanceTimerLogNames,
+} from '@onekeyhq/shared/src/utils/perfUtils';
 import {
   EAccountSelectorSceneName,
   type IServerNetwork,
@@ -140,7 +138,7 @@ function WalletAddressDeriveTypeItem({ network }: { network: IServerNetwork }) {
     };
   }, [networkAccountMap, network.id]);
 
-  const isEnabledNetwork = !!isAllNetworksEnabled[network.id];
+  const isEnabledNetwork = isAllNetworksEnabled[network.id];
   const { deriveAccountsEnabledCount, isDeriveAccountsInitialized } = memoData;
 
   const onPress = useCallback(() => {
@@ -154,15 +152,17 @@ function WalletAddressDeriveTypeItem({ network }: { network: IServerNetwork }) {
       }) => {
         if (isAccountCreated) {
           refreshLocalData();
-          setIsAllNetworksEnabled((prev) => ({
-            ...prev,
-            [network.id]: true,
-          }));
-          await backgroundApiProxy.serviceAllNetwork.updateAllNetworksState({
-            enabledNetworks: {
+          if (!network.isTestnet) {
+            setIsAllNetworksEnabled((prev) => ({
+              ...prev,
               [network.id]: true,
-            },
-          });
+            }));
+            await backgroundApiProxy.serviceAllNetwork.updateAllNetworksState({
+              enabledNetworks: {
+                [network.id]: true,
+              },
+            });
+          }
         }
       },
       actionType: EDeriveAddressActionType.Copy,
@@ -171,6 +171,7 @@ function WalletAddressDeriveTypeItem({ network }: { network: IServerNetwork }) {
     appNavigation,
     indexedAccountId,
     network.id,
+    network.isTestnet,
     refreshLocalData,
     setIsAllNetworksEnabled,
   ]);
@@ -197,7 +198,9 @@ function WalletAddressDeriveTypeItem({ network }: { network: IServerNetwork }) {
     if (isEnabled) {
       return (
         <IconButton
-          disabled={isOnlyOneNetworkVisible ? isEnabledNetwork : undefined}
+          disabled={
+            (isOnlyOneNetworkVisible && isEnabledNetwork) || network.isTestnet
+          }
           title={
             isEnabledNetwork
               ? intl.formatMessage({
@@ -213,6 +216,7 @@ function WalletAddressDeriveTypeItem({ network }: { network: IServerNetwork }) {
             color: isEnabledNetwork ? '$iconSubdued' : '$iconDisabled',
           }}
           onPress={async () => {
+            if (network.isTestnet) return;
             setIsAllNetworksEnabled((prev) => ({
               ...prev,
               [network.id]: !isEnabledNetwork,
@@ -257,6 +261,7 @@ function WalletAddressDeriveTypeItem({ network }: { network: IServerNetwork }) {
     isEnabled,
     isOnlyOneNetworkVisible,
     isEnabledNetwork,
+    network.isTestnet,
     network.name,
     network.id,
     intl,
@@ -319,7 +324,7 @@ function WalletAddressListItemIcon({
   } = useContext(WalletAddressContext);
   const intl = useIntl();
 
-  const isEnabledNetwork = !!isAllNetworksEnabled[network.id];
+  const isEnabledNetwork = isAllNetworksEnabled[network.id];
 
   const onPressEyeIcon = useCallback(async () => {
     setIsAllNetworksEnabled((prev) => ({
@@ -370,7 +375,9 @@ function WalletAddressListItemIcon({
     }
     return (
       <IconButton
-        disabled={isOnlyOneNetworkVisible ? isEnabledNetwork : undefined}
+        disabled={
+          (isOnlyOneNetworkVisible && isEnabledNetwork) || network.isTestnet
+        }
         title={
           isEnabledNetwork
             ? intl.formatMessage({
@@ -393,6 +400,7 @@ function WalletAddressListItemIcon({
     intl,
     isEnabledNetwork,
     isOnlyOneNetworkVisible,
+    network.isTestnet,
     onPressEyeIcon,
   ]);
 
@@ -469,11 +477,13 @@ function SingleWalletAddressListItem({ network }: { network: IServerNetwork }) {
           num: 0,
         });
         if (createAddressResult) {
-          setAccountsCreated(true);
-          setIsAllNetworksEnabled((prev) => ({
-            ...prev,
-            [network.id]: true,
-          }));
+          if (!network.isTestnet) {
+            setAccountsCreated(true);
+            setIsAllNetworksEnabled((prev) => ({
+              ...prev,
+              [network.id]: true,
+            }));
+          }
           await backgroundApiProxy.serviceAllNetwork.updateAllNetworksState({
             enabledNetworks: { [network.id]: true },
           });
@@ -504,6 +514,7 @@ function SingleWalletAddressListItem({ network }: { network: IServerNetwork }) {
   }, [
     account,
     network.id,
+    network.isTestnet,
     indexedAccountId,
     networkDeriveTypeMap,
     createAddress,
@@ -758,7 +769,9 @@ function WalletAddress({
       ).length > 0
     ) {
       // TODO performance, always emit when Modal open
-      appEventBus.emit(EAppEventBusNames.AccountDataUpdate, undefined);
+      setTimeout(() => {
+        appEventBus.emit(EAppEventBusNames.AccountDataUpdate, undefined);
+      }, 300);
     }
   }, [
     accountsCreated,
@@ -811,9 +824,9 @@ function WalletAddressPageMainView({
     isLoading,
   } = usePromiseResult(
     async () => {
-      const perf = perfUtils.createPerf({
-        name: EPerformanceTimerLogNames.allNetwork__walletAddressPage,
-      });
+      const perf = perfUtils.createPerf(
+        EPerformanceTimerLogNames.allNetwork__walletAddressPage,
+      );
 
       perf.markStart('getChainSelectorNetworksCompatibleWithAccountId');
       const networks =
@@ -821,6 +834,9 @@ function WalletAddressPageMainView({
           { accountId, walletId },
         );
       perf.markEnd('getChainSelectorNetworksCompatibleWithAccountId');
+
+      // hide testnet in all networks
+      networks.testnetItems = [];
 
       // perf.markStart('buildNetworkIds');
       // const networkIds = Array.from(
@@ -848,7 +864,6 @@ function WalletAddressPageMainView({
           await backgroundApiProxy.serviceAllNetwork.getAllNetworkAccounts({
             accountId,
             networkId: getNetworkIdsMap().onekeyall,
-            excludeTestNetwork: false,
           });
         networksAccount = accountsInfo;
       }
@@ -937,24 +952,8 @@ function WalletAddressPageMainView({
     result.networksAccount,
   ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { checkDeps } = useDebugHooksDepsChangedChecker(
-    'WalletAddressContextCalculate',
-  );
-
   const context = useMemo(() => {
     log('contextCalculate');
-    // checkDeps({
-    //   allNetworksState: result.allNetworksState,
-    //   networksAccount: result.networksAccount,
-    //   accountId,
-    //   indexedAccountId,
-    //   refreshLocalData,
-    //   accountsCreated,
-    //   isAllNetworksEnabled,
-    //   isOnlyOneNetworkVisible,
-    // });
-
     const networkAccountMap: Record<string, IAllNetworkAccountInfo[]> = {};
     const networkDeriveTypeMap: Record<string, IAccountDeriveTypes[]> = {};
     for (let i = 0; i < result.networksAccount.length; i += 1) {
@@ -989,7 +988,6 @@ function WalletAddressPageMainView({
     };
     return contextData;
   }, [
-    // checkDeps,
     result.allNetworksState,
     result.networksAccount,
     accountId,

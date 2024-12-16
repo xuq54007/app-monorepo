@@ -206,16 +206,10 @@ function DeriveTypeSelectorTriggerIconRenderer({
   label,
   autoShowLabel,
   onPress,
-  iconProps,
-  labelProps,
-  containerProps,
 }: {
   label?: string | undefined;
   autoShowLabel?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
-  iconProps?: ComponentProps<typeof Icon>;
-  labelProps?: ComponentProps<typeof SizableText>;
-  containerProps?: ComponentProps<typeof XStack>;
 }) {
   const media = useMedia();
   const hitSlop = platformEnv.isNative
@@ -249,22 +243,10 @@ function DeriveTypeSelectorTriggerIconRenderer({
       hitSlop={hitSlop}
       onPress={onPress}
       focusable
-      {...containerProps}
     >
-      <Icon
-        name="BranchesOutline"
-        color="$iconSubdued"
-        size="$4.5"
-        {...iconProps}
-      />
+      <Icon name="BranchesOutline" color="$iconSubdued" size="$4.5" />
       {media.gtSm && autoShowLabel ? (
-        <SizableText
-          pl="$2"
-          pr="$1"
-          size="$bodyMd"
-          color="$textSubdued"
-          {...labelProps}
-        >
+        <SizableText pl="$2" pr="$1" size="$bodyMd" color="$textSubdued">
           {label}
         </SizableText>
       ) : null}
@@ -280,27 +262,6 @@ export function DeriveTypeSelectorTriggerForHome({ num }: { num: number }) {
           label={label}
           autoShowLabel
           onPress={onPress}
-        />
-      )}
-      num={num}
-    />
-  );
-}
-
-export function DeriveTypeSelectorTriggerForSwap({ num }: { num: number }) {
-  return (
-    <DeriveTypeSelectorTrigger
-      renderTrigger={({ label, onPress }) => (
-        <DeriveTypeSelectorTriggerIconRenderer
-          label={label}
-          autoShowLabel={false}
-          onPress={onPress}
-          iconProps={{
-            size: '$4',
-          }}
-          labelProps={{
-            pl: '$1',
-          }}
         />
       )}
       num={num}
@@ -453,9 +414,7 @@ export function DeriveTypeSelectorFormInput(
           await backgroundApiProxy.serviceNetwork.getGlobalDeriveTypeOfNetwork({
             networkId,
           });
-        let fixedValue = viewItems?.[0]?.value as
-          | IAccountDeriveTypes
-          | undefined;
+        let fixedValue = viewItems?.[0].value as IAccountDeriveTypes;
         if (
           defaultDeriveType &&
           viewItems?.length &&
@@ -464,7 +423,7 @@ export function DeriveTypeSelectorFormInput(
           fixedValue = defaultDeriveType;
         }
         shouldResetDeriveTypeWhenNetworkChanged.current = false;
-        onDeriveTypeChange?.(fixedValue || 'default');
+        onDeriveTypeChange?.(fixedValue);
       }
     })();
   }, [deriveType, networkId, onDeriveTypeChange, viewItems]);

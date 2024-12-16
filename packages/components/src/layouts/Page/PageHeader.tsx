@@ -58,7 +58,7 @@ const usePageHeaderReloadOptions = () => {
   return useMemo(() => ({ reload }), [reload]);
 };
 
-function PageHeader(props: IPageHeaderProps) {
+const PageHeader = (props: IPageHeaderProps) => {
   const pageHeaderReload = usePageHeaderReloadOptions();
   const reloadOptions = pageHeaderReload.reload(props);
   const navigation = useNavigation();
@@ -82,7 +82,7 @@ function PageHeader(props: IPageHeaderProps) {
       onSearchButtonPress={headerSearchBarOptions?.onSearchButtonPress}
     />
   ) : null;
-}
+};
 
 PageHeader.usePageHeaderReloadOptions = usePageHeaderReloadOptions;
 

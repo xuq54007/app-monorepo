@@ -4,12 +4,10 @@ const {
   markJsBundleLoadedTime,
 } = require('@onekeyhq/shared/src/modules3rdParty/metrics');
 
-const { initSentry } = require('@onekeyhq/shared/src/modules3rdParty/sentry');
+import { I18nManager } from 'react-native';
 
 markJsBundleLoadedTime();
-initSentry();
 
-import { I18nManager } from 'react-native';
 import { registerRootComponent } from 'expo';
 
 import App from './App';

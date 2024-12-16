@@ -7,7 +7,6 @@ import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import appStorage, {
   mockStorage,
 } from '@onekeyhq/shared/src/storage/appStorage';
-import appStorageUtils from '@onekeyhq/shared/src/storage/appStorageUtils';
 
 import { JOTAI_RESET } from './types';
 
@@ -36,12 +35,8 @@ class JotaiStorage implements AsyncStorage<any> {
   async setItem(key: string, newValue: any): Promise<void> {
     const r = await this.getItem(key, undefined);
     if (r !== newValue) {
-      await appStorage.setItem(
-        key,
-        appStorageUtils.canSaveAsObject() && !isString(newValue)
-          ? newValue
-          : JSON.stringify(newValue),
-      );
+      // TODO JSON.stringify only for native?
+      await appStorage.setItem(key, JSON.stringify(newValue));
     }
   }
 

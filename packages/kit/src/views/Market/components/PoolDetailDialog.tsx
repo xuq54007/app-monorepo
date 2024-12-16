@@ -143,8 +143,6 @@ export function PoolDetailDialog({
             id: ETranslations.global_liquidity,
           })}
           isNumeric
-          currency
-          formatter="marketCap"
         >
           {attributes.reserveInUsd}
         </PoolDetailsItem>

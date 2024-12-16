@@ -178,14 +178,14 @@ export abstract class KeyringHardwareBtcBase extends KeyringHardwareBase {
       hash: tx.getId(),
       version: tx.version,
       inputs: tx.ins.map((i) => ({
-        prev_hash: Buffer.from(i.hash.reverse()).toString('hex'),
+        prev_hash: i.hash.reverse().toString('hex'),
         prev_index: i.index,
-        script_sig: Buffer.from(i.script).toString('hex'),
+        script_sig: i.script.toString('hex'),
         sequence: i.sequence,
       })),
       bin_outputs: tx.outs.map((o) => ({
-        amount: o.value.toString(),
-        script_pubkey: Buffer.from(o.script).toString('hex'),
+        amount: o.value,
+        script_pubkey: o.script.toString('hex'),
       })),
       lock_time: tx.locktime,
     };
@@ -284,24 +284,14 @@ export abstract class KeyringHardwareBtcBase extends KeyringHardwareBase {
     const signedPsbt = response.psbt;
 
     let rawTx = '';
-    let finalizedPsbtHex = '';
-
-    try {
-      const finalizedPsbt = BitcoinJS.Psbt.fromHex(signedPsbt, {
-        network: btcNetwork,
-      });
-      inputsToSign.forEach((v) => {
-        finalizedPsbt.finalizeInput(v.index);
-      });
-
-      if (!signOnly) {
-        rawTx = finalizedPsbt.extractTransaction().toHex();
-      }
-      finalizedPsbtHex = finalizedPsbt.toHex();
-    } catch (error) {
-      console.error('Failed to finalize hardware PSBT:', error);
-      // if can't finalize, use original signedPsbt
-      finalizedPsbtHex = signedPsbt;
+    const finalizedPsbt = BitcoinJS.Psbt.fromHex(signedPsbt, {
+      network: btcNetwork,
+    });
+    inputsToSign.forEach((v) => {
+      finalizedPsbt.finalizeInput(v.index);
+    });
+    if (!signOnly) {
+      rawTx = finalizedPsbt.extractTransaction().toHex();
     }
 
     return {
@@ -309,7 +299,7 @@ export abstract class KeyringHardwareBtcBase extends KeyringHardwareBase {
       txid: '',
       rawTx,
       psbtHex: signedPsbt,
-      finalizedPsbtHex,
+      finalizedPsbtHex: finalizedPsbt.toHex(),
     };
   }
 

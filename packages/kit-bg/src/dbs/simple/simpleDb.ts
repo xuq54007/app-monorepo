@@ -1,4 +1,3 @@
-import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { ensureRunOnBackground } from '@onekeyhq/shared/src/utils/assertUtils';
 
@@ -21,7 +20,7 @@ if (platformEnv.isExtensionUi) {
 }
 
 if (process.env.NODE_ENV !== 'production') {
-  appGlobals.$$simpleDb = simpleDb;
+  globalThis.$$simpleDb = simpleDb;
 }
 
 ensureRunOnBackground();
