@@ -26,7 +26,6 @@ export function HdWalletBackupButton({
 }: {
   wallet: IDBWallet | undefined;
 }) {
-  /*
   const navigation = useAppNavigation();
   const intl = useIntl();
 
@@ -44,9 +43,12 @@ export function HdWalletBackupButton({
     if (mnemonic) ensureSensitiveTextEncoded(mnemonic);
     navigation.pushModal(EModalRoutes.OnboardingModal, {
       screen: EOnboardingPages.BeforeShowRecoveryPhrase,
+      // params: {
+      //   mnemonic,
+      //   isBackup: true,
+      // },
       params: {
-        mnemonic,
-        isBackup: true,
+
       },
     });
 
@@ -88,21 +90,24 @@ export function HdWalletBackupButton({
             id: ETranslations.manual_backup,
           }),
           icon: 'PenOutline' as IKeyOfIcons,
-          onPress: () => void handleBackupPhrase(),
+          onPress: () => void {},
+          /**onPress: () => void handleBackupPhrase(),*/
         },
         platformEnv.isNative && {
           label: intl.formatMessage({
             id: ETranslations.global_onekey_lite,
           }),
           icon: 'OnekeyLiteOutline' as IKeyOfIcons,
-          onPress: handleBackupLiteCard,
+          onPress: () => void {},
+          /**onPress: handleBackupLiteCard,*/
         },
         {
           label: intl.formatMessage({
             id: ETranslations.global_onekey_keytag,
           }),
           icon: 'OnekeyKeytagOutline' as IKeyOfIcons,
-          onPress: () => void handleBackupKeyTag(),
+          onPress: () => void {},
+          /**onPress: () => void handleBackupKeyTag(),*/
         },
       ].filter(Boolean)}
       renderTrigger={
@@ -114,5 +119,4 @@ export function HdWalletBackupButton({
       }
     />
   );
-  */
 }
