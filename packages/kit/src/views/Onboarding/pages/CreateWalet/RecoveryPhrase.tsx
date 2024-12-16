@@ -66,7 +66,6 @@ function FocusDisplayInput({
 }
 
 export function RecoveryPhrase() {
-  /*
   const intl = useIntl();
   const navigation = useAppNavigation();
   const { copyText } = useClipboard();
@@ -259,7 +258,6 @@ export function RecoveryPhrase() {
       />
     </Page>
   );
-  */
 }
 
 export default RecoveryPhrase;
