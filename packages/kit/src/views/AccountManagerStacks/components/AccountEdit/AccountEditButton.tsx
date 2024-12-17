@@ -226,7 +226,8 @@ function AccountEditButtonView({
             account={account}
             onClose={handleActionListClose}
           />
-          {exportKeysVisible?.showExportPrivateKey ? null : null}
+          {exportKeysVisible?.showExportPrivateKey ? 
+          null : null}
           {exportKeysVisible?.showExportPublicKey ? (
             <AccountExportPrivateKeyButton
               testID={`popover-export-public-key-${name}`}
@@ -241,7 +242,8 @@ function AccountEditButtonView({
               exportType="publicKey"
             />
           ) : null}
-          {exportKeysVisible?.showExportMnemonic ? null : null}
+          {exportKeysVisible?.showExportMnemonic ? 
+          null : null}
           <AccountMoveToTopButton
             indexedAccount={indexedAccount}
             firstIndexedAccount={firstIndexedAccount}
